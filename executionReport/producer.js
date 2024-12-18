@@ -1,0 +1,88 @@
+const { Spot, WebsocketStream } = require("@binance/connector");
+const { Kafka } = require('kafkajs');
+//require dotenv
+require("dotenv").config();
+
+const apiKey = "QT7VwThPfnLXhmYeiA0fTgP01Czi4cGTs5iwLVs6cl4UbVCTfKULSwSdkfNtz6om";
+const apiSecret = "u3I0eAL1JYKg8qA1giUWNeIajBJYcr2hK29Bz3N26ubF0bUcqixUHS22R2XkpszW";
+
+const client = new Spot(apiKey, apiSecret, {
+  baseURL: "https://testnet.binance.vision",
+  timeout: 5000,
+});
+
+// Kafka client and producer setup
+const kafka = new Kafka({
+  clientId: 'binance-producer',
+  brokers: ['localhost:9092'], // Adjust your Kafka broker address
+});
+
+const producer = kafka.producer()
+
+// Connect the Kafka producer
+const connectKafka = async () => {
+  await producer.connect();
+};
+
+connectKafka();
+
+// Function to send execution report to Kafka
+const sendExecutionReportToKafka = async (topic, message) => {
+  try {
+    await producer.send({
+      topic,
+      key: JSON.stringify(message.i),
+      messages: [{ value: JSON.stringify(message)}],
+    });
+    console.log(`Sent to Kafka topic: ${topic} :${JSON.stringify(message.t)}`);
+  } catch (error) {
+    console.error(`Error sending to Kafka topic ${topic}:`, error);
+  }
+};
+
+const callbacks = {
+  open: () => console.log("Connected with Binance WebSocket server"),
+  close: () => console.log("Disconnected with Binance WebSocket server"),
+  message: async (executionReport) => {
+    const data = JSON.parse(executionReport);
+    console.log('Execution Report: ', data);
+    if (data.e === "executionReport") {
+      // console.log(`Received execution report: ${JSON.stringify(data.t)}`);
+
+        // Send to Kafka
+        await sendExecutionReportToKafka('execution-report', data);
+
+      // For updates (e.g., partially filled, filled), send to update topic
+      // if (["PARTIALLY_FILLED", "FILLED", "CANCELED"].includes(data.X)) {
+        await sendExecutionReportToKafka('execution-report-update', data);
+      // }
+    }
+  },
+};
+
+const connectExecutionReport = async () => {
+  try {
+    const websocketStreamClient = await new WebsocketStream({
+      callbacks,
+      wsURL: "wss://testnet.binance.vision",
+    });
+
+    const updateListenKey = async () => {
+      try {
+        const ListenKey = await client.createListenKey();
+        console.log(ListenKey.data.listenKey);
+        websocketStreamClient.userData(ListenKey.data.listenKey);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    await updateListenKey();
+
+    setInterval(updateListenKey, 5 * 60 * 1000); // update listen key every 20 minutes
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+connectExecutionReport();

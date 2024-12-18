@@ -1,0 +1,37 @@
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Socket.IO Client</title>
+    <script src="https://cdn.jsdelivr.net/npm/socket.io-client@2.5.0/dist/socket.io.js"></script>
+</head>
+<body>
+    <h1>Socket.IO Client</h1>
+    <p id="market-data">Waiting for market data...</p>
+
+    <script>
+        // Connect to the WebSocket server hosted on DigitalOcean
+        const socket = io('https://websocket-v2-jrkzj.ondigitalocean.app', {
+            withCredentials: true
+        });
+
+        // Emit 'marketFetchdata' event after connecting
+        socket.on('connect', () => {
+            console.log('Connected to the WebSocket server');
+            socket.emit('marketFetchdata');
+        });
+
+        // Listen for 'marketData' event and display the received data
+        socket.on('marketData', (data) => {
+            console.log('Received market data:', data);
+            document.getElementById('market-data').innerText = `Symbol: ${data.usdt.data[0].symbol}, Price: ${data.usdt.data[0].usdtprice}, Timestamp: ${new Date().toLocaleTimeString()}`;
+        });
+
+        // Handle disconnection
+        socket.on('disconnect', () => {
+            console.log('Disconnected from the WebSocket server');
+        });
+    </script>
+</body>
+</html> 

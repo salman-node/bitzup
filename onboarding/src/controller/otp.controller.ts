@@ -1,0 +1,147 @@
+import { Request, Response } from 'express';
+import { getClientInfo, sendGeneralOTP } from '../utility/utility.functions';
+import { prisma } from '../config/prisma.client';
+import { IClientInfo } from '../types/models.types';
+import { verifyOtp } from '../utility/utility.functions';
+
+/*----- send OTP handler -----*/
+export const sendOTP = async (req: Request, res: Response) => {
+  try {
+    const { email, subject }: { email: string; subject: string } = req.body;
+
+    if (!email && !subject) {
+      // throw new Error('Please provide all field');
+      return res.status(400).send({
+          status:'3',
+          message:"Please provide all field"
+      })
+    }
+
+    // Check Email
+    if (!/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/.test(email)) {
+      // throw new Error('Please provide valid email address');
+      return res.status(200).send({
+          status:'0',
+          message:"Please provide valid email address"
+      })
+    }
+
+    // check user
+    const exist = await prisma.user.findUnique({
+      where: { email },
+      select: { user_id: true },
+    });
+
+    // user not present
+    if (!exist) {
+      // throw new Error('User not found with this email Id');
+      return res.status(200).send({
+          status:'0',
+          message:"Invalid email address"
+      })
+    }
+
+    // get client information
+    const result: IClientInfo | undefined = await getClientInfo(req);
+
+    // send OTP email
+    await prisma.otp.deleteMany({ where: { user_id: exist.user_id } });
+    await sendGeneralOTP(email, subject, result,exist.user_id);
+    res.status(200).send({
+      status: '1',
+      message: 'OTP send to your email plz check',
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ status: '0', message: (err as Error).message });
+  }
+};
+
+export const sendEmailOtp = async (req: Request, res: Response) => {
+  try {
+    const { user_id, subject }: { user_id: string; subject: string } = req.body;
+
+    if (!user_id && !subject) {
+      // throw new Error('Please provide all field');
+      return res.status(400).send({
+          status:'3',
+          message:"Please provide all field"
+      })
+    }
+
+    // check user
+   const userEmail = await prisma.user.findFirst({
+     where: { user_id },
+     select: {
+       email: true,
+     },
+   });
+
+    // user not present
+    if (!userEmail) {
+      // throw new Error('User not found with this email Id');
+      return res.status(400).send({
+        status: '3',
+        message: 'Invalid email address',
+      })
+    }
+
+    // get client information
+    const result: IClientInfo | undefined = await getClientInfo(req);
+
+    // send OTP email
+    await prisma.otp.deleteMany({ where: { user_id: user_id } });
+    await sendGeneralOTP(userEmail.email, subject, result,user_id);
+    res.status(200).send({
+      status: '1',
+      message: 'OTP send to your email plz check',
+    });
+  } catch (err) {
+    console.log(err);
+   return res.status(500).send({ status: '0', message: (err as Error).message });
+  }
+};
+
+/*----- verify OTP handler -----*/
+export const verifyOTP = async (req: Request, res: Response) => {
+  try {
+    const { id: user_id,email: email } = req.body.user;
+    const { otp } = req.body;
+
+    // validate user
+    if (!user_id) {
+      return res.status(400).send({
+        status: '3',
+        message: 'You are not authorized or user not present',
+      });
+    }
+
+    if (!otp) {
+      // throw new Error('Please provide otp');
+      return res.status(200).send({
+        status: '0',
+        message: 'Please provide otp',
+      });
+    }
+
+    // verify otp
+    const verifyOTP = await verifyOtp(email, otp);
+
+    // if not verified
+    if (!verifyOTP?.verified) {
+      // throw new Error(verifyOTP?.msg);
+      return res.status(200).send({
+        status: '0',
+        message: verifyOTP?.msg,
+      });
+    }
+
+    res.status(200).send({
+      status: '1',
+      message: 'OTP verified',
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ status: '0', message: (err as Error).message });
+  }
+};

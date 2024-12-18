@@ -1,0 +1,29 @@
+{
+    "compilerOptions": {
+      "target": "es6",
+      "module": "commonjs",
+      "rootDir": "./src",
+      "sourceMap": true,
+      "outDir": "./dist",
+      "removeComments": false,
+      "declaration": false,
+      "declarationMap": false,
+      "moduleResolution": "Node",
+      "esModuleInterop": true,
+      "forceConsistentCasingInFileNames": true,
+      "strict": true,
+      "noUnusedLocals": true,
+      "noUnusedParameters": true,
+      "noEmitOnError": true,
+      "skipLibCheck": true,
+      "noImplicitAny": true
+      //"normalTypeScriptOptions": "here"
+    },
+    "typedocOptions": {
+      "entryPoints": ["src/index.ts"],
+      "out": "docs"
+    },
+    "exclude": ["node_modules", "dist", "__tests__", "coverage"],
+    "include": ["src/**/*"]
+  }
+  
