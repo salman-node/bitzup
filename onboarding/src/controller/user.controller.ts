@@ -754,7 +754,7 @@ export const changePassword = async (req: Request, res: Response) => {
     if (new_password.length < 6) {
       return res.status(200).send({
         status: "0",
-        message: "Old Password is too short! password must be min 6 char long",
+        message: "Old Password is too short! password must be of 6 length",
       });
     }
     if(otp.length !== 6){
