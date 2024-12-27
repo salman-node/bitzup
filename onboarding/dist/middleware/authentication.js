@@ -44,6 +44,7 @@ const verifyUser = (req, res, next) => __awaiter(void 0, void 0, void 0, functio
         next();
     }
     catch (err) {
+        console.log(err);
         res.status(500).json({ status: '0', message: err.message });
     }
 });
@@ -85,6 +86,7 @@ const checkLogin = (req, res, next) => __awaiter(void 0, void 0, void 0, functio
         next();
     }
     catch (err) {
+        console.log(err);
         res.status(500).json({ status: '0', message: err.message });
     }
 });

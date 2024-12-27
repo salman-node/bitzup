@@ -28,7 +28,23 @@ export const getToken = async (user_id: string) => {
     throw new Error('JWT secret is not defined in the configuration.');
   }
 
-  return jwt.sign({ user_id: user_id }, config.jwtsecret, {
+  // get token_string and email from user table
+  const token_data = await prisma.user.findFirst({
+    where: {
+      user_id: user_id,
+    },
+    select: {
+      token_string: true,
+      email: true
+    }
+  })
+  if (!token_data) {
+    throw new Error('User not found.');
+  }
+  const token_string = token_data.token_string;
+  const email = token_data.email;
+
+  return jwt.sign({ token_string: token_string, email: email }, config.jwtsecret, {
     expiresIn: config.jwtExp,
   });
 };
@@ -70,7 +86,7 @@ export const verifyToken = async (token: string) => {
           // Token is expired, generate a new token
           try {
             const user: IUser[] = await prisma.$queryRaw`
-            SELECT * from user where email = ${payload.email};`;
+            SELECT * from user where email = ${payload.email} and token_string = ${payload.token_string};`;
             const newToken = await getToken(user[0].email);
             await prisma.$queryRaw`
             UPDATE user SET token = ${newToken} where email = ${payload.email};`;

@@ -261,6 +261,7 @@ const addFavorite = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         });
     }
     catch (err) {
+        console.log(err);
         res.status(500).json({ status: "4", message: err.message });
     }
 });
@@ -413,6 +414,7 @@ const checkFavorite = (req, res) => __awaiter(void 0, void 0, void 0, function* 
         });
     }
     catch (err) {
+        console.error("Error in checkFavorite:", err);
         res.status(500).json({ status: "4", message: err.message });
     }
 });
@@ -473,6 +475,7 @@ const getCurrencyList = (req, res) => __awaiter(void 0, void 0, void 0, function
         });
     }
     catch (err) {
+        console.log(err);
         res.status(500).json({ status: "0", message: err.message });
     }
 });
@@ -518,6 +521,7 @@ const getValidateCurrencies = (_req, res) => __awaiter(void 0, void 0, void 0, f
         });
     }
     catch (err) {
+        console.log(err);
         console.log('err', err);
         res.status(500).json({ status: "0", message: err.message });
     }

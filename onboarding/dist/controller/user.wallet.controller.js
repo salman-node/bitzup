@@ -68,6 +68,7 @@ const getBuySellBalance = (req, res) => __awaiter(void 0, void 0, void 0, functi
         });
     }
     catch (err) {
+        console.log(err);
         res.status(500).json({ status: "0", message: err.message });
     }
 });

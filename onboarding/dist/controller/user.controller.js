@@ -39,7 +39,6 @@ exports.getAllCountries = exports.forgotPass = exports.changePassword = exports.
 const bcrypt = __importStar(require("bcrypt"));
 const crypto_1 = require("crypto");
 const defaults_1 = __importDefault(require("../config/defaults"));
-const mail_function_1 = __importDefault(require("../utility/mail.function"));
 const speakeasy_1 = __importDefault(require("speakeasy"));
 const prisma_client_1 = require("../config/prisma.client");
 const utility_functions_1 = require("../utility/utility.functions");
@@ -137,6 +136,7 @@ const signUp = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
             // throw new Error(verifyOTP?.msg);
             return res.status(200).send({ status: "0", message: verifyOTP === null || verifyOTP === void 0 ? void 0 : verifyOTP.msg });
         }
+        const tokenString = (0, crypto_1.randomBytes)(8).toString("hex");
         // Password hashed
         const hashed_password = yield bcrypt.hash(password, defaults_1.default.saltworkFactor);
         // Creating user
@@ -147,6 +147,7 @@ const signUp = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
                 email: email,
                 phone: phone,
                 country: country_code,
+                token_string: tokenString,
                 password: hashed_password,
             },
         });
@@ -162,6 +163,7 @@ const signUp = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         });
     }
     catch (err) {
+        console.log(err);
         return res
             .status(500)
             .json({ status: "0", message: err.message });
@@ -361,6 +363,7 @@ const logIn = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         delete logUser.password;
         const token = yield (0, utility_functions_1.getToken)(user.user_id);
         console.log("login token", token);
+        console.log(1);
         //update token in db
         yield prisma_client_1.prisma.$queryRaw `
     UPDATE user SET token = ${token},
@@ -369,6 +372,7 @@ const logIn = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     lockout_time = NULL
     WHERE user_id=${user.user_id};
   `;
+        console.log(2);
         res.status(200).send({
             status: "1",
             message: "User loggedIn Successfully",
@@ -434,6 +438,7 @@ const verifyAuth = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
         });
     }
     catch (err) {
+        console.log(err);
         res.status(500).json({ status: "0", message: err.message });
     }
 });
@@ -548,6 +553,7 @@ const verifyOtpAuth = (req, res) => __awaiter(void 0, void 0, void 0, function* 
         }
     }
     catch (err) {
+        console.log(err);
         res.status(500).json({ status: "0", message: err.message });
     }
 });
@@ -571,6 +577,7 @@ const get2FaAuth = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
         });
     }
     catch (err) {
+        console.log(err);
         res.status(500).json({ status: "0", message: err.message });
     }
 });
@@ -629,6 +636,7 @@ const delete2FaAuth = (req, res) => __awaiter(void 0, void 0, void 0, function* 
         });
     }
     catch (err) {
+        console.log(err);
         res.status(500).json({ status: "0", message: err.message });
     }
 });
@@ -676,6 +684,7 @@ const generate2FaKey = (req, res) => __awaiter(void 0, void 0, void 0, function*
         });
     }
     catch (err) {
+        console.log(err);
         res.status(500).json({ status: "0", message: err.message });
     }
 });
@@ -683,16 +692,25 @@ exports.generate2FaKey = generate2FaKey;
 /*----- Change password -----*/
 const changePassword = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const { old_password, new_password } = req.body;
+        const { new_password, confirm_new_password, otp } = req.body;
         const { user_id: userId } = req.body.user;
         // check password
-        if (old_password.length < 6) {
-            // throw new Error(
-            //   'Old Password is too short! password must be min 6 char long',
-            // );
+        if (new_password.length < 6) {
             return res.status(200).send({
                 status: "0",
                 message: "Old Password is too short! password must be min 6 char long",
+            });
+        }
+        if (otp.length !== 6) {
+            return res.status(200).send({
+                status: "0",
+                message: "OTP is too short! OTP must be 6 char long",
+            });
+        }
+        if (new_password !== confirm_new_password) {
+            return res.status(200).send({
+                status: "0",
+                message: "New Password and Confirm New Password are not same"
             });
         }
         // check user
@@ -707,44 +725,34 @@ const changePassword = (req, res) => __awaiter(void 0, void 0, void 0, function*
                 message: "User not found",
             });
         }
-        // check password
-        const same = yield (0, utility_functions_1.checkPassword)(old_password, user.password);
-        if (!same) {
-            // throw new Error('Please provide correct password');
-            return res.status(200).send({
-                status: "0",
-                message: "Please provide correct password",
+        const otpVerified = yield (0, utility_functions_2.verifyOtp)(userId, otp);
+        if (!(otpVerified === null || otpVerified === void 0 ? void 0 : otpVerified.verified)) {
+            return res.status(400).send({
+                status: "3",
+                message: otpVerified === null || otpVerified === void 0 ? void 0 : otpVerified.msg,
             });
         }
-        // check password
-        if (new_password.length < 6) {
-            // throw new Error(
-            //   'New Password is too short! password must be min 6 char long',
-            // );
-            return res.status(200).send({
-                status: "0",
-                message: "New Password is too short! password must be min 6 char long",
+        if (otpVerified === null || otpVerified === void 0 ? void 0 : otpVerified.verified) {
+            // Password hashed
+            const hash = yield bcrypt.hash(new_password, defaults_1.default.saltworkFactor);
+            yield prisma_client_1.prisma.user.updateMany({
+                where: { user_id: userId },
+                data: { password: hash, token: null },
+            });
+            res.status(200).json({
+                status: "1",
+                message: "password changed successfully",
             });
         }
-        // Password hashed
-        const hash = yield bcrypt.hash(new_password, defaults_1.default.saltworkFactor);
-        yield prisma_client_1.prisma.user.updateMany({
-            where: { user_id: userId },
-            data: { password: hash },
-        });
-        res.status(200).json({
-            status: "1",
-            message: "Successfully Reset your Account Password",
-        });
     }
     catch (err) {
+        console.log(err);
         res.status(500).json({ status: "0", message: err.message });
     }
 });
 exports.changePassword = changePassword;
 /*----- Forgot password -----*/
 const forgotPass = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const randomGenPass = (0, crypto_1.randomBytes)(8).toString("hex");
     try {
         const { email, otp } = req.body;
         if (!email || !otp) {
@@ -788,24 +796,30 @@ const forgotPass = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
                 message: verifyOTP === null || verifyOTP === void 0 ? void 0 : verifyOTP.msg,
             });
         }
-        // Password hashed
-        const hash = yield bcrypt.hash(randomGenPass, defaults_1.default.saltworkFactor);
-        // Update user password
-        const result = yield prisma_client_1.prisma.user.update({
-            where: { email: user.email },
-            data: { password: hash },
+        if (verifyOTP === null || verifyOTP === void 0 ? void 0 : verifyOTP.verified) {
+            return res.status(200).json({
+                status: "1",
+                message: "Otp Verified Successfully",
+            });
+        }
+        return res.status(400).json({
+            status: "0",
+            message: "Something went wrong",
         });
+        // // Password hashed
+        // const hash = await bcrypt.hash(randomGenPass, config.saltworkFactor);
+        // // Update user password
+        // const result = await prisma.user.update({
+        //   where: { email: user.email },
+        //   data: { password: hash },
+        // });
         // get client information
-        const client_info = yield (0, utility_functions_2.getClientInfo)(req);
+        // const client_info: IClientInfo | undefined = await getClientInfo(req);
         // send user a mail
-        yield (0, mail_function_1.default)(user.email, randomGenPass, "", client_info);
-        res.status(200).json({
-            status: "1",
-            message: "Please Check Your Registered Email",
-            email: result.email,
-        });
+        // await sendEmail(user.email, randomGenPass, "", client_info);
     }
     catch (err) {
+        console.log(err);
         res.status(500).json({ status: "0", message: err.message });
     }
 });
@@ -828,6 +842,7 @@ const getAllCountries = (_req, res) => __awaiter(void 0, void 0, void 0, functio
         });
     }
     catch (err) {
+        console.log(err);
         res.status(500).json({ status: "0", message: err.message });
     }
 });

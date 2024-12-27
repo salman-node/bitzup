@@ -56,6 +56,7 @@ const sendOTP = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         });
     }
     catch (err) {
+        console.log(err);
         res.status(500).json({ status: '0', message: err.message });
     }
 });
@@ -96,6 +97,7 @@ const sendEmailOtp = (req, res) => __awaiter(void 0, void 0, void 0, function* (
         });
     }
     catch (err) {
+        console.log(err);
         return res.status(500).send({ status: '0', message: err.message });
     }
 });
@@ -135,6 +137,7 @@ const verifyOTP = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         });
     }
     catch (err) {
+        console.log(err);
         res.status(500).json({ status: '0', message: err.message });
     }
 });

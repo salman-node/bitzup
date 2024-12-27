@@ -60,7 +60,22 @@ const getToken = (user_id) => __awaiter(void 0, void 0, void 0, function* () {
     if (!defaults_1.default.jwtsecret) {
         throw new Error('JWT secret is not defined in the configuration.');
     }
-    return jsonwebtoken_1.default.sign({ user_id: user_id }, defaults_1.default.jwtsecret, {
+    // get token_string and email from user table
+    const token_data = yield prisma_client_1.prisma.user.findFirst({
+        where: {
+            user_id: user_id,
+        },
+        select: {
+            token_string: true,
+            email: true
+        }
+    });
+    if (!token_data) {
+        throw new Error('User not found.');
+    }
+    const token_string = token_data.token_string;
+    const email = token_data.email;
+    return jsonwebtoken_1.default.sign({ token_string: token_string, email: email }, defaults_1.default.jwtsecret, {
         expiresIn: defaults_1.default.jwtExp,
     });
 });
@@ -101,7 +116,7 @@ const verifyToken = (token) => __awaiter(void 0, void 0, void 0, function* () {
                     // Token is expired, generate a new token
                     try {
                         const user = yield prisma_client_1.prisma.$queryRaw `
-            SELECT * from user where email = ${payload.email};`;
+            SELECT * from user where email = ${payload.email} and token_string = ${payload.token_string};`;
                         const newToken = yield (0, exports.getToken)(user[0].email);
                         yield prisma_client_1.prisma.$queryRaw `
             UPDATE user SET token = ${newToken} where email = ${payload.email};`;
