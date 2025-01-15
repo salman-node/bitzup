@@ -2,62 +2,231 @@ const connection = require('./db_connection');
 
 // ... (rest of the code remains the same)
 
- const Create_Universal_Data = async function (
-  database_table_name,
-  obJdata
-) {
+const Create_Universal_Data = async function (database_table_name, obJdata) {
   const abkey = Object.keys(obJdata);
   const abvalue = Object.values(obJdata);
-  const sql = `INSERT INTO ${database_table_name} (${abkey}) VALUES (${abvalue.map(() => '?').join(',')})`;
+  const sql = `INSERT INTO ${database_table_name} (${abkey.join(",")}) VALUES (${abvalue.map(() => "?").join(",")})`;
 
-  try {
-    const result = await connection.query(sql, abvalue);
-    return result;
-  } catch (err) {
-    console.log(err);
-    throw err;
-  }
+  return new Promise((resolve, reject) => {
+    connection.query(sql, abvalue, (err, result) => {
+      if (err) {
+        console.error("Error in Create_Universal_Data:", err);
+        return reject(err);
+      }
+      resolve(result);
+    });
+  });
 };
+
 
 const raw_query = async function (query, values) {
   try {
-  const sql = query;
-    // Use connection.promise() to ensure that the query returns a promise
-    const [result] = await connection.promise().query(sql, values);
-    return result;
+    return await new Promise((resolve, reject) => {
+      connection.connect((err) => {
+        if (err) throw err;
+        connection.query(query, values, (err, result) => {
+          if (err) throw err;
+          resolve(result);
+        });
+      });
+    });
   } catch (err) {
     console.log(err);
     throw err;
   }
 };
 
-async function updateOrInsertBalances({
+const updateOrInsertBalances = async function ({
   userId,
   currencyId,
   mainBalanceChange = 0,
   currentBalanceChange = 0,
   lockedBalanceChange = 0,
 }) {
-  // Attempt to update the balance
-  const updateQuery = await raw_query(
-    `UPDATE balances 
-     SET main_balance = main_balance + ?, 
-         current_balance = current_balance + ?, 
-         locked_balance = locked_balance + ? 
-     WHERE user_id = ? AND currency_id = ?`,
-    [mainBalanceChange, currentBalanceChange, lockedBalanceChange, userId, currencyId]
-  );
+  return await new Promise((resolve, reject) => {
+    const updateSql = `
+      UPDATE balances 
+      SET main_balance = main_balance + ?, 
+          current_balance = current_balance + ?, 
+          locked_balance = locked_balance + ? 
+      WHERE user_id = ? AND currency_id = ?`;
 
-  // If no rows were affected, insert a new balance row
-  if (updateQuery.affectedRows === 0) {
-    await raw_query(
-      `INSERT INTO balances 
-       (user_id, currency_id, main_balance, current_balance, locked_balance) 
-       VALUES (?, ?, ?, ?, ?)`,
-      [userId, currencyId, mainBalanceChange, currentBalanceChange, lockedBalanceChange]
-    );
+    const updateValues = [
+      mainBalanceChange,
+      currentBalanceChange,
+      lockedBalanceChange,
+      userId,
+      currencyId,
+    ];
+
+    connection.query(updateSql, updateValues, (err, result) => {
+      if (err) return reject(err);
+
+      if (result.affectedRows > 0) {
+        // Rows were updated
+        resolve(result);
+      } else {
+        // No rows updated, insert a new row
+        const insertSql = `
+          INSERT INTO balances 
+          (user_id, currency_id, main_balance, current_balance, locked_balance) 
+          VALUES (?, ?, ?, ?, ?)`;
+
+        const insertValues = [
+          userId,
+          currencyId,
+          mainBalanceChange,
+          currentBalanceChange,
+          lockedBalanceChange,
+        ];
+
+        connection.query(insertSql, insertValues, (err, result) => {
+          if (err) return reject(err);
+          resolve(result);
+        });
+      }
+    });
+  });
+};
+
+const updateBalances = async function(baseData, quoteData) {
+  try {
+    await new Promise((resolve, reject) => {
+      connection.beginTransaction((err) => {
+        if (err) {
+          return reject(err);
+        }
+
+        // Update or insert for the first object (base asset)
+        connection.query(
+          `UPDATE balances 
+           SET main_balance = main_balance + ?, 
+               current_balance = current_balance + ?, 
+               locked_balance = locked_balance + ? 
+           WHERE user_id = ? AND currency_id = ?`,
+          [baseData.mainBalanceChange, baseData.currentBalanceChange, baseData.lockedBalanceChange, baseData.userId, baseData.currencyId],
+          (err, updateResult1) => {
+            if (err) {
+              return connection.rollback(() => reject(err));
+            }
+
+            if (updateResult1.affectedRows === 0) {
+              // Insert if no rows were updated
+              connection.query(
+                `INSERT INTO balances 
+                 (user_id, currency_id, main_balance, current_balance) 
+                 VALUES (?, ?, ?, ?)`,
+                [baseData.userId, baseData.currencyId, baseData.mainBalanceChange, baseData.currentBalanceChange],
+                (err) => {
+                  if (err) {
+                    return connection.rollback(() => reject(err));
+                  }
+
+                  // Update or insert for the second object (quote asset)
+                  connection.query(
+                    `UPDATE balances 
+                     SET main_balance = main_balance + ?, 
+                         current_balance = current_balance + ?, 
+                         locked_balance = locked_balance + ? 
+                     WHERE user_id = ? AND currency_id = ?`,
+                    [quoteData.mainBalanceChange, quoteData.currentBalanceChange, quoteData.lockedBalanceChange, quoteData.userId, quoteData.currencyId],
+                    (err, updateResult2) => {
+                      if (err) {
+                        return connection.rollback(() => reject(err));
+                      }
+
+                      if (updateResult2.affectedRows === 0) {
+                        // Insert if no rows were updated
+                        connection.query(
+                          `INSERT INTO balances 
+                           (user_id, currency_id, main_balance, current_balance) 
+                           VALUES (?, ?, ?, ?)`,
+                          [quoteData.userId, quoteData.currencyId, quoteData.mainBalanceChange, quoteData.currentBalanceChange],
+                          (err) => {
+                            if (err) {
+                              return connection.rollback(() => reject(err));
+                            }
+
+                            // Commit the transaction
+                            connection.commit((err) => {
+                              if (err) {
+                                return connection.rollback(() => reject(err));
+                              }
+                              resolve(); // Resolve the promise after commit
+                            });
+                          }
+                        );
+                      } else {
+                        // Commit the transaction if no insert needed for quote asset
+                        connection.commit((err) => {
+                          if (err) {
+                            return connection.rollback(() => reject(err));
+                          }
+                          resolve(); // Resolve the promise after commit
+                        });
+                      }
+                    }
+                  );
+                }
+              );
+            } else {
+              // Proceed to quote asset update if no insert needed for base asset
+              connection.query(
+                `UPDATE balances 
+                 SET main_balance = main_balance + ?, 
+                     current_balance = current_balance + ?, 
+                     locked_balance = locked_balance + ? 
+                 WHERE user_id = ? AND currency_id = ?`,
+                [quoteData.mainBalanceChange, quoteData.currentBalanceChange, quoteData.lockedBalanceChange, quoteData.userId, quoteData.currencyId],
+                (err, updateResult2) => {
+                  if (err) {
+                    return connection.rollback(() => reject(err));
+                  }
+
+                  if (updateResult2.affectedRows === 0) {
+                    // Insert if no rows were updated
+                    connection.query(
+                      `INSERT INTO balances 
+                       (user_id, currency_id, main_balance, current_balance) 
+                       VALUES (?, ?, ?, ?)`,
+                      [quoteData.userId, quoteData.currencyId, quoteData.mainBalanceChange, quoteData.currentBalanceChange],
+                      (err) => {
+                        if (err) {
+                          return connection.rollback(() => reject(err));
+                        }
+
+                        // Commit the transaction
+                        connection.commit((err) => {
+                          if (err) {
+                            return connection.rollback(() => reject(err));
+                          }
+                          resolve(); // Resolve the promise after commit
+                        });
+                      }
+                    );
+                  } else {
+                    // Commit the transaction if no insert needed for quote asset
+                    connection.commit((err) => {
+                      if (err) {
+                        return connection.rollback(() => reject(err));
+                      }
+                      resolve(); // Resolve the promise after commit
+                    });
+                  }
+                }
+              );
+            }
+          }
+        );
+      });
+    });
+  } catch (err) {
+    console.error("Transaction failed in updateBalances:", err);
+    throw err; // Propagate the error
   }
-}
+};
+
+
 
 
 
@@ -130,4 +299,4 @@ const Update_Universal_Data = async function (
   });
 };
 
-module.exports = {updateOrInsertBalances, Create_Universal_Data , Update_Universal_Data , Get_All_Universal_Data , Get_Where_Universal_Data, raw_query };
+module.exports = {updateBalances,updateOrInsertBalances, Create_Universal_Data , Update_Universal_Data , Get_All_Universal_Data , Get_Where_Universal_Data, raw_query };

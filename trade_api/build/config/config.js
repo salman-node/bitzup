@@ -8,7 +8,7 @@ var dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1["default"].config();
 var config = {
     port: process.env.port,
-    JWT_secret_key: process.env.JWT_secret_key,
+    JWT_secret_key: process.env.JWT_secret_key || '12345-55555-09876-54321',
     HTTP_BAD_REQUEST: parseInt(process.env.HTTP_BAD_REQUEST, 10),
     HTTP_UNAUTHORISED: parseInt(process.env.HTTP_UNAUTHORISED, 10),
     HTTP_FORBIDDEN: parseInt(process.env.HTTP_FORBIDDEN, 10),

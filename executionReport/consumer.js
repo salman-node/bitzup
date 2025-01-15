@@ -1,7 +1,7 @@
 const WebSocket = require("ws");
 const { Kafka } = require("kafkajs");
 // import { raw_query, Get_Where_Universal_Data, Update_Universal_Data } from "./db_query";
-const { raw_query, Get_Where_Universal_Data, Update_Universal_Data,updateOrInsertBalances, Create_Universal_Data } = require("./db_query");
+const {updateBalances, raw_query, Get_Where_Universal_Data, Update_Universal_Data,updateOrInsertBalances, Create_Universal_Data } = require("./db_query");
 
 const wss = new WebSocket.Server({ port: 9001 });
 let frontendClients = [];
@@ -231,6 +231,8 @@ const consumeMessages = async () => {
         }
       } else if (topic === "execution-report-dbupdate") {
         const [userIdFromOrder, uniquePart] = data.c.split("-");
+        const canceled_user_id = data.X === "CANCELED" ? data.c.split("-")[0] : userIdFromOrder;
+        console.log('user_id: ',userIdFromOrder)
         var count = 0;
         if (data.t != -1) {
           let row_count = await raw_query(
@@ -266,16 +268,18 @@ const consumeMessages = async () => {
          
           const base_asset_id = pair_id[0].base_asset_id;
           const quote_asset_id = pair_id[0].quote_asset_id;
+          const pairId = pair_id[0].pair_id;
           // Handle report data based on `data.X` status and send to clients
           if (data.X === "NEW") {
             if (data.S === "BUY") {
               if (data.o === "LIMIT") {
                 const quote_quantity = (data.q * data.p).toFixed(8);
+                console.log('UPDATE USER BUY LIMIT BALANCE')
                 await updateOrInsertBalances({
                   userId: userIdFromOrder,
                   currencyId: quote_asset_id,
-                  currentBalance: -quote_quantity,
-                  lockedBalance: quote_quantity,
+                  currentBalanceChange: -quote_quantity,
+                  lockedBalanceChange: quote_quantity,
                 });
               }
             }
@@ -283,211 +287,259 @@ const consumeMessages = async () => {
               await updateOrInsertBalances({
                 userId: userIdFromOrder,
                 currencyId: base_asset_id,
-                currentBalance: -data.q,
-                lockedBalance: data.q,
+                currentBalanceChange: -data.q,
+                lockedBalanceChange: data.q,
               });
             }
           }
           if (data.X === "PARTIALLY_FILLED") {
             if (data.S === "BUY") {
               if (data.o === "MARKET") {
-                await updateOrInsertBalances({
-                  userId: userIdFromOrder,
-                  currencyId: base_asset_id,
-                  currentBalance: base_amount_after_fees,
-                  mainBalanceChange: base_amount_after_fees,
-                });
-
-                await updateOrInsertBalances({
-                  userId: userIdFromOrder,
-                  currencyId: quote_asset_id,
-                  mainBalanceChange: -data.Y,
-                  currentBalanceChange: -data.Y,
-                });
+                console.log('current balance: ', base_amount_after_fees)
+                console.log('quote balance: ', data.Y)
+                await updateBalances(
+                  {
+                    userId: userIdFromOrder,
+                    currencyId: base_asset_id,
+                    currentBalanceChange: base_amount_after_fees,
+                    mainBalanceChange: base_amount_after_fees,
+                    lockedBalanceChange:0
+                  },
+                  {
+                    userId: userIdFromOrder,
+                    currencyId: quote_asset_id,
+                    mainBalanceChange: -data.Y,
+                    currentBalanceChange: -data.Y,
+                    lockedBalanceChange:0
+                  }
+                );
               }
               if (data.o === "LIMIT") {
                 const order_value = (data.q * data.p).toFixed(8);
                 const executed_value = (data.l * data.L).toFixed(8);
                 if (order_value === executed_value) {
-                  await updateOrInsertBalances({
-                    userId: userIdFromOrder,
-                    currencyId: base_asset_id,
-                    mainBalanceChange: base_amount_after_fees,
-                    currentBalanceChange: base_amount_after_fees,
-                  });
-                  await updateOrInsertBalances({
-                    userId: userIdFromOrder,
-                    currencyId: quote_asset_id,
-                    mainBalanceChange: -data.Y,
-                    currentBalanceChange: -data.Y,
-                  });
+                  await updateBalances(
+                    {
+                      userId: userIdFromOrder,
+                      currencyId: base_asset_id,
+                      mainBalanceChange: base_amount_after_fees,
+                      currentBalanceChange: base_amount_after_fees,
+                      lockedBalanceChange:0
+                    },
+                    {
+                      userId: userIdFromOrder,
+                      currencyId: quote_asset_id,
+                      mainBalanceChange: -data.Y,
+                      currentBalanceChange: -data.Y,
+                      lockedBalanceChange:0
+                    }
+                  )
                 } else {
                   const unlock_volume = order_value;
-                  await updateOrInsertBalances({
-                    userId: userIdFromOrder,
-                    currencyId: base_asset_id,
-                    mainBalanceChange: base_amount_after_fees,
-                    currentBalanceChange: base_amount_after_fees,
-                  });
-                  await updateOrInsertBalances({
-                    userId: userIdFromOrder,
-                    currencyId: quote_asset_id,
-                    mainBalanceChange: -data.Y,
-                    lockedBalanceChange: -parseFloat(unlock_volume),
-                  });
+                  await updateBalances(
+                    {
+                      userId: userIdFromOrder,
+                      currencyId: base_asset_id,
+                      mainBalanceChange: base_amount_after_fees,
+                      currentBalanceChange: base_amount_after_fees,
+                      lockedBalanceChange:0
+                    },
+                    {
+                      userId: userIdFromOrder,
+                      currencyId: quote_asset_id,
+                      mainBalanceChange: -data.Y,
+                      lockedBalanceChange: -parseFloat(unlock_volume),
+                      currentBalanceChange: 0,
+                    }
+                  )
                 }
               }
             }
             if (data.S === "SELL") {
-              await updateOrInsertBalances({
-                userId: userIdFromOrder,
-                currencyId: base_asset_id,
-                mainBalanceChange: -data.l,
-                lockedBalanceChange: -data.l,
-              });
-
-              await updateOrInsertBalances({
-                userId: userIdFromOrder,
-                currencyId: quote_asset_id,
-                mainBalanceChange: quote_amount_after_fees,
-                currentBalanceChange: quote_amount_after_fees,
-              });
+              await updateBalances(
+                {
+                  userId: userIdFromOrder,
+                  currencyId: base_asset_id,
+                  mainBalanceChange: -data.l,
+                  lockedBalanceChange: -data.l,
+                  currentBalanceChange: 0,
+                },
+                {
+                  userId: userIdFromOrder,
+                  currencyId: quote_asset_id,
+                  mainBalanceChange: quote_amount_after_fees,
+                  currentBalanceChange: quote_amount_after_fees,
+                  lockedBalanceChange:0
+                }
+              )
             }
           }
           if (data.X === "TRADE") {
             if (data.S === "BUY") {
               if (data.o === "MARKET") {
-                await updateOrInsertBalances({
-                  userId: userIdFromOrder,
-                  currencyId: base_asset_id,
-                  mainBalanceChange: base_amount_after_fees,
-                  currentBalanceChange: base_amount_after_fees,
-                });
-                await updateOrInsertBalances({
-                  userId: userIdFromOrder,
-                  currencyId: quote_asset_id,
-                  mainBalanceChange: -data.Y,
-                  currentBalanceChange: -data.Y,
-                });
+                await updateBalances(
+                  {
+                    userId: userIdFromOrder,
+                    currencyId: base_asset_id,
+                    mainBalanceChange: base_amount_after_fees,
+                    currentBalanceChange: base_amount_after_fees,
+                    lockedBalanceChange:0
+                  },
+                  {
+                    userId: userIdFromOrder,
+                    currencyId: quote_asset_id,
+                    mainBalanceChange: -data.Y,
+                    currentBalanceChange: -data.Y,
+                    lockedBalanceChange:0
+                  }
+                )
+                  
               }
               if (data.o === "LIMIT") {
                 const order_value = (data.q * data.p).toFixed(8);
                 const executed_value = (data.l * data.L).toFixed(8);
                 if (order_value === executed_value) {
-                  await updateOrInsertBalances({
+                 await updateBalances(
+                  {
                     userId: userIdFromOrder,
                     currencyId: base_asset_id,
                     mainBalanceChange: base_amount_after_fees,
                     currentBalanceChange: base_amount_after_fees,
-                  });
-                  await updateOrInsertBalances({
+                    lockedBalanceChange:0
+                  },
+                  {
                     userId: userIdFromOrder,
                     currencyId: quote_asset_id,
                     mainBalanceChange: -data.Y,
                     lockedBalanceChange: -data.Y,
-                  });
+                    currentBalanceChange: 0
+                  }
+                 )
                 } else {
                   const diff = order_value - executed_value;
                   const unlock_volume = order_value;
-                  await updateOrInsertBalances({
-                    userId: userIdFromOrder,
-                    currencyId: base_asset_id,
-                    mainBalanceChange: base_amount_after_fees,
-                    currentBalanceChange: base_amount_after_fees,
-                  });
-                  await updateOrInsertBalances({
-                    userId: userIdFromOrder,
-                    currencyId: quote_asset_id,
-                    mainBalanceChange: -data.Y,
-                    lockedBalanceChange: -parseFloat(unlock_volume),
-                    currentBalanceChange: diff,
-                  });
+                  await updateBalances(
+                    {
+                      userId: userIdFromOrder,
+                      currencyId: base_asset_id,
+                      mainBalanceChange: base_amount_after_fees,
+                      currentBalanceChange: base_amount_after_fees,
+                      lockedBalanceChange:0
+                    },
+                    {
+                      userId: userIdFromOrder,
+                      currencyId: quote_asset_id,
+                      mainBalanceChange: -data.Y,
+                      lockedBalanceChange: -parseFloat(unlock_volume),
+                      currentBalanceChange: diff,
+                    }
+                  )
                 }
               }
             }
             if (data.S === "SELL") {
-              await updateOrInsertBalances({
-                userId: userIdFromOrder,
-                currencyId: base_asset_id,
-                mainBalanceChange: -data.l,
-                lockedBalanceChange: -data.l,
-              });
-              await updateOrInsertBalances({
-                userId: userIdFromOrder,
-                currencyId: quote_asset_id,
-                mainBalanceChange: quote_amount_after_fees,
-                currentBalanceChange: quote_amount_after_fees,
-              });
+              await updateBalances(
+                {
+                  userId: userIdFromOrder,
+                  currencyId: base_asset_id,
+                  mainBalanceChange: -data.l,
+                  lockedBalanceChange: -data.l,
+                  currentBalanceChange: 0,
+                },
+                {
+                  userId: userIdFromOrder,
+                  currencyId: quote_asset_id,
+                  mainBalanceChange: quote_amount_after_fees,
+                  currentBalanceChange: quote_amount_after_fees,
+                  lockedBalanceChange:0
+                }
+              )
             };
           }
           if (data.X === "FILLED") {
             if (data.S === "BUY") {
               if (data.o === "MARKET") {
-                await updateOrInsertBalances({
-                  userId: userIdFromOrder,
-                  currencyId: base_asset_id,
-                  mainBalanceChange: base_amount_after_fees,
-                  currentBalanceChange: base_amount_after_fees,
-                });
-                await updateOrInsertBalances({
-                  userId: userIdFromOrder,
-                  currencyId: quote_asset_id,
-                  mainBalanceChange: -data.Y,
-                  currentBalanceChange: -data.Y,
-                });
+                await updateBalances(
+                  {
+                    userId: userIdFromOrder,
+                    currencyId: base_asset_id,
+                    mainBalanceChange: base_amount_after_fees,
+                    currentBalanceChange: base_amount_after_fees,
+                    lockedBalanceChange:0
+                  },
+                  {
+                    userId: userIdFromOrder,
+                    currencyId: quote_asset_id,
+                    mainBalanceChange: -data.Y, 
+                    currentBalanceChange: -data.Y,
+                    lockedBalanceChange:0              
+                  }
+                )
               }
               if (data.o === "LIMIT") {
                 const order_value = (data.q * data.p).toFixed(8);
                 const executed_value = (data.l * data.L).toFixed(8);
                 if (order_value === executed_value) {
-                  await updateOrInsertBalances({
-                    userId: userIdFromOrder,
-                    currencyId: base_asset_id,
-                    mainBalanceChange: base_amount_after_fees,
-                    currentBalanceChange: base_amount_after_fees,
-                  });
-                  await updateOrInsertBalances({
-                    userId: userIdFromOrder,
-                    currencyId: quote_asset_id,
-                    mainBalanceChange: -data.Y,
-                    lockedBalanceChange: -data.Y,
-                  });
+                 
+                  await updateBalances({
+                      userId: userIdFromOrder,
+                      currencyId: base_asset_id,
+                      mainBalanceChange: base_amount_after_fees,
+                      currentBalanceChange: base_amount_after_fees,
+                      lockedBalanceChange:0
+                    },
+                    {
+                      userId: userIdFromOrder,
+                      currencyId: quote_asset_id,
+                      mainBalanceChange: -data.Y,
+                      lockedBalanceChange: -data.Y,
+                      currentBalanceChange: 0
+                    }
+                  )
                 } else {
                   const diff = order_value - executed_value;
                   const unlock_volume = order_value;
-                  await updateOrInsertBalances({
-                    userId: userIdFromOrder,
-                    currencyId: base_asset_id,
-                    mainBalanceChange: base_amount_after_fees,
-                    currentBalanceChange: base_amount_after_fees,
-                  });
-                  await updateOrInsertBalances({
-                    userId: userIdFromOrder,
-                    currencyId: quote_asset_id,
-                    mainBalanceChange: -data.Y,
-                    lockedBalanceChange: -parseFloat(unlock_volume),
-                    currentBalanceChange: diff,
-                  });
+                  await updateBalances(
+                    {
+                      userId: userIdFromOrder,
+                      currencyId: base_asset_id,
+                      mainBalanceChange: base_amount_after_fees,
+                      currentBalanceChange: base_amount_after_fees,
+                      lockedBalanceChange:0
+                    },
+                    {
+                      userId: userIdFromOrder,
+                      currencyId: quote_asset_id,
+                      mainBalanceChange: -data.Y,
+                      lockedBalanceChange: -parseFloat(unlock_volume),
+                      currentBalanceChange: diff,
+                    }
+                  )
                 };
               }
             }
             if (data.S === "SELL") {
-             
-              await updateOrInsertBalances({
+              await updateBalances({
                 userId: userIdFromOrder,
                 currencyId: base_asset_id,
                 mainBalanceChange: -data.l,
                 lockedBalanceChange: -data.l,
-              });
-              await updateOrInsertBalances({
+                currentBalanceChange: 0,
+              },
+              {
                 userId: userIdFromOrder,
                 currencyId: quote_asset_id,
                 mainBalanceChange: quote_amount_after_fees,
                 currentBalanceChange: quote_amount_after_fees,
-              });
+                lockedBalanceChange:0
+              }
+            )
             }
           }
           if (data.X === "CANCELED") {
+
+            const [userIdFromOrder, uniquePart] = data.C.split("-");
+
             if (data.S === "BUY") {
               await updateOrInsertBalances({
                 userId: userIdFromOrder,
@@ -533,13 +585,14 @@ const consumeMessages = async () => {
               filterQuery
             );
           }
-
+          console.log('BUY SELL PRO LIMIT OPEN DATA INSERTING',userIdFromOrder)
           await Create_Universal_Data('buy_sell_pro_in_order',{
+            pair_id: pairId,
             status: data.X,
-            user_id:userIdFromOrder,
+            user_id:data.X === "CANCELED" ? canceled_user_id : userIdFromOrder,
             base_quantity: data.q,
             quote_quantity: data.S === "BUY" ? data.Q : data.Z,
-            order_price: (data.Z/data.z).toFixed(8),
+            order_price: 0.0,
             executed_base_quantity: data.z,
             executed_quote_quantity: data.Z,
             stop_limit_price: data.P,
@@ -554,13 +607,13 @@ const consumeMessages = async () => {
             date_time: data.T,
             api:'order consumer report'
           })
-
+         console.log('BUY SELL PRO LIMIT OPEN DATA INSERTED')
         } else {
           console.log("DUPLICATE ORDER...");
         }
       }
     }catch(e){
-      console.log('Error in consumer: ',e.message)
+      console.log('Error in consumer: ',e)
     }
     },
   });

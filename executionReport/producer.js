@@ -31,7 +31,7 @@ const sendExecutionReportToKafka = async (topic, message) => {
   try {
     await producer.send({
       topic,
-      key: JSON.stringify(message.i),
+      key: JSON.stringify(message.t),
       messages: [{ value: JSON.stringify(message)}],
     });
     console.log(`Sent to Kafka topic: ${topic} :${JSON.stringify(message.t)}`);
