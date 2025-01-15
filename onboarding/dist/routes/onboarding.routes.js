@@ -17,7 +17,7 @@ router.route('/verify-otp-auth').post([authentication_1.verifyUser], user_contro
 router.route('/get-2fa').post([authentication_1.verifyUser], user_controller_1.get2FaAuth); // add to doc
 router.route('/delete-2fa').post([authentication_1.verifyUser], user_controller_1.delete2FaAuth); // add to doc
 router.route('/generate-2fa-key').post([authentication_1.verifyUser], user_controller_1.generate2FaKey); // add to doc
-router.route('/change-password').post([authentication_1.verifyUser], user_controller_1.changePassword); //add to doc
+router.route('/change-password').post(user_controller_1.changePassword); //add to doc
 router.post('/forgot-password', user_controller_1.forgotPass);
 router.get('/get-all-countries', user_controller_1.getAllCountries);
 router.route('/send-otp').post(otp_controller_1.sendOTP);

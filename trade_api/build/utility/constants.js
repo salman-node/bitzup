@@ -70,7 +70,7 @@ exports.c = {
     networkSymbolMin: 5,
     networkSymbolMax: 25,
     orderIdMin: 10,
-    orderIdMax: 18
+    orderIdMax: 35
 };
 var getSide = function (side) {
     switch (side) {

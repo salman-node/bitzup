@@ -41,10 +41,6 @@ const getBuySellBalance = (req, res) => __awaiter(void 0, void 0, void 0, functi
                 message: "You are not authorized or user not present",
             });
         }
-        const buySellFess = yield prisma.fees.findUnique({
-            where: { id: 1 },
-            select: { buy_fees: true, sell_fees: true },
-        });
         const bal_data = yield (0, db_query_1.get_pair_data)(pair_id, user_id);
         // send fetched data to user
         return res.status(200).json({
@@ -54,8 +50,7 @@ const getBuySellBalance = (req, res) => __awaiter(void 0, void 0, void 0, functi
                 base_balance: (_b = bal_data[0].base_asset_balance) !== null && _b !== void 0 ? _b : 0,
                 qty_decimal: bal_data[0].qty_decimal,
                 price_decimal: bal_data[0].price_decimal,
-                buy_fees: buySellFess === null || buySellFess === void 0 ? void 0 : buySellFess.buy_fees,
-                sell_fees: buySellFess === null || buySellFess === void 0 ? void 0 : buySellFess.sell_fees,
+                trade_fee: bal_data[0].trade_fee,
             },
         });
     }
@@ -599,7 +594,7 @@ const getAllBuySellOrder = (req, res) => __awaiter(void 0, void 0, void 0, funct
     SELECT bs.id,cc.pair_symbol,bs.type,bs.stop_limit_price,bs.order_price,bs.base_quantity,bs.final_amount,bs.executed_base_quantity,bs.status,bs.order_type,bs.fees,bs.date_time,bs.cancelled_date_time,bs.order_id 
     FROM buy_sell_pro_limit_open AS bs    
     JOIN crypto_pair AS cc ON bs.pair_id=cc.pair_id
-    WHERE bs.user_id=${user_id} and bs.status!="OPEN"  Order by bs.id DESC;`;
+    WHERE bs.user_id=${user_id} and bs.status IN ("FILLED", "CANCELLED")  Order by bs.id DESC;`;
         // Convert each date_time in the buy sell order array
         const convertedTrades = result.map((trade) => (Object.assign(Object.assign({}, trade), { date_time: formatDate(parseInt(trade.date_time)), cancelled_date_time: trade.cancelled_date_time === null ? null : formatDate(parseInt(trade.cancelled_date_time)), total: Number(trade.executed_quantity) * Number(trade.order_price), average: Number(trade.executed_quantity) != 0 ? trade.order_price : 0 })));
         // send fetched data to user
@@ -978,7 +973,7 @@ exports.getAvgPriceOrder = getAvgPriceOrder;
 // Get All Currencies Balance Query Change
 const getAllCurrenciesBalance = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { user_id: user_id } = req.body.user;
-    console.log(user_id);
+    console.log('in get all currency: ', user_id);
     //   const { email } = req.body;
     try {
         if (req.body.login === "True") {

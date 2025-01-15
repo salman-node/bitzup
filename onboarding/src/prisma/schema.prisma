@@ -337,6 +337,61 @@ model crypto_pair {
   @@unique([base_asset_id, quote_asset_id], map: "unique_pair")
 }
 
+model activity_logs {
+  id            Int      @id @default(autoincrement())
+  user_id       String   @db.VarChar(35)
+  ip_address    String   @db.VarChar(35)
+  activity_type String   @db.VarChar(100)
+  device_type   String   @db.VarChar(50)
+  device_info   String   @db.VarChar(100)
+  timestamp     DateTime @default(now()) @db.Timestamp(0)
+}
+
+model buy_open_orders {
+  id                Int                    @id @default(autoincrement())
+  order_id          String                 @db.VarChar(35)
+  pair_id           String                 @db.VarChar(20)
+  side              Int
+  price             Decimal                @db.Decimal(11, 0)
+  quantity          Float
+  executed_quantity Float
+  timestamp         String?                @db.VarChar(50)
+  status            buy_open_orders_status @default(open)
+  updated_at        DateTime?              @db.Timestamp(0)
+  uid               String                 @db.VarChar(35)
+  user_id           String                 @db.VarChar(35)
+}
+
+model matched_orders {
+  id                Int       @id @default(autoincrement())
+  order_id          String    @db.VarChar(35)
+  user_id           String    @db.VarChar(35)
+  pair_id           String    @db.VarChar(35)
+  price             Float
+  quantity          Float
+  executed_quantity Float
+  uid               String    @db.VarChar(100)
+  timestamp         DateTime  @default(now()) @db.Timestamp(0)
+  side              Int
+  updated_at        DateTime? @db.Timestamp(0)
+}
+
+model sell_open_orders {
+  id                Int                     @id @default(autoincrement())
+  order_id          String                  @db.VarChar(35)
+  pair_id           String                  @db.VarChar(20)
+  price             Float
+  side              Int
+  quantity          Float
+  executed_quantity Float
+  uid               String                  @db.VarChar(35)
+  hash              String                  @db.VarChar(100)
+  timestamp         DateTime                @default(now()) @db.Timestamp(0)
+  status            sell_open_orders_status @default(open)
+  updated_at        DateTime?               @db.Timestamp(0)
+  user_id           String                  @db.VarChar(35)
+}
+
 enum fa_auth {
   Inactive
   Active
@@ -439,4 +494,18 @@ enum chains_evm_compatible {
 enum crypto_pair_status {
   ZERO
   ONE
+}
+
+enum buy_open_orders_status {
+  open
+  filled
+  partially_filled
+  canceled
+}
+
+enum sell_open_orders_status {
+  open
+  filled
+  partially_filled
+  canceled
 }

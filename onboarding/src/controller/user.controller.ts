@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import * as bcrypt from "bcrypt";
+import {createActivityLog} from '../utility/activity.log'
 import { randomBytes } from "crypto";
 import config from "../config/defaults";
 import speakeasy from "speakeasy";
@@ -28,14 +29,21 @@ export const signUp = async (req: Request, res: Response) => {
       password,
       otp_verify, // if no send otp , if yes already verified
       otp,
+      device_type,
+      ip_address,
+      device_info
     }: IUser = req.body;
+
     if (
       !name ||
       !email ||
       !phone ||
       !country_code ||
       !password ||
-      !otp_verify
+      !otp_verify || 
+      !device_type ||
+      !ip_address ||
+      !device_info
     ) {
       // throw new Error('Please provide all field');
       return res
@@ -43,7 +51,7 @@ export const signUp = async (req: Request, res: Response) => {
         .send({ status: "3", message: "Please provide all field" });
     }
 
-
+   console.log('otp verify',otp_verify)
     // Check country
     const country = await prisma.countries.findFirst({
       where: { phonecode: country_code },
@@ -139,7 +147,7 @@ export const signUp = async (req: Request, res: Response) => {
         name: name,
         email: email,
         phone: phone,
-        country: country_code,
+        country: JSON.stringify(country.id),
         token_string: tokenString,
         password: hashed_password,
       },
@@ -150,6 +158,16 @@ export const signUp = async (req: Request, res: Response) => {
     //   where: { email: user.email },
     //   data: { isVerified: 'true' },
     // });
+
+    // create activity log
+    console.log(user_id,ip_address,device_type,device_info);
+    await createActivityLog({
+      user_id: user_id,
+      ip_address: ip_address ?? "",
+      activity_type: "Sign Up",
+      device_type: device_type ?? "",
+      device_info: device_info ?? "",
+    });
 
     return res.status(200).send({
       status: "1",
@@ -175,13 +193,16 @@ export const logIn = async (req: Request, res: Response) => {
       authenticator_code,
       fcm_token,
       source,
+      device_type,
+      ip_address,
+      device_info,
     }: IUser = req.body;
-console.log('in onboRIDNG', email, password, otp_verify, otp, authenticator_code, fcm_token, source)
-    if (!email || !password || !otp_verify) {
+
+    if (!email || !password || !otp_verify || !device_info || !device_type || !ip_address) {
       // throw new Error('Please provide all field');
       return res
-        .status(400)
-        .send({ status: "3", message: "Please provide all field" });
+        .status(200)
+        .send({ status: "0", message: "Please provide all field" });
     }
 
     // Check Email
@@ -295,6 +316,7 @@ console.log('in onboRIDNG', email, password, otp_verify, otp, authenticator_code
         showAuth: user.isAuth === "Active" ? true : false,
       });
     }
+
     if (user.isAuth === "Active") {
       if (!authenticator_code) {
         // throw new Error('Please provide authenticator code');
@@ -378,8 +400,7 @@ console.log('in onboRIDNG', email, password, otp_verify, otp, authenticator_code
     delete logUser.password;
     const token = await getToken(user.user_id);
 
-    console.log("login token", token);
-    console.log(1)
+
     //update token in db
     await prisma.$queryRaw`
     UPDATE user SET token = ${token},
@@ -388,7 +409,15 @@ console.log('in onboRIDNG', email, password, otp_verify, otp, authenticator_code
     lockout_time = NULL
     WHERE user_id=${user.user_id};
   `;
-    console.log(2)
+
+  await createActivityLog({
+    user_id: user.user_id,
+    ip_address: ip_address ?? "",
+    activity_type: "Login",
+    device_type: device_type ?? "",
+    device_info: device_info ?? "",
+  });
+
     res.status(200).send({
       status: "1",
       message: "User loggedIn Successfully",
@@ -570,7 +599,7 @@ export const verifyOtpAuth = async (req: Request, res: Response) => {
       const verifyOTP = await verifyOtp(user_id, otp);
 
       // if not verified
-      if (!verifyOTP?.verified) {
+      if (!verifyOTP?.verified){
         // throw new Error(verifyOTP?.msg);
         return res.status(200).send({ status: "0", message: verifyOTP?.msg });
       }
@@ -679,7 +708,7 @@ export const delete2FaAuth = async (req: Request, res: Response) => {
       },
     });
 
-    res.status(200).json({
+    return res.status(200).json({
       status: "1",
       message: "Successfully deleted 2fa authentication",
     });
@@ -713,7 +742,7 @@ export const generate2FaKey = async (req: Request, res: Response) => {
         status: "3",
         message: "User not found",
       });
-    }
+    };
 
     let secret;
 
@@ -746,10 +775,14 @@ export const generate2FaKey = async (req: Request, res: Response) => {
 /*----- Change password -----*/
 export const changePassword = async (req: Request, res: Response) => {
   try {
-    const { new_password, confirm_new_password,otp } = req.body;
+    const { new_password, confirm_new_password,otp,email,ip_address,device_type,device_info} = req.body;
 
-    const { user_id: userId } = req.body.user;
-
+     if(!new_password || !confirm_new_password || !otp || !email || !ip_address || !device_type || !device_info){
+       return res.status(200).send({
+         status: "0",
+         message: "Please provide all field",
+       });
+     }
     // check password
     if (new_password.length < 6) {
       return res.status(200).send({
@@ -772,7 +805,7 @@ export const changePassword = async (req: Request, res: Response) => {
 
     // check user
     const user = await prisma.user.findFirst({
-      where: { user_id: userId },
+      where: { email: email },
     });
 
     // user not present
@@ -784,11 +817,20 @@ export const changePassword = async (req: Request, res: Response) => {
       });
     }
 
-    const otpVerified = await verifyOtp(userId, otp);
+    const same_password = await checkPassword(new_password, user.password);
+
+    if (same_password) {
+      return res.status(200).send({
+        status: "0",
+        message:"Kuch naya password daal bhai, purana wala nahi chalega bro.",
+      });
+    }
+
+    const otpVerified = await verifyOtp(user.user_id, otp);
 
     if (!otpVerified?.verified) {
-      return res.status(400).send({
-        status: "3",
+      return res.status(200).send({
+        status: "0",
         message: otpVerified?.msg,
       });
     }
@@ -797,9 +839,20 @@ export const changePassword = async (req: Request, res: Response) => {
     const hash = await bcrypt.hash(new_password, config.saltworkFactor);
 
     await prisma.user.updateMany({
-      where: { user_id: userId },
+      where: { user_id: user.user_id },
       data: { password: hash , token: null },
     });
+
+    // activity log
+    await prisma.activity_logs.create({
+      data: {
+        user_id: user.user_id,
+        ip_address: ip_address,
+        activity_type: "Change Password",
+        device_type: device_type,
+        device_info: device_info,
+      },
+    })
 
     res.status(200).json({
       status: "1",
@@ -814,9 +867,9 @@ export const changePassword = async (req: Request, res: Response) => {
 /*----- Forgot password -----*/
 export const forgotPass = async (req: Request, res: Response) => {
   try {
-    const { email, otp }: IUser = req.body;
+    const { email, otp, ip_address, device_type, device_info }: IUser = req.body;
 
-    if (!email || !otp) {
+    if (!email || !otp || !ip_address || !device_type || !device_info) {
       // throw new Error('Please provide all field');
       return res.status(400).send({
         status: "3",
@@ -862,6 +915,16 @@ export const forgotPass = async (req: Request, res: Response) => {
         message: verifyOTP?.msg,
       });
     }
+    // activity logs
+    await prisma.activity_logs.create({
+      data: {
+        user_id: user.user_id,
+        ip_address: ip_address ?? "",
+        activity_type: "Forgot Password",
+        device_type: device_type ?? "",
+        device_info: device_info ?? "",
+      },
+    })
     if(verifyOTP?.verified){
       return  res.status(200).json({
         status: "1",

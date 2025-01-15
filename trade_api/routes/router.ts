@@ -1,34 +1,32 @@
 import express from 'express';
 const router = express.Router();
 import { get_open_orders, placeBuyOrder, placeSellOrder,placeSellStopLimit, placeBuyStopLimit, cancelOrder,rawQuery} from '../controller/controller';
-// import {Authentication} from '../middleware/token_authentication';
-import { validate_buy_asset_pro , validate_sell_asset_pro,validate_buy_stop_limit,validate_sell_stop_limit} from '../middleware/req_validator';
+import {verifyUser} from '../middleware/token_authentication';
+import { validate_buy_asset_pro , validate_sell_asset_pro,validate_buy_stop_limit,validate_sell_stop_limit, validate_cancel_order} from '../middleware/req_validator';
 // import { DevOpsGuru, DocDB } from 'aws-sdk';
 
 
 
 
 router.post('/place-buy-order', 
-//   Authentication,
+  verifyUser,
   validate_buy_asset_pro, 
   placeBuyOrder
 );
 
 router.post('/place-sell-order', 
-  //   Authentication,
+     verifyUser,
     validate_sell_asset_pro, 
     placeSellOrder
   );
 
-router.post('/place-buy-stop-limit',validate_buy_stop_limit,placeBuyStopLimit)
+router.post('/place-buy-stop-limit',verifyUser,validate_buy_stop_limit,placeBuyStopLimit)
 
-router.post('/place-sell-stop-limit',validate_sell_stop_limit,placeSellStopLimit)
+router.post('/place-sell-stop-limit',verifyUser,validate_sell_stop_limit,placeSellStopLimit)
 
-router.post('/cancel-order',cancelOrder)  
+router.post('/cancel-order',verifyUser,validate_cancel_order,cancelOrder)  
 
-router.get('/get-open-orders', get_open_orders)
-
-router.post('/rawquery', rawQuery)
+router.get('/get-open-orders', verifyUser,get_open_orders)
 
 // router.post('/quick_sell', 
 //   // middleware.Authentication, 

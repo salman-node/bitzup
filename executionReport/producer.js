@@ -1,13 +1,13 @@
 const { Spot, WebsocketStream } = require("@binance/connector");
 const { Kafka } = require('kafkajs');
-//require dotenv
+const {config} = require('./config/config')
 require("dotenv").config();
 
-const apiKey = "QT7VwThPfnLXhmYeiA0fTgP01Czi4cGTs5iwLVs6cl4UbVCTfKULSwSdkfNtz6om";
-const apiSecret = "u3I0eAL1JYKg8qA1giUWNeIajBJYcr2hK29Bz3N26ubF0bUcqixUHS22R2XkpszW";
+const apiKey = config.binance_apiKey;
+const apiSecret = config.api_secret;
 
 const client = new Spot(apiKey, apiSecret, {
-  baseURL: "https://testnet.binance.vision",
+  baseURL: config.binance_url,
   timeout: 5000,
 });
 
@@ -54,7 +54,7 @@ const callbacks = {
 
       // For updates (e.g., partially filled, filled), send to update topic
       // if (["PARTIALLY_FILLED", "FILLED", "CANCELED"].includes(data.X)) {
-        await sendExecutionReportToKafka('execution-report-update', data);
+        await sendExecutionReportToKafka('execution-report-dbupdate', data);
       // }
     }
   },

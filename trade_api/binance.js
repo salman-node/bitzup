@@ -40,40 +40,37 @@
 // main();
 
 const { Spot } = require("@binance/connector");
-const { timeStamp, time } = require("console");
-const { symbol } = require("joi");
 
 const apiKey =
-  "QT7VwThPfnLXhmYeiA0fTgP01Czi4cGTs5iwLVs6cl4UbVCTfKULSwSdkfNtz6om";
+  "gppTzIeLcnA2uAf8E0Hwda9RcwsIPoBdoA0dsqbU0AEXmLCRDccArhGMa4r71H3x";
 const apiSecret =
-  "u3I0eAL1JYKg8qA1giUWNeIajBJYcr2hK29Bz3N26ubF0bUcqixUHS22R2XkpszW";
+  "LDIUwHvnrSapjMrUb7xQLw4HfQbRBs2cBCEn96vLmHDl85fntvknGYr7jS6VIisE";
 const client = new Spot(apiKey, apiSecret, {
   baseURL: "https://testnet.binance.vision",
-  timeout: 5000,
+  timeout: 10000,
 });
 
 async function main() {
-  // const timestamp = await client.time();
-  // console.log(timestamp.data)
-  // console.log(Date.now())
+  
 
-  // client.getOrder('BTCUSDT', {
-  //   orderId:11753759
-  // }).then(response => client.logger.log(response.data))
+  // client.allOrders('BTCUSDT').then(response => client.logger.log(response.data))
   //   .catch(error => client.logger.error(error))
+
+  //   client.myTrades('BTCUSDT').then(response => client.logger.log(response.data))
+  // .catch(error => client.logger.error(error))
 
   // client.tickerPrice('BTCUSDT').then(response => client.logger.log(response.data))
 
     client.account()
   .then((response) => {
-    console.log(response.data);
-    const solBalance = response.data.balances.find((balance) => balance.asset === 'SOL');
-    if (solBalance) {
-      console.log(`SOL balance: ${solBalance.free} (free), ${solBalance.locked} (locked)`);
-    } else {
-      console.log('SOL balance not found');
-    }
+    console.log(response.data.balances);
+    console.log('BTC balance: ',response.data.balances.find(b => b.asset === 'BTC').free);
+    console.log('USDT balance: ',response.data.balances.find(b => b.asset === 'USDT').free);
+
   })
+  .catch((error) => {
+    console.log(error);
+  });
 
 
 
@@ -122,11 +119,11 @@ async function main() {
   // }).then(response => client.logger.log(response.data))
   //   .catch(error => client.logger.error(error))
 
-  const options = {
-    startTime: Date.now() - 3600000, // 1 hour ago
-    endTime: Date.now(),            // Current time
-    limit: 50,                      // Retrieve 50 candlesticks
-  };
+  // const options = {
+  //   startTime: Date.now() - 3600000, // 1 hour ago
+  //   endTime: Date.now(),            // Current time
+  //   limit: 50,                      // Retrieve 50 candlesticks
+  // };
     
     //Place new order to Binance.
     //  const orderData = await client.klineCandlestickData(

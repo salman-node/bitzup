@@ -1,6 +1,10 @@
 # trade_backend_apis
 create order. cancel, modify and executed apis.
 
+API Key: iOdnFWagAhEriAb1ZRKfBNl2B0o3iE3opZw8ydqezX7VzfCd5ErX0ydC1S6QfJwe
+
+Secret Key: vdo9D5W37acvpfrNBhJJRryTyjRiW5sy9I0ompm31b2OumypWwDUP5oLdNvb73YM
+
 # Binance Account Detials Balances
 
 # Request: 
@@ -321,7 +325,7 @@ PS C:\kafka_2.13-3.8.0\bin\windows> .\zookeeper-server-start.bat C:\kafka_2.13-3
 C:\kafka_2.13-3.8.0\bin\windows\zookeeper-server-start.bat C:\kafka_2.13-3.8.0\config\zookeeper.properties
 # Command to start Kafka
  
-C:\kafka_2.13-3.8.0\bin\windows>  ./kafka-server-start.bat C:\kafka_2.13-3.8.0\config\server.properties
+C:\kafka_2.13-3.8.0\bin\windows>./kafka-server-start.bat C:\kafka_2.13-3.8.0\config\server.properties
 C:\kafka_2.13-3.8.0\bin\windows\kafka-server-start.bat C:\kafka_2.13-3.8.0\config\server.properties
 
 

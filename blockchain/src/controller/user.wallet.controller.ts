@@ -51,12 +51,6 @@ export const getBuySellBalance = async (req: Request, res: Response) => {
       });
     }
 
-    const buySellFess = await prisma.fees.findUnique({
-      where: { id: 1 },
-      select: { buy_fees: true, sell_fees: true },
-    });
-  
-
     const bal_data: any = await get_pair_data(pair_id, user_id);
 
     // send fetched data to user
@@ -67,8 +61,7 @@ export const getBuySellBalance = async (req: Request, res: Response) => {
         base_balance: bal_data[0].base_asset_balance ?? 0,
         qty_decimal: bal_data[0].qty_decimal,
         price_decimal: bal_data[0].price_decimal,
-        buy_fees: buySellFess?.buy_fees,
-        sell_fees: buySellFess?.sell_fees,
+        trade_fee: bal_data[0].trade_fee,
       },
     });
   } catch (err: any) {
@@ -666,7 +659,7 @@ export function formatDate(timestamp: BigInt | number): string {
 export const getAllBuySellOrder = async (req: Request, res: Response) => {
   const { user_id: user_id } = req.body.user;
 console.log(1,user_id);
-  try {// remove symbol,order type
+  try {    // remove symbol,order type
 
     if (!user_id) {
       return res.status(200).json({
@@ -679,7 +672,7 @@ console.log(1,user_id);
     SELECT bs.id,cc.pair_symbol,bs.type,bs.stop_limit_price,bs.order_price,bs.base_quantity,bs.final_amount,bs.executed_base_quantity,bs.status,bs.order_type,bs.fees,bs.date_time,bs.cancelled_date_time,bs.order_id 
     FROM buy_sell_pro_limit_open AS bs    
     JOIN crypto_pair AS cc ON bs.pair_id=cc.pair_id
-    WHERE bs.user_id=${user_id} and bs.status!="OPEN"  Order by bs.id DESC;`;
+    WHERE bs.user_id=${user_id} and bs.status IN ("FILLED", "CANCELLED")  Order by bs.id DESC;`;
 
     // Convert each date_time in the buy sell order array
     const convertedTrades: IBuySellOrder[] = result.map((trade) => ({
@@ -1123,7 +1116,7 @@ export const getAvgPriceOrder = async (req: Request, res: Response) => {
 // Get All Currencies Balance Query Change
 export const getAllCurrenciesBalance = async (req: Request, res: Response) => {
   const { user_id: user_id }: { user_id: string } = req.body.user;
-  console.log(user_id);
+  console.log('in get all currency: ',user_id);
   //   const { email } = req.body;
   try {
     if (req.body.login === "True") {

@@ -35,9 +35,9 @@ const verifyUser = (req, res, next) => __awaiter(void 0, void 0, void 0, functio
             return res.status(400).json({ status: '3', message: 'You are not authorized' });
         }
         const user = yield prisma_client_1.prisma.user.findFirst({
-            where: { user_id: payload.user_id },
+            where: { email: payload.email },
         });
-        console.log('user', payload.user_id);
+        // console.log('user', payload.user_id);
         const authUser = Object.assign({}, user);
         delete authUser.password;
         req.body.user = authUser;
@@ -73,7 +73,7 @@ const checkLogin = (req, res, next) => __awaiter(void 0, void 0, void 0, functio
                 return res.status(200).json({ status: '0', message: 'You are not authorized' });
             }
             const user = yield prisma_client_1.prisma.user.findFirst({
-                where: { user_id: payload.user_id },
+                where: { email: payload.email },
             });
             const authUser = Object.assign({}, user);
             delete authUser.password;

@@ -26,6 +26,7 @@ export const Create_Universal_Data = async function (
   cp.pair_id,
   cp.quantity_decimal AS qty_decimal,
   cp.price_decimal AS price_decimal,
+  cp.trade_fee AS trade_fee,
   b1.current_balance AS base_asset_balance,
   b2.current_balance AS quote_asset_balance
 FROM 

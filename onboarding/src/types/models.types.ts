@@ -13,7 +13,9 @@ export interface IUser {
   authenticator_code?: string;
   fcm_token?: string;
   source: string;
-  device_id?: string | null;
+  device_type?: string | null;
+  device_info?: string;
+  ip_address?: string;
 }
 
 export interface IUserPartial {

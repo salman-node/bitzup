@@ -6,20 +6,15 @@ exports.__esModule = true;
 var express_1 = __importDefault(require("express"));
 var router = express_1["default"].Router();
 var controller_1 = require("../controller/controller");
-// import {Authentication} from '../middleware/token_authentication';
+var token_authentication_1 = require("../middleware/token_authentication");
 var req_validator_1 = require("../middleware/req_validator");
 // import { DevOpsGuru, DocDB } from 'aws-sdk';
-router.post('/place-buy-order', 
-//   Authentication,
-req_validator_1.validate_buy_asset_pro, controller_1.placeBuyOrder);
-router.post('/place-sell-order', 
-//   Authentication,
-req_validator_1.validate_sell_asset_pro, controller_1.placeSellOrder);
-router.post('/place-buy-stop-limit', req_validator_1.validate_buy_stop_limit, controller_1.placeBuyStopLimit);
-router.post('/place-sell-stop-limit', req_validator_1.validate_sell_stop_limit, controller_1.placeSellStopLimit);
-router.post('/cancel-order', controller_1.cancelOrder);
-router.get('/get-open-orders', controller_1.get_open_orders);
-router.post('/rawquery', controller_1.rawQuery);
+router.post('/place-buy-order', token_authentication_1.verifyUser, req_validator_1.validate_buy_asset_pro, controller_1.placeBuyOrder);
+router.post('/place-sell-order', token_authentication_1.verifyUser, req_validator_1.validate_sell_asset_pro, controller_1.placeSellOrder);
+router.post('/place-buy-stop-limit', token_authentication_1.verifyUser, req_validator_1.validate_buy_stop_limit, controller_1.placeBuyStopLimit);
+router.post('/place-sell-stop-limit', token_authentication_1.verifyUser, req_validator_1.validate_sell_stop_limit, controller_1.placeSellStopLimit);
+router.post('/cancel-order', token_authentication_1.verifyUser, req_validator_1.validate_cancel_order, controller_1.cancelOrder);
+router.get('/get-open-orders', token_authentication_1.verifyUser, controller_1.get_open_orders);
 // router.post('/quick_sell', 
 //   // middleware.Authentication, 
 //   // validator.validate_quick_sr4fgell, 

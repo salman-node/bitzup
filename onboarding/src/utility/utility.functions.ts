@@ -197,7 +197,7 @@ export const verifyOtp = async (user_id: string, otp: string) => {
     if (!userOtpRecord) {
       return {
         verified: false,
-        msg: `Invalid email or password.`,
+        msg: `Invalid OTP.`,
       };
     }
 

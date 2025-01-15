@@ -79,6 +79,7 @@ function generateRandomOrderId() {
     return `${timestamp}${randomPart}`;
 }
 exports.generateRandomOrderId = generateRandomOrderId;
+;
 // function mapOrderType(orderType: string): buy_sell_order_type {
 //   switch (orderType.toUpperCase()) {
 //     case "LIMIT":
@@ -544,6 +545,7 @@ function formatDate(timestamp) {
     return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
 }
 exports.formatDate = formatDate;
+;
 /*----- Get Buy Sell Order -------*/
 // export const getBuySellOrder = async (req: Request, res: Response) => {
 //   const { id: user_id } = req.body.user;
@@ -670,6 +672,136 @@ const getAvgPriceOrder = (req, res) => __awaiter(void 0, void 0, void 0, functio
     }
 });
 exports.getAvgPriceOrder = getAvgPriceOrder;
+const getAllCurrenciesBalance = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { user_id: user_id } = req.body.user;
+    //   const { email } = req.body;
+    try {
+        if (req.body.login === "True") {
+            if (!user_id) {
+                return res.status(400).send({
+                    status: "3",
+                    message: "You are not authorized or user not present",
+                });
+            }
+        }
+        // await prisma.currencies.deleteMany({
+        //   where: {
+        //     currency_id: user_id,
+        //   },
+        // });
+        // Initialize an array to store the all currency balance data
+        const currenciesWithBalances = yield prisma.$queryRaw `
+  SELECT 
+    c.currency_id,
+    c.coin,
+    c.symbol,
+    c.icon,
+    c.status,
+    c.coin_decimal,
+    c.deposit,
+    c.withdraw,
+    c.withdrawl_fees,
+    c.usdtprice,
+    c.change_in_price,
+    COALESCE(b.main_balance, 0) AS main_balance
+  FROM 
+    currencies c
+  LEFT JOIN balances b ON c.currency_id = b.currency_id AND b.user_id = ${user_id}
+  WHERE 
+    c.symbol != 'INR'
+`;
+        // console.log(currenciesWithBalances)
+        let usdtInvestedSum = 0;
+        let coin_price;
+        const formattedData = currenciesWithBalances.map((currency) => {
+            if (currency.symbol === "BTC") {
+                coin_price = currency.usdtprice;
+            }
+            const balance = currency.main_balance
+                ? currency.main_balance
+                : 0.0;
+            const usdtPrice = currency.usdtprice;
+            const usdtInvested = balance * usdtPrice;
+            usdtInvestedSum += usdtInvested;
+            return {
+                currency_id: currency.currency_id,
+                coin: currency.coin,
+                symbol: currency.symbol,
+                icon: currency.icon,
+                //status: currency.status,
+                //deposit: currency.deposit,
+                //withdraw: currency.withdraw,
+                withdrawl_fees: currency.withdrawl_fees,
+                usdtprice: currency.usdtprice,
+                balance: balance,
+                usdtInvested: usdtInvested,
+            };
+        });
+        // console.log(formattedData)
+        formattedData.sort((a, b) => b.usdtInvested - a.usdtInvested);
+        res.status(200).json({
+            status: "1",
+            iconPath: `${process.env.ICON_URL}/icon/`,
+            iconPath1: `${process.env.ICON_URL1}/icon/`,
+            totalBalance: usdtInvestedSum,
+            totalCoinBalance: usdtInvestedSum / coin_price,
+            data: formattedData,
+        });
+    }
+    catch (error) {
+        console.log(error);
+        res.status(500).send({ status: "0", message: error.message });
+    }
+});
+exports.getAllCurrenciesBalance = getAllCurrenciesBalance;
+const getSymbolFunds = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b;
+    const { user_id: user_id } = req.body.user;
+    const { currency_id } = req.body;
+    try {
+        if (!user_id) {
+            return res.status(400).send({
+                status: "3",
+                message: "You are not authorized or user not present",
+            });
+        }
+        if (!currency_id) {
+            return res.status(400).send({
+                status: "3",
+                message: "provide currency_id",
+            });
+        }
+        //query to get user main_balance and locked_balance from balances tables using user_id and  currency_id
+        const currencyData = yield prisma.balances.findFirst({
+            select: {
+                main_balance: true,
+                locked_balance: true
+            },
+            where: {
+                user_id: user_id,
+                currency_id: currency_id
+            }
+        });
+        const data = {
+            available: (_a = currencyData === null || currencyData === void 0 ? void 0 : currencyData.main_balance) !== null && _a !== void 0 ? _a : 0.0,
+            unavailable: (_b = currencyData === null || currencyData === void 0 ? void 0 : currencyData.locked_balance) !== null && _b !== void 0 ? _b : 0.0
+        };
+        return res.status(200).json({
+            status: '1',
+            data: [
+                data
+            ],
+        });
+    }
+    catch (error) {
+        console.error("Error fetching data:", error.message);
+        res.status(500).send({
+            status: "0",
+            message: "Unable to fetch data from Binance API",
+        });
+    }
+});
+exports.getSymbolFunds = getSymbolFunds;
 // const cancelOrderFunc = async (order_id: any, user_id: any, timestamp: any) => {
 //   const buySellData = await prisma.buy_sell_pro_limit_open.findMany({
 //     where: {
@@ -965,89 +1097,6 @@ exports.getAvgPriceOrder = getAvgPriceOrder;
 //   }
 // };
 // Get All Currencies Balance Query Change
-const getAllCurrenciesBalance = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { user_id: user_id } = req.body.user;
-    console.log(user_id);
-    //   const { email } = req.body;
-    try {
-        if (req.body.login === "True") {
-            if (!user_id) {
-                return res.status(400).send({
-                    status: "3",
-                    message: "You are not authorized or user not present",
-                });
-            }
-        }
-        // await prisma.currencies.deleteMany({
-        //   where: {
-        //     currency_id: user_id,
-        //   },
-        // });
-        // Initialize an array to store the all currency balance data
-        const currenciesWithBalances = yield prisma.$queryRaw `
-  SELECT 
-    c.currency_id,
-    c.coin,
-    c.symbol,
-    c.icon,
-    c.status,
-    c.coin_decimal,
-    c.deposit,
-    c.withdraw,
-    c.withdrawl_fees,
-    c.usdtprice,
-    c.change_in_price,
-    COALESCE(b.main_balance, 0) AS main_balance
-  FROM 
-    currencies c
-  LEFT JOIN balances b ON c.currency_id = b.currency_id AND b.user_id = ${user_id}
-  WHERE 
-    c.symbol != 'INR'
-`;
-        // console.log(currenciesWithBalances)
-        let usdtInvestedSum = 0;
-        let coin_price;
-        const formattedData = currenciesWithBalances.map((currency) => {
-            if (currency.symbol === "BTC") {
-                coin_price = currency.usdtprice;
-            }
-            const balance = currency.main_balance
-                ? currency.main_balance
-                : 0.0;
-            const usdtPrice = currency.usdtprice;
-            const usdtInvested = balance * usdtPrice;
-            usdtInvestedSum += usdtInvested;
-            return {
-                currency_id: currency.currency_id,
-                coin: currency.coin,
-                symbol: currency.symbol,
-                icon: currency.icon,
-                //status: currency.status,
-                //deposit: currency.deposit,
-                //withdraw: currency.withdraw,
-                withdrawl_fees: currency.withdrawl_fees,
-                usdtprice: currency.usdtprice,
-                balance: balance,
-                usdtInvested: usdtInvested,
-            };
-        });
-        // console.log(formattedData)
-        formattedData.sort((a, b) => b.usdtInvested - a.usdtInvested);
-        res.status(200).json({
-            status: "1",
-            iconPath: `${process.env.ICON_URL}/icon/`,
-            iconPath1: `${process.env.ICON_URL1}/icon/`,
-            totalBalance: usdtInvestedSum,
-            totalCoinBalance: usdtInvestedSum / coin_price,
-            data: formattedData,
-        });
-    }
-    catch (error) {
-        console.log(error);
-        res.status(500).send({ status: "0", message: error.message });
-    }
-});
-exports.getAllCurrenciesBalance = getAllCurrenciesBalance;
 /*----- Get All Funds -------*/
 // export const getAllFunds = async (req: Request, res: Response) => {
 //   const { id: user_id } = req.body.user;
@@ -1180,54 +1229,6 @@ exports.getAllCurrenciesBalance = getAllCurrenciesBalance;
 //     res.status(500).send({ status: "0", message: error.message });
 //   }
 // };
-const getSymbolFunds = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b;
-    const { user_id: user_id } = req.body.user;
-    const { currency_id } = req.body;
-    try {
-        if (!user_id) {
-            return res.status(400).send({
-                status: "3",
-                message: "You are not authorized or user not present",
-            });
-        }
-        if (!currency_id) {
-            return res.status(400).send({
-                status: "3",
-                message: "provide currency_id",
-            });
-        }
-        //query to get user main_balance and locked_balance from balances tables using user_id and  currency_id
-        const currencyData = yield prisma.balances.findFirst({
-            select: {
-                main_balance: true,
-                locked_balance: true
-            },
-            where: {
-                user_id: user_id,
-                currency_id: currency_id
-            }
-        });
-        const data = {
-            available: (_a = currencyData === null || currencyData === void 0 ? void 0 : currencyData.main_balance) !== null && _a !== void 0 ? _a : 0.0,
-            unavailable: (_b = currencyData === null || currencyData === void 0 ? void 0 : currencyData.locked_balance) !== null && _b !== void 0 ? _b : 0.0
-        };
-        return res.status(200).json({
-            status: '1',
-            data: [
-                data
-            ],
-        });
-    }
-    catch (error) {
-        console.error("Error fetching data:", error.message);
-        res.status(500).send({
-            status: "0",
-            message: "Unable to fetch data from Binance API",
-        });
-    }
-});
-exports.getSymbolFunds = getSymbolFunds;
 /*----- Get Symbol All Funds -------*/
 // export const getSymbolFunds = async (req: Request, res: Response) => {
 //   const { id: user_id } = req.body.user;

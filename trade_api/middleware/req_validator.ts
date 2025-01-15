@@ -58,12 +58,12 @@ export const validate_buy_asset_pro = (req: any, res: any, next: any) => {
     pair_id,
     quote_volume,
     limit_price,
-    order_type} = req.body;
-console.log('user_id',user_id)
-  console.log('pair_id',pair_id)
-  console.log('quote_volume',quote_volume)
-  console.log('limit_price',limit_price)
-  console.log('order_type',order_type);
+    order_type,
+    ip_address,
+    device_type,
+    device_info
+  } = req.body;
+
   const user_id_error =  validateStringMinMaxRequired(user_id, c.userIdMin, c.userIdMax);
   if (user_id_error) {
     console.log('user_id_error',user_id_error)
@@ -94,6 +94,24 @@ console.log('user_id',user_id)
     return responseFormat(res, order_type_error, 'order_type');
   }
 
+  const ip_address_error =  validateIp(ip_address);
+  if (ip_address_error) {
+    console.log('ip_address_error',ip_address_error)
+    return responseFormat(res, ip_address_error, 'ip_address');
+  }
+
+  const device_type_error =  validateStringRequired(device_type);
+  if (device_type_error) {
+    console.log('device_type_error',device_type_error)    
+    return responseFormat(res, device_type_error, 'device_type');
+  }
+
+  const device_info_error =  validateStringRequired(device_info);
+  if (device_info_error) {
+    console.log('device_info_error',device_info_error)    
+    return responseFormat(res, device_info_error, 'device_info');
+  }
+
   next();
 };
 
@@ -103,7 +121,11 @@ export const validate_sell_asset_pro = (req: any, res: any, next: any) => {
       base_volume,
       limit_price,
       order_type,
-      stop_limit_price, } = req.body;
+      stop_limit_price,
+      ip_address,
+      device_type,
+      device_info
+     } = req.body;
 
   const user_id_error =  validateStringMinMaxRequired(user_id, c.userIdMin, c.userIdMax);
   if (user_id_error) {
@@ -135,6 +157,24 @@ export const validate_sell_asset_pro = (req: any, res: any, next: any) => {
     return responseFormat(res, stop_limit_price_error, 'stop_limit_price');
   }
 
+  
+  const ip_address_error =  validateIp(ip_address);
+  if (ip_address_error) {
+    console.log('ip_address_error',ip_address_error)
+    return responseFormat(res, ip_address_error, 'ip_address');
+  }
+
+  const device_type_error =  validateStringRequired(device_type);
+  if (device_type_error) {
+    console.log('device_type_error',device_type_error)    
+    return responseFormat(res, device_type_error, 'device_type');
+  }
+
+  const device_info_error =  validateStringRequired(device_info);
+  if (device_info_error) {
+    console.log('device_info_error',device_info_error)    
+    return responseFormat(res, device_info_error, 'device_info');
+  }
  
   next();
 };
@@ -144,8 +184,12 @@ export const validate_buy_stop_limit = (req: any, res: any, next: any) => {
     pair_id,
     quote_volume,
     limit_price,
-    stop_price } = req.body;
-console.log("req.body", user_id, pair_id, quote_volume, limit_price, stop_price);
+    stop_price,
+    ip_address,
+    device_type,
+    device_info
+   } = req.body;
+
   const user_id_error =  validateStringMinMaxRequired(user_id, c.userIdMin, c.userIdMax);
   if (user_id_error) {
     return responseFormat(res, user_id_error, 'user_id');
@@ -170,16 +214,39 @@ console.log("req.body", user_id, pair_id, quote_volume, limit_price, stop_price)
   if (stop_limit_price_error) {
     return responseFormat(res, stop_limit_price_error, 'stop_limit_price');
   }
+  
+  const ip_address_error =  validateIp(ip_address);
+  if (ip_address_error) {
+    console.log('ip_address_error',ip_address_error)
+    return responseFormat(res, ip_address_error, 'ip_address');
+  }
+
+  const device_type_error =  validateStringRequired(device_type);
+  if (device_type_error) {
+    console.log('device_type_error',device_type_error)    
+    return responseFormat(res, device_type_error, 'device_type');
+  }
+
+  const device_info_error =  validateStringRequired(device_info);
+  if (device_info_error) {
+    console.log('device_info_error',device_info_error)    
+    return responseFormat(res, device_info_error, 'device_info');
+  }
   next();
 };
 
 export const validate_sell_stop_limit = (req: any, res: any, next: any) => {
-  const { user_id, 
+  const { 
+    user_id, 
     pair_id,
-     base_volume,
+    base_volume,
     limit_price,
-    stop_price } = req.body;
-console.log("req.body", user_id, pair_id, base_volume, limit_price, stop_price);
+    stop_price,
+    ip_address,
+    device_type,
+    device_info
+   } = req.body;
+
   const user_id_error =  validateStringMinMaxRequired(user_id, c.userIdMin, c.userIdMax);
   if (user_id_error) {
     return responseFormat(res, user_id_error, 'user_id');
@@ -204,8 +271,65 @@ console.log("req.body", user_id, pair_id, base_volume, limit_price, stop_price);
   if (stop_limit_price_error) {
     return responseFormat(res, stop_limit_price_error, 'stop_limit_price');
   }
+  
+  const ip_address_error =  validateIp(ip_address);
+  if (ip_address_error) {
+    console.log('ip_address_error',ip_address_error)
+    return responseFormat(res, ip_address_error, 'ip_address');
+  }
+
+  const device_type_error =  validateStringRequired(device_type);
+  if (device_type_error) {
+    console.log('device_type_error',device_type_error)    
+    return responseFormat(res, device_type_error, 'device_type');
+  }
+
+  const device_info_error =  validateStringRequired(device_info);
+  if (device_info_error) {
+    console.log('device_info_error',device_info_error)    
+    return responseFormat(res, device_info_error, 'device_info');
+  }
   next();
 };
+
+export const validate_cancel_order = (req: any, res: any, next: any) => {
+  const { user_id, order_id,pair_id, ip_address, device_type, device_info} = req.body;
+
+  const user_id_error =  validateStringMinMaxRequired(user_id, c.userIdMin, c.userIdMax); 
+  if (user_id_error) {
+    return responseFormat(res, user_id_error, 'user_id');
+  }
+
+  const pair_id_error =  validateStringMinMaxRequired(pair_id, c.pairIdMin, c.pairIdMax);
+  if (pair_id_error) {
+    return responseFormat(res, pair_id_error, 'pair_id');
+  }
+
+  const order_id_error =  validateStringMinMaxRequired(order_id, c.orderIdMin, c.orderIdMax);
+  if (order_id_error) {
+    console.log('order_id_error',order_id_error)
+    return responseFormat(res, order_id_error, 'order_id');
+  } 
+
+  const ip_address_error =  validateIp(ip_address);
+  if (ip_address_error) {
+    console.log('ip_address_error',ip_address_error)
+    return responseFormat(res, ip_address_error, 'ip_address');
+  }
+
+  const device_type_error =  validateStringRequired(device_type);
+  if (device_type_error) {
+    console.log('device_type_error',device_type_error)    
+    return responseFormat(res, device_type_error, 'device_type');
+  }
+
+  const device_info_error =  validateStringRequired(device_info);
+  if (device_info_error) {
+    console.log('device_info_error',device_info_error)    
+    return responseFormat(res, device_info_error, 'device_info');
+  }
+  next(); 
+};  
 
 // module.exports.validate_quick_sell=(req,res,next)=>{
     
@@ -286,32 +410,7 @@ console.log("req.body", user_id, pair_id, base_volume, limit_price, stop_price);
 //    next()
 // }
 
-// module.exports.validate_cancel_order =(req,res,next)=>{
-    
-//    const { user_id, order_id, ip, coordinate } = req.body;
 
-//     const user_id_error =  validate_string_min_max_required(user_id,c.user_id_min,c.user_id_max)
-//     if(user_id_error){
-//        return response_format(res,user_id_error , 'user_id')
-//     }
-
-//     const order_id_error =  validate_string_min_max_required(order_id,c.order_id_min,c.order_id_max)
-//     if(order_id_error){
-//        return response_format(res,order_id_error,'order_id')
-//     }
-
-//     const ip_error =  validate_ip(ip)
-//     if(ip_error){
-//        return response_format(res,ip_error , 'ip')
-//     }
-
-//     const coordinate_error =  validate_coordinate(coordinate)
-//     if(coordinate_error){
-//        return response_format(res,coordinate_error , 'coordinate')
-//     }
-
-//    next()
-// }
 
 // module.exports.validate_modify_order =(req,res,next)=>{
     

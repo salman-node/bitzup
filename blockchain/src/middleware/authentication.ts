@@ -33,12 +33,12 @@ export const verifyUser = async (
       return res.status(400).json({ status: '3', message: 'You are not authorized' });
     }
 
-
     const user = await prisma.user.findFirst({
-      where: { user_id: payload.user_id },
+      where: { email: payload.email },
     });
-    console.log('user', payload.user_id);
+   
     const authUser = { ...user } as IUserPartial;
+    console.log('authUser', authUser);
     delete authUser.password;
     req.body.user = authUser;
 
@@ -79,7 +79,7 @@ export const checkLogin = async (
         return res.status(200).json({ status: '0', message: 'You are not authorized' });
       }
       const user = await prisma.user.findFirst({
-        where: { user_id: payload.user_id },
+        where: { email: payload.email },
       });
       const authUser = { ...user };
       delete authUser.password;

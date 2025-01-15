@@ -11,6 +11,9 @@ interface EnvironmentVariables {
   HTTP_SERVER_ERROR: number;
   HTTP_SUCCESS: number;
   HTTP_SUCCESSFULLY_CREATED: number;
+  binance_apiKey:string; 
+  api_secret:string;
+  binance_url:string;
 }
 
 const config: EnvironmentVariables = {
@@ -23,6 +26,9 @@ const config: EnvironmentVariables = {
   HTTP_SERVER_ERROR: parseInt(process.env.HTTP_SERVER_ERROR, 10),
   HTTP_SUCCESS: parseInt(process.env.HTTP_SUCCESS, 10),
   HTTP_SUCCESSFULLY_CREATED: parseInt(process.env.HTTP_SUCCESSFULLY_CREATED, 10),
+  binance_apiKey:process.env.binance_apiKey || 'gppTzIeLcnA2uAf8E0Hwda9RcwsIPoBdoA0dsqbU0AEXmLCRDccArhGMa4r71H3x',
+  api_secret:process.env.api_secret || 'LDIUwHvnrSapjMrUb7xQLw4HfQbRBs2cBCEn96vLmHDl85fntvknGYr7jS6VIisE',
+  binance_url:process.env.binance_url || "https://testnet.binance.vision"
 };
 
 // interface ErrorCodes {

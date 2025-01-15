@@ -1,6 +1,6 @@
 require("dotenv").config();
 // import { Request, Response } from "express";
-import * as Joi from "joi";
+import Joi from "joi";
 import { prisma } from "../config/prisma_client";// import { v4 as uuid } from "uuid";
 // import GenerateID from "../utility/generator";
 import { config } from "../config/config";
@@ -15,12 +15,11 @@ import {
   NewOrderRespType,
 } from "@binance/connector-typescript";
 import { randomUUID } from "crypto";
-const apiKey =
-  "QT7VwThPfnLXhmYeiA0fTgP01Czi4cGTs5iwLVs6cl4UbVCTfKULSwSdkfNtz6om";
-const apiSecret =
-  "u3I0eAL1JYKg8qA1giUWNeIajBJYcr2hK29Bz3N26ubF0bUcqixUHS22R2XkpszW";
+
+const apiKey = config.binance_apiKey;
+const apiSecret = config.api_secret;
 const client = new Spot(apiKey, apiSecret, {
-  baseURL: "https://testnet.binance.vision",
+  baseURL: config.binance_url,
   timeout: 1000,
 });
 
@@ -34,8 +33,11 @@ export const placeBuyOrder = async (req: any, res: any) => {
       limit_price,
       order_type,
       stop_limit_price,
+      ip_address,
+      device_type,
+      device_info
     } = reqBody;
-  
+  console.log(1, user_id, pair_id, quote_volume, limit_price, order_type, stop_limit_price, ip_address, device_type, device_info)
     const orderType = order_type.toUpperCase();
 
     const getPairData = await prisma.crypto_pair.findMany({
@@ -58,7 +60,7 @@ export const placeBuyOrder = async (req: any, res: any) => {
         status: true,
       },
     });
-
+console.log(2)
     if (!getPairData.length) {
       return res.status(config.HTTP_BAD_REQUEST).send({
         status_code: config.HTTP_BAD_REQUEST,
@@ -69,7 +71,7 @@ export const placeBuyOrder = async (req: any, res: any) => {
 
     const side = "BUY";
     // console.log('getpairdata',getPairData)
-    console.log(2);
+   
     const pairDecimal = getPairData[0].quantity_decimal;
     const pairSymbol = getPairData[0].pair_symbol;
 
@@ -77,7 +79,7 @@ export const placeBuyOrder = async (req: any, res: any) => {
     const maxQuoteVolume = getPairData[0].max_quote_qty;
 
     const quote_asset_id = getPairData[0].quote_asset_id;
-
+console.log(3)
     //get user balance from balances table
     const userAssetBalance = await prisma.balances.findMany({
       where: {
@@ -88,7 +90,7 @@ export const placeBuyOrder = async (req: any, res: any) => {
         current_balance: true,
       }
     });
-    
+    console.log(4)    
     if (!userAssetBalance.length) {
       return res.status(config.HTTP_SUCCESS).send({
         status_code: config.HTTP_SUCCESS,
@@ -105,7 +107,7 @@ export const placeBuyOrder = async (req: any, res: any) => {
         message: "Sorry, your quote balance is insufficient.",
       });
     }
-
+console.log(5)
     const validateQuoteVolume = Joi.object({
       quote_volume: Joi.number()
       
@@ -122,7 +124,7 @@ export const placeBuyOrder = async (req: any, res: any) => {
         message: `Amount must be greater then or equal to ${minQuoteVolume} and less then or equal to ${maxQuoteVolume}`,
       });
     }
-
+console.log(6)
     const OrderId = GenerateUniqueID(10, randomUUID(), `${user_id}-`);
 
     //calculate base_volume for limit order
@@ -130,9 +132,6 @@ export const placeBuyOrder = async (req: any, res: any) => {
     if (orderType == "LIMIT") {
       baseVolume = Number((quote_volume / limit_price).toFixed(pairDecimal));
     }
-
-    const time = await client.checkServerTime();
-    console.log("time", time.serverTime);
 
     // client.setTimestampOffset()
 
@@ -183,7 +182,7 @@ export const placeBuyOrder = async (req: any, res: any) => {
     );
     console.log("orderData", orderData);
   } catch (binanceError) {
-    console.error("Binance Order Placement Error:", binanceError.message || binanceError);
+    console.error("Binance Order Placement Error:", binanceError || binanceError);
 
     // Update the database to mark the order as failed
     await prisma.buy_sell_pro_limit_open.update({
@@ -242,6 +241,16 @@ export const placeBuyOrder = async (req: any, res: any) => {
       status: orderData.status, // Current order status
       created_at: orderData.transactTime, // Order creation time
     }
+   console.log(7,ip_address , device_type , device_info);
+    await prisma.activity_logs.create({
+      data: {
+        user_id: user_id,
+        activity_type: "Placed buy order",
+        ip_address: ip_address,
+        device_type: device_type,
+        device_info: device_info,
+      },
+    });
 
     return res.status(config.HTTP_SUCCESS).send({
       status_code: config.HTTP_SUCCESS,
@@ -267,6 +276,9 @@ export const placeSellOrder = async (req: any, res: any) => {
       limit_price,
       order_type,
       stop_limit_price,
+      ip_address,
+      device_type,
+      device_info
     } = reqBody;
 
 
@@ -466,6 +478,16 @@ export const placeSellOrder = async (req: any, res: any) => {
       created_at: orderData.transactTime, // Order creation time
     }
 
+    await prisma.activity_logs.create({
+      data: {
+        user_id: user_id,
+        activity_type: "Placed Sell order",
+        ip_address: ip_address,
+        device_type: device_type,
+        device_info: device_info,
+      },
+    });
+
     return res.status(config.HTTP_SUCCESS).send({
       status_code: config.HTTP_SUCCESS,
       status: "1",
@@ -491,19 +513,13 @@ export const placeBuyStopLimit = async (req: any, res: any) => {
       quote_volume,
       limit_price,
       stop_price,
+      ip_address,
+      device_type,
+      device_info
     } = reqBody;
 
    
     const side = "BUY";
-    console.log("stop_price",stop_price)
-    console.log("limit_price",limit_price)
-    // if (Number(stop_price) >= Number(limit_price)) {
-    //   return res.status(config.HTTP_SUCCESS).send({
-    //     status_code: config.HTTP_SUCCESS,
-    //     status: "0",
-    //     message: "Stop price must be less then limit price",
-    //   })
-    // }
     
     const getPairData = await prisma.crypto_pair.findMany({
       where: {
@@ -661,6 +677,9 @@ export const placeBuyStopLimit = async (req: any, res: any) => {
       message: "Order failed to place.",
     });
   }
+
+  // sleep for 1 second
+  await new Promise((resolve) => setTimeout(resolve, 1000));
     const orderData = await client.getOrder(orderResponse.symbol, {
       orderId:orderResponse.orderId
     });
@@ -702,6 +721,16 @@ export const placeBuyStopLimit = async (req: any, res: any) => {
       created_at: orderData.time, // Order creation time
     }
 
+    await prisma.activity_logs.create({
+      data: {
+        user_id: user_id,
+        activity_type: "Placed Buy stop limit order.",
+        ip_address: ip_address,
+        device_type: device_type,
+        device_info: device_info,
+      },
+    });
+
     return res.status(config.HTTP_SUCCESS).send({
       status_code: config.HTTP_SUCCESS,
       status: "1",
@@ -736,23 +765,14 @@ export const placeSellStopLimit = async (req: any, res: any) => {
       base_volume,
       limit_price,
       stop_price,
+      ip_address,
+      device_type,
+      device_info
     } = reqBody;
 
-    
-    // const orderType ="TAKE_PROFIT_LIMIT";
-    const side = "SELL";
-    
-    console.log('stop_price',stop_price)
-    console.log('limit_price',limit_price)
 
-    // if (Number(stop_price) <= Number(limit_price)) {
-    //   return res.status(config.HTTP_SUCCESS).send({
-    //     status_code: config.HTTP_SUCCESS,
-    //     status: "0",
-    //     message: "Stop price must be Greater than limit price",
-    //   })
-    // }
-console.log(1)
+    const side = "SELL";
+
     const getPairData = await prisma.crypto_pair.findMany({
       where: {
         pair_id: pair_id,
@@ -774,7 +794,6 @@ console.log(1)
       },
     });
 
-    console.log(2)
     if (!getPairData.length) {
       return res.status(config.HTTP_BAD_REQUEST).send({
         status_code: config.HTTP_BAD_REQUEST,
@@ -782,8 +801,7 @@ console.log(1)
         message: "Invalid pair id",
       });
     }
-    // console.log('getpairdata',getPairData)
-    console.log(3)
+
     const pairDecimal = getPairData[0].quantity_decimal;
     const pairSymbol = getPairData[0].pair_symbol;
 
@@ -793,14 +811,14 @@ console.log(1)
 
 
     const currentMarketPrice:any = await client.symbolPriceTicker({symbol:pairSymbol});
-    console.log('currentMarketPrice',currentMarketPrice.price)
+
     let ordertype:any ;
     if(stop_price > currentMarketPrice.price){
        ordertype = "TAKE_PROFIT_LIMIT";
     }else{  
        ordertype = 'STOP_LOSS_LIMIT';
     }
-   console.log('ordertype',ordertype)
+
     //get user balance from balances table
     const userAssetBalance = await prisma.balances.findMany({
       where: {
@@ -811,7 +829,7 @@ console.log(1)
         current_balance: true,
       },
     });
-    console.log(4)
+
     if (!userAssetBalance.length) {
       return res.status(config.HTTP_SUCCESS).send({
         status_code: config.HTTP_SUCCESS,
@@ -819,7 +837,7 @@ console.log(1)
         message: "User balance not found",
       });
     }
-    console.log(5)
+
     const userBalance = userAssetBalance[0].current_balance;
     if (Number(userBalance) < Number(base_volume)) {
       return res.status(config.HTTP_SUCCESS).send({
@@ -828,7 +846,7 @@ console.log(1)
         message: "Sorry, your quote balance is insufficient.",
       });
     }
-    console.log(6)
+
     const validateBaseeVolume = Joi.object({
       base_volume: Joi.number()
         .precision(pairDecimal)
@@ -844,7 +862,7 @@ console.log(1)
         message: `Base volume must be greater then or equal to ${minBaseVolume} and less then or equal to ${minBaseVolume}`,
       });
     }
-    console.log(8)
+
     const base_quantity = Number(Number(base_volume).toFixed(pairDecimal));
 
     const OrderId = GenerateUniqueID(10, randomUUID(), `${user_id}-`);
@@ -866,7 +884,7 @@ console.log(1)
         device: null,
       },
     });
-console.log(9)
+
     const  options = { 
       quantity: base_quantity,
       price: limit_price,
@@ -886,7 +904,7 @@ console.log(9)
       getOrderType(ordertype),
       options
     );
-    console.log('orderResponse', orderResponse)
+
   } catch (binanceError) {
     console.error("Binance Order Placement Error:", binanceError.message || binanceError);
 
@@ -907,7 +925,8 @@ console.log(9)
       message: "Order failed to place.",
     });
   }
-   
+   //sleep for 5 seconds
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     const orderData = await client.getOrder(pairSymbol, {
       orderId:orderResponse.orderId
     })
@@ -946,7 +965,17 @@ console.log(9)
       executed_quote_quantity: orderData.cummulativeQuoteQty, // Last quote asset transacted quantity
       status: orderData.status, // Current order status
       created_at: orderData.time, // Order creation time
-    }
+    };
+
+    await prisma.activity_logs.create({
+      data: {
+        user_id: user_id,
+        activity_type: "Placed sell stop limit order",
+        ip_address: ip_address,
+        device_type: device_type,
+        device_info: device_info,
+      },
+    });
 
     return res.status(config.HTTP_SUCCESS).send({
       status_code: config.HTTP_SUCCESS,
@@ -975,11 +1004,10 @@ console.log(9)
 export const cancelOrder = async (req: any, res: any) => {
   try {
     const reqBody = req.body;
-    const { user_id, order_id, pair_id } = reqBody;
+    const { user_id, order_id, pair_id , ip_address, device_type, device_info} = reqBody;
 
-    console.log(123, user_id, pair_id, order_id);
-
-    if (!user_id || !pair_id || !order_id) {
+console.log(reqBody)
+    if (!user_id || !pair_id || !order_id || !ip_address||  !device_type || ! device_info) {
       return res.status(400).send({
         status_code: 400,
         status: "0",
@@ -987,7 +1015,7 @@ export const cancelOrder = async (req: any, res: any) => {
         Data: [],
       });
     }
-
+console.log(1)
     const getPairData = await prisma.buy_sell_pro_limit_open.findFirst({
       where: {
         order_id: order_id,
@@ -1001,7 +1029,7 @@ export const cancelOrder = async (req: any, res: any) => {
       },
     });
 
-    console.log(1234,getPairData);
+
     if (!getPairData) {
       return res.status(400).send({
         status_code: 400,
@@ -1038,7 +1066,7 @@ export const cancelOrder = async (req: any, res: any) => {
     const orderData = await client.cancelOrder(symbol, {
       origClientOrderId: order_id,
     });
-    console.log(orderData);
+ 
     if (orderData.status === "CANCELED") {
       const origQty = orderData.origQty;
       const executedQty = orderData.executedQty;
@@ -1116,6 +1144,16 @@ export const cancelOrder = async (req: any, res: any) => {
         status: orderData.status, // Current order status
         created_at: orderData.transactTime, // Order creation time
       }
+
+      await prisma.activity_logs.create({
+        data: {
+          user_id: user_id,
+          activity_type: `cancelled ${order_type} order`,
+          ip_address: ip_address,
+          device_type: device_type,
+          device_info: device_info,
+        },
+      });
   
       return res.status(config.HTTP_SUCCESS).send({
         status_code: config.HTTP_SUCCESS,

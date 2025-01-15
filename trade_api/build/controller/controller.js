@@ -1,27 +1,4 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -58,11 +35,14 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 exports.__esModule = true;
 exports.rawQuery = exports.get_pair_data = exports.get_open_orders = exports.formatDate = exports.cancelOrder = exports.placeSellStopLimit = exports.placeBuyStopLimit = exports.placeSellOrder = exports.placeBuyOrder = void 0;
 require("dotenv").config();
 // import { Request, Response } from "express";
-var Joi = __importStar(require("joi"));
+var joi_1 = __importDefault(require("joi"));
 var prisma_client_1 = require("../config/prisma_client"); // import { v4 as uuid } from "uuid";
 // import GenerateID from "../utility/generator";
 var config_1 = require("../config/config");
@@ -71,20 +51,21 @@ var generator_1 = require("../utility/generator");
 // import configValidate from '../utility/validation'
 var connector_typescript_1 = require("@binance/connector-typescript");
 var crypto_1 = require("crypto");
-var apiKey = "QT7VwThPfnLXhmYeiA0fTgP01Czi4cGTs5iwLVs6cl4UbVCTfKULSwSdkfNtz6om";
-var apiSecret = "u3I0eAL1JYKg8qA1giUWNeIajBJYcr2hK29Bz3N26ubF0bUcqixUHS22R2XkpszW";
+var apiKey = config_1.config.binance_apiKey;
+var apiSecret = config_1.config.api_secret;
 var client = new connector_typescript_1.Spot(apiKey, apiSecret, {
-    baseURL: "https://testnet.binance.vision",
+    baseURL: config_1.config.binance_url,
     timeout: 1000
 });
 var placeBuyOrder = function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var reqBody, user_id, pair_id, quote_volume, limit_price, order_type, stop_limit_price, orderType, getPairData, side, pairDecimal, pairSymbol, minQuoteVolume, maxQuoteVolume, quote_asset_id, userAssetBalance, userBalance, validateQuoteVolume, OrderId, baseVolume, time, options, orderData, binanceError_1, status_1, OrderResponse, responseData, e_1;
+    var reqBody, user_id, pair_id, quote_volume, limit_price, order_type, stop_limit_price, ip_address, device_type, device_info, orderType, getPairData, side, pairDecimal, pairSymbol, minQuoteVolume, maxQuoteVolume, quote_asset_id, userAssetBalance, userBalance, validateQuoteVolume, OrderId, baseVolume, options, orderData, binanceError_1, status_1, OrderResponse, responseData, e_1;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
                 _a.trys.push([0, 11, , 12]);
                 reqBody = req.body;
-                user_id = reqBody.user_id, pair_id = reqBody.pair_id, quote_volume = reqBody.quote_volume, limit_price = reqBody.limit_price, order_type = reqBody.order_type, stop_limit_price = reqBody.stop_limit_price;
+                user_id = reqBody.user_id, pair_id = reqBody.pair_id, quote_volume = reqBody.quote_volume, limit_price = reqBody.limit_price, order_type = reqBody.order_type, stop_limit_price = reqBody.stop_limit_price, ip_address = reqBody.ip_address, device_type = reqBody.device_type, device_info = reqBody.device_info;
+                console.log(1, user_id, pair_id, quote_volume, limit_price, order_type, stop_limit_price, ip_address, device_type, device_info);
                 orderType = order_type.toUpperCase();
                 return [4 /*yield*/, prisma_client_1.prisma.crypto_pair.findMany({
                         where: {
@@ -108,6 +89,7 @@ var placeBuyOrder = function (req, res) { return __awaiter(void 0, void 0, void 
                     })];
             case 1:
                 getPairData = _a.sent();
+                console.log(2);
                 if (!getPairData.length) {
                     return [2 /*return*/, res.status(config_1.config.HTTP_BAD_REQUEST).send({
                             status_code: config_1.config.HTTP_BAD_REQUEST,
@@ -116,13 +98,12 @@ var placeBuyOrder = function (req, res) { return __awaiter(void 0, void 0, void 
                         })];
                 }
                 side = "BUY";
-                // console.log('getpairdata',getPairData)
-                console.log(2);
                 pairDecimal = getPairData[0].quantity_decimal;
                 pairSymbol = getPairData[0].pair_symbol;
                 minQuoteVolume = getPairData[0].min_quote_qty;
                 maxQuoteVolume = getPairData[0].max_quote_qty;
                 quote_asset_id = getPairData[0].quote_asset_id;
+                console.log(3);
                 return [4 /*yield*/, prisma_client_1.prisma.balances.findMany({
                         where: {
                             user_id: user_id,
@@ -134,6 +115,7 @@ var placeBuyOrder = function (req, res) { return __awaiter(void 0, void 0, void 
                     })];
             case 2:
                 userAssetBalance = _a.sent();
+                console.log(4);
                 if (!userAssetBalance.length) {
                     return [2 /*return*/, res.status(config_1.config.HTTP_SUCCESS).send({
                             status_code: config_1.config.HTTP_SUCCESS,
@@ -149,8 +131,9 @@ var placeBuyOrder = function (req, res) { return __awaiter(void 0, void 0, void 
                             message: "Sorry, your quote balance is insufficient."
                         })];
                 }
-                validateQuoteVolume = Joi.object({
-                    quote_volume: Joi.number()
+                console.log(5);
+                validateQuoteVolume = joi_1["default"].object({
+                    quote_volume: joi_1["default"].number()
                         .precision(pairDecimal)
                         .min(minQuoteVolume)
                         .max(maxQuoteVolume)
@@ -163,15 +146,12 @@ var placeBuyOrder = function (req, res) { return __awaiter(void 0, void 0, void 
                             message: "Amount must be greater then or equal to ".concat(minQuoteVolume, " and less then or equal to ").concat(maxQuoteVolume)
                         })];
                 }
+                console.log(6);
                 OrderId = (0, generator_1.GenerateUniqueID)(10, (0, crypto_1.randomUUID)(), "".concat(user_id, "-"));
                 baseVolume = 0;
                 if (orderType == "LIMIT") {
                     baseVolume = Number((quote_volume / limit_price).toFixed(pairDecimal));
                 }
-                return [4 /*yield*/, client.checkServerTime()];
-            case 3:
-                time = _a.sent();
-                console.log("time", time.serverTime);
                 // client.setTimestampOffset()
                 return [4 /*yield*/, prisma_client_1.prisma.buy_sell_pro_limit_open.create({
                         data: {
@@ -190,7 +170,7 @@ var placeBuyOrder = function (req, res) { return __awaiter(void 0, void 0, void 
                             device: null
                         }
                     })];
-            case 4:
+            case 3:
                 // client.setTimestampOffset()
                 _a.sent();
                 options = void 0;
@@ -212,17 +192,17 @@ var placeBuyOrder = function (req, res) { return __awaiter(void 0, void 0, void 
                     };
                 }
                 orderData = void 0;
-                _a.label = 5;
-            case 5:
-                _a.trys.push([5, 7, , 9]);
+                _a.label = 4;
+            case 4:
+                _a.trys.push([4, 6, , 8]);
                 return [4 /*yield*/, client.newOrder(pairSymbol, (0, constants_1.getSide)(side), (0, constants_1.getOrderType)(orderType), options)];
-            case 6:
+            case 5:
                 orderData = _a.sent();
                 console.log("orderData", orderData);
-                return [3 /*break*/, 9];
-            case 7:
+                return [3 /*break*/, 8];
+            case 6:
                 binanceError_1 = _a.sent();
-                console.error("Binance Order Placement Error:", binanceError_1.message || binanceError_1);
+                console.error("Binance Order Placement Error:", binanceError_1 || binanceError_1);
                 // Update the database to mark the order as failed
                 return [4 /*yield*/, prisma_client_1.prisma.buy_sell_pro_limit_open.update({
                         data: {
@@ -233,7 +213,7 @@ var placeBuyOrder = function (req, res) { return __awaiter(void 0, void 0, void 
                             order_id: OrderId
                         }
                     })];
-            case 8:
+            case 7:
                 // Update the database to mark the order as failed
                 _a.sent();
                 return [2 /*return*/, res.status(config_1.config.HTTP_SERVER_ERROR).send({
@@ -241,7 +221,7 @@ var placeBuyOrder = function (req, res) { return __awaiter(void 0, void 0, void 
                         status: false,
                         message: "Order failed to place."
                     })];
-            case 9:
+            case 8:
                 status_1 = orderData.status;
                 OrderResponse = orderData;
                 return [4 /*yield*/, prisma_client_1.prisma.$transaction([
@@ -267,7 +247,7 @@ var placeBuyOrder = function (req, res) { return __awaiter(void 0, void 0, void 
                             }
                         }),
                     ])];
-            case 10:
+            case 9:
                 _a.sent();
                 responseData = {
                     order_id: orderData.clientOrderId,
@@ -281,6 +261,18 @@ var placeBuyOrder = function (req, res) { return __awaiter(void 0, void 0, void 
                     status: orderData.status,
                     created_at: orderData.transactTime
                 };
+                console.log(7, ip_address, device_type, device_info);
+                return [4 /*yield*/, prisma_client_1.prisma.activity_logs.create({
+                        data: {
+                            user_id: user_id,
+                            activity_type: "Placed buy order",
+                            ip_address: ip_address,
+                            device_type: device_type,
+                            device_info: device_info
+                        }
+                    })];
+            case 10:
+                _a.sent();
                 return [2 /*return*/, res.status(config_1.config.HTTP_SUCCESS).send({
                         status_code: config_1.config.HTTP_SUCCESS,
                         status: "1",
@@ -299,13 +291,13 @@ var placeBuyOrder = function (req, res) { return __awaiter(void 0, void 0, void 
 }); };
 exports.placeBuyOrder = placeBuyOrder;
 var placeSellOrder = function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var reqBody, user_id, pair_id, base_volume, limit_price, order_type, stop_limit_price, orderType, getPairData, side, pairDecimal, pairSymbol, minBaseVolume, maxBaseVolume, base_asset_id, userAssetBalance, userBalance, validateBaseeVolume, base_quantity, OrderId, options, orderData, binanceError_2, status_2, OrderResponse, responseData, e_2;
+    var reqBody, user_id, pair_id, base_volume, limit_price, order_type, stop_limit_price, ip_address, device_type, device_info, orderType, getPairData, side, pairDecimal, pairSymbol, minBaseVolume, maxBaseVolume, base_asset_id, userAssetBalance, userBalance, validateBaseeVolume, base_quantity, OrderId, options, orderData, binanceError_2, status_2, OrderResponse, responseData, e_2;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
-                _a.trys.push([0, 10, , 11]);
+                _a.trys.push([0, 11, , 12]);
                 reqBody = req.body;
-                user_id = reqBody.user_id, pair_id = reqBody.pair_id, base_volume = reqBody.base_volume, limit_price = reqBody.limit_price, order_type = reqBody.order_type, stop_limit_price = reqBody.stop_limit_price;
+                user_id = reqBody.user_id, pair_id = reqBody.pair_id, base_volume = reqBody.base_volume, limit_price = reqBody.limit_price, order_type = reqBody.order_type, stop_limit_price = reqBody.stop_limit_price, ip_address = reqBody.ip_address, device_type = reqBody.device_type, device_info = reqBody.device_info;
                 orderType = order_type.toUpperCase();
                 return [4 /*yield*/, prisma_client_1.prisma.crypto_pair.findMany({
                         where: {
@@ -368,8 +360,8 @@ var placeSellOrder = function (req, res) { return __awaiter(void 0, void 0, void
                             message: "Sorry, your quote balance is insufficient."
                         })];
                 }
-                validateBaseeVolume = Joi.object({
-                    base_volume: Joi.number()
+                validateBaseeVolume = joi_1["default"].object({
+                    base_volume: joi_1["default"].number()
                         .precision(pairDecimal)
                         .min(minBaseVolume)
                         .max(maxBaseVolume)
@@ -490,13 +482,24 @@ var placeSellOrder = function (req, res) { return __awaiter(void 0, void 0, void
                     status: orderData.status,
                     created_at: orderData.transactTime
                 };
+                return [4 /*yield*/, prisma_client_1.prisma.activity_logs.create({
+                        data: {
+                            user_id: user_id,
+                            activity_type: "Placed Sell order",
+                            ip_address: ip_address,
+                            device_type: device_type,
+                            device_info: device_info
+                        }
+                    })];
+            case 10:
+                _a.sent();
                 return [2 /*return*/, res.status(config_1.config.HTTP_SUCCESS).send({
                         status_code: config_1.config.HTTP_SUCCESS,
                         status: "1",
                         message: "Order Placed Successfully",
                         Data: [responseData]
                     })];
-            case 10:
+            case 11:
                 e_2 = _a.sent();
                 console.log("error", e_2);
                 // await prisma.$transaction.rollback();
@@ -504,22 +507,20 @@ var placeSellOrder = function (req, res) { return __awaiter(void 0, void 0, void
                 return [2 /*return*/, res
                         .status(500)
                         .send({ status_code: 500, status: false, msg: e_2, Data: [] })];
-            case 11: return [2 /*return*/];
+            case 12: return [2 /*return*/];
         }
     });
 }); };
 exports.placeSellOrder = placeSellOrder;
 var placeBuyStopLimit = function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var reqBody, user_id, pair_id, quote_volume, limit_price, stop_price, side, getPairData, pairDecimal, pairSymbol, currentMarketPrice, ordertype, minQuoteVolume, maxQuoteVolume, quote_asset_id, userAssetBalance, userBalance, validateQuoteVolume, OrderId, baseVolume, options, orderResponse, binanceError_3, orderData, responseData, e_3;
+    var reqBody, user_id, pair_id, quote_volume, limit_price, stop_price, ip_address, device_type, device_info, side, getPairData, pairDecimal, pairSymbol, currentMarketPrice, ordertype, minQuoteVolume, maxQuoteVolume, quote_asset_id, userAssetBalance, userBalance, validateQuoteVolume, OrderId, baseVolume, options, orderResponse, binanceError_3, orderData, responseData, e_3;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
-                _a.trys.push([0, 12, , 13]);
+                _a.trys.push([0, 14, , 15]);
                 reqBody = req.body;
-                user_id = reqBody.user_id, pair_id = reqBody.pair_id, quote_volume = reqBody.quote_volume, limit_price = reqBody.limit_price, stop_price = reqBody.stop_price;
+                user_id = reqBody.user_id, pair_id = reqBody.pair_id, quote_volume = reqBody.quote_volume, limit_price = reqBody.limit_price, stop_price = reqBody.stop_price, ip_address = reqBody.ip_address, device_type = reqBody.device_type, device_info = reqBody.device_info;
                 side = "BUY";
-                console.log("stop_price", stop_price);
-                console.log("limit_price", limit_price);
                 return [4 /*yield*/, prisma_client_1.prisma.crypto_pair.findMany({
                         where: {
                             pair_id: pair_id
@@ -591,8 +592,8 @@ var placeBuyStopLimit = function (req, res) { return __awaiter(void 0, void 0, v
                             message: "Sorry, your quote balance is insufficient."
                         })];
                 }
-                validateQuoteVolume = Joi.object({
-                    quote_volume: Joi.number()
+                validateQuoteVolume = joi_1["default"].object({
+                    quote_volume: joi_1["default"].number()
                         .precision(pairDecimal)
                         .min(minQuoteVolume)
                         .max(maxQuoteVolume)
@@ -667,10 +668,16 @@ var placeBuyStopLimit = function (req, res) { return __awaiter(void 0, void 0, v
                         status: false,
                         message: "Order failed to place."
                     })];
-            case 9: return [4 /*yield*/, client.getOrder(orderResponse.symbol, {
-                    orderId: orderResponse.orderId
-                })];
+            case 9: 
+            // sleep for 1 second
+            return [4 /*yield*/, new Promise(function (resolve) { return setTimeout(resolve, 1000); })];
             case 10:
+                // sleep for 1 second
+                _a.sent();
+                return [4 /*yield*/, client.getOrder(orderResponse.symbol, {
+                        orderId: orderResponse.orderId
+                    })];
+            case 11:
                 orderData = _a.sent();
                 console.log("orderData", orderData);
                 return [4 /*yield*/, prisma_client_1.prisma.$transaction([
@@ -695,7 +702,7 @@ var placeBuyStopLimit = function (req, res) { return __awaiter(void 0, void 0, v
                             }
                         }),
                     ])];
-            case 11:
+            case 12:
                 _a.sent();
                 responseData = {
                     order_id: orderData.clientOrderId,
@@ -709,13 +716,24 @@ var placeBuyStopLimit = function (req, res) { return __awaiter(void 0, void 0, v
                     status: orderData.status,
                     created_at: orderData.time
                 };
+                return [4 /*yield*/, prisma_client_1.prisma.activity_logs.create({
+                        data: {
+                            user_id: user_id,
+                            activity_type: "Placed Buy stop limit order.",
+                            ip_address: ip_address,
+                            device_type: device_type,
+                            device_info: device_info
+                        }
+                    })];
+            case 13:
+                _a.sent();
                 return [2 /*return*/, res.status(config_1.config.HTTP_SUCCESS).send({
                         status_code: config_1.config.HTTP_SUCCESS,
                         status: "1",
                         message: "Order Placed Successfully",
                         Data: [responseData]
                     })];
-            case 12:
+            case 14:
                 e_3 = _a.sent();
                 console.log(e_3);
                 if (e_3 === "Stop price would trigger immediately.") {
@@ -728,7 +746,7 @@ var placeBuyStopLimit = function (req, res) { return __awaiter(void 0, void 0, v
                 return [2 /*return*/, res
                         .status(500)
                         .send({ status_code: 500, status: false, msg: e_3, Data: [] })];
-            case 13: return [2 /*return*/];
+            case 15: return [2 /*return*/];
         }
     });
 }); };
@@ -737,24 +755,14 @@ exports.placeBuyStopLimit = placeBuyStopLimit;
 // Stop price > Current market price
 // Stop price > Limit price (already handled in your code)
 var placeSellStopLimit = function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var reqBody, user_id, pair_id, base_volume, limit_price, stop_price, side, getPairData, pairDecimal, pairSymbol, minBaseVolume, maxBaseVolume, base_asset_id, currentMarketPrice, ordertype, userAssetBalance, userBalance, validateBaseeVolume, base_quantity, OrderId, options, orderResponse, binanceError_4, orderData, responseData, e_4;
+    var reqBody, user_id, pair_id, base_volume, limit_price, stop_price, ip_address, device_type, device_info, side, getPairData, pairDecimal, pairSymbol, minBaseVolume, maxBaseVolume, base_asset_id, currentMarketPrice, ordertype, userAssetBalance, userBalance, validateBaseeVolume, base_quantity, OrderId, options, orderResponse, binanceError_4, orderData, responseData, e_4;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
-                _a.trys.push([0, 12, , 13]);
+                _a.trys.push([0, 14, , 15]);
                 reqBody = req.body;
-                user_id = reqBody.user_id, pair_id = reqBody.pair_id, base_volume = reqBody.base_volume, limit_price = reqBody.limit_price, stop_price = reqBody.stop_price;
+                user_id = reqBody.user_id, pair_id = reqBody.pair_id, base_volume = reqBody.base_volume, limit_price = reqBody.limit_price, stop_price = reqBody.stop_price, ip_address = reqBody.ip_address, device_type = reqBody.device_type, device_info = reqBody.device_info;
                 side = "SELL";
-                console.log('stop_price', stop_price);
-                console.log('limit_price', limit_price);
-                // if (Number(stop_price) <= Number(limit_price)) {
-                //   return res.status(config.HTTP_SUCCESS).send({
-                //     status_code: config.HTTP_SUCCESS,
-                //     status: "0",
-                //     message: "Stop price must be Greater than limit price",
-                //   })
-                // }
-                console.log(1);
                 return [4 /*yield*/, prisma_client_1.prisma.crypto_pair.findMany({
                         where: {
                             pair_id: pair_id
@@ -777,7 +785,6 @@ var placeSellStopLimit = function (req, res) { return __awaiter(void 0, void 0, 
                     })];
             case 1:
                 getPairData = _a.sent();
-                console.log(2);
                 if (!getPairData.length) {
                     return [2 /*return*/, res.status(config_1.config.HTTP_BAD_REQUEST).send({
                             status_code: config_1.config.HTTP_BAD_REQUEST,
@@ -785,8 +792,6 @@ var placeSellStopLimit = function (req, res) { return __awaiter(void 0, void 0, 
                             message: "Invalid pair id"
                         })];
                 }
-                // console.log('getpairdata',getPairData)
-                console.log(3);
                 pairDecimal = getPairData[0].quantity_decimal;
                 pairSymbol = getPairData[0].pair_symbol;
                 minBaseVolume = getPairData[0].min_base_qty;
@@ -795,7 +800,6 @@ var placeSellStopLimit = function (req, res) { return __awaiter(void 0, void 0, 
                 return [4 /*yield*/, client.symbolPriceTicker({ symbol: pairSymbol })];
             case 2:
                 currentMarketPrice = _a.sent();
-                console.log('currentMarketPrice', currentMarketPrice.price);
                 ordertype = void 0;
                 if (stop_price > currentMarketPrice.price) {
                     ordertype = "TAKE_PROFIT_LIMIT";
@@ -803,7 +807,6 @@ var placeSellStopLimit = function (req, res) { return __awaiter(void 0, void 0, 
                 else {
                     ordertype = 'STOP_LOSS_LIMIT';
                 }
-                console.log('ordertype', ordertype);
                 return [4 /*yield*/, prisma_client_1.prisma.balances.findMany({
                         where: {
                             user_id: user_id,
@@ -815,7 +818,6 @@ var placeSellStopLimit = function (req, res) { return __awaiter(void 0, void 0, 
                     })];
             case 3:
                 userAssetBalance = _a.sent();
-                console.log(4);
                 if (!userAssetBalance.length) {
                     return [2 /*return*/, res.status(config_1.config.HTTP_SUCCESS).send({
                             status_code: config_1.config.HTTP_SUCCESS,
@@ -823,7 +825,6 @@ var placeSellStopLimit = function (req, res) { return __awaiter(void 0, void 0, 
                             message: "User balance not found"
                         })];
                 }
-                console.log(5);
                 userBalance = userAssetBalance[0].current_balance;
                 if (Number(userBalance) < Number(base_volume)) {
                     return [2 /*return*/, res.status(config_1.config.HTTP_SUCCESS).send({
@@ -832,9 +833,8 @@ var placeSellStopLimit = function (req, res) { return __awaiter(void 0, void 0, 
                             message: "Sorry, your quote balance is insufficient."
                         })];
                 }
-                console.log(6);
-                validateBaseeVolume = Joi.object({
-                    base_volume: Joi.number()
+                validateBaseeVolume = joi_1["default"].object({
+                    base_volume: joi_1["default"].number()
                         .precision(pairDecimal)
                         .min(minBaseVolume)
                         .max(maxBaseVolume)
@@ -847,7 +847,6 @@ var placeSellStopLimit = function (req, res) { return __awaiter(void 0, void 0, 
                             message: "Base volume must be greater then or equal to ".concat(minBaseVolume, " and less then or equal to ").concat(minBaseVolume)
                         })];
                 }
-                console.log(8);
                 base_quantity = Number(Number(base_volume).toFixed(pairDecimal));
                 OrderId = (0, generator_1.GenerateUniqueID)(10, (0, crypto_1.randomUUID)(), "".concat(user_id, "-"));
                 return [4 /*yield*/, prisma_client_1.prisma.buy_sell_pro_limit_open.create({
@@ -869,7 +868,6 @@ var placeSellStopLimit = function (req, res) { return __awaiter(void 0, void 0, 
                     })];
             case 4:
                 _a.sent();
-                console.log(9);
                 options = {
                     quantity: base_quantity,
                     price: limit_price,
@@ -886,7 +884,6 @@ var placeSellStopLimit = function (req, res) { return __awaiter(void 0, void 0, 
                 return [4 /*yield*/, client.newOrder(pairSymbol, (0, constants_1.getSide)(side), (0, constants_1.getOrderType)(ordertype), options)];
             case 6:
                 orderResponse = _a.sent();
-                console.log('orderResponse', orderResponse);
                 return [3 /*break*/, 9];
             case 7:
                 binanceError_4 = _a.sent();
@@ -909,10 +906,16 @@ var placeSellStopLimit = function (req, res) { return __awaiter(void 0, void 0, 
                         status: false,
                         message: "Order failed to place."
                     })];
-            case 9: return [4 /*yield*/, client.getOrder(pairSymbol, {
-                    orderId: orderResponse.orderId
-                })];
+            case 9: 
+            //sleep for 5 seconds
+            return [4 /*yield*/, new Promise(function (resolve) { return setTimeout(resolve, 1000); })];
             case 10:
+                //sleep for 5 seconds
+                _a.sent();
+                return [4 /*yield*/, client.getOrder(pairSymbol, {
+                        orderId: orderResponse.orderId
+                    })];
+            case 11:
                 orderData = _a.sent();
                 return [4 /*yield*/, prisma_client_1.prisma.$transaction([
                         prisma_client_1.prisma.buy_sell_pro_limit_open.update({
@@ -936,7 +939,7 @@ var placeSellStopLimit = function (req, res) { return __awaiter(void 0, void 0, 
                             }
                         }),
                     ])];
-            case 11:
+            case 12:
                 _a.sent();
                 responseData = {
                     order_id: orderData.clientOrderId,
@@ -950,13 +953,24 @@ var placeSellStopLimit = function (req, res) { return __awaiter(void 0, void 0, 
                     status: orderData.status,
                     created_at: orderData.time
                 };
+                return [4 /*yield*/, prisma_client_1.prisma.activity_logs.create({
+                        data: {
+                            user_id: user_id,
+                            activity_type: "Placed sell stop limit order",
+                            ip_address: ip_address,
+                            device_type: device_type,
+                            device_info: device_info
+                        }
+                    })];
+            case 13:
+                _a.sent();
                 return [2 /*return*/, res.status(config_1.config.HTTP_SUCCESS).send({
                         status_code: config_1.config.HTTP_SUCCESS,
                         status: "1",
                         message: "Order Placed Successfully",
                         Data: [responseData]
                     })];
-            case 12:
+            case 14:
                 e_4 = _a.sent();
                 console.log(e_4);
                 if (e_4 === "Stop price would trigger immediately.") {
@@ -971,21 +985,21 @@ var placeSellStopLimit = function (req, res) { return __awaiter(void 0, void 0, 
                 return [2 /*return*/, res
                         .status(500)
                         .send({ status_code: 500, status: false, msg: e_4, Data: [] })];
-            case 13: return [2 /*return*/];
+            case 15: return [2 /*return*/];
         }
     });
 }); };
 exports.placeSellStopLimit = placeSellStopLimit;
 var cancelOrder = function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var reqBody, user_id, order_id, pair_id, getPairData, order_type, pair_data, symbol, base_asset_id, quote_asset_id, orderData, origQty, executedQty, price, remainingQty, amountToUnlock, amountToUnlock, responseData, e_5;
+    var reqBody, user_id, order_id, pair_id, ip_address, device_type, device_info, getPairData, order_type, pair_data, symbol, base_asset_id, quote_asset_id, orderData, origQty, executedQty, price, remainingQty, amountToUnlock, amountToUnlock, responseData, e_5;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
-                _a.trys.push([0, 10, , 11]);
+                _a.trys.push([0, 11, , 12]);
                 reqBody = req.body;
-                user_id = reqBody.user_id, order_id = reqBody.order_id, pair_id = reqBody.pair_id;
-                console.log(123, user_id, pair_id, order_id);
-                if (!user_id || !pair_id || !order_id) {
+                user_id = reqBody.user_id, order_id = reqBody.order_id, pair_id = reqBody.pair_id, ip_address = reqBody.ip_address, device_type = reqBody.device_type, device_info = reqBody.device_info;
+                console.log(reqBody);
+                if (!user_id || !pair_id || !order_id || !ip_address || !device_type || !device_info) {
                     return [2 /*return*/, res.status(400).send({
                             status_code: 400,
                             status: "0",
@@ -993,6 +1007,7 @@ var cancelOrder = function (req, res) { return __awaiter(void 0, void 0, void 0,
                             Data: []
                         })];
                 }
+                console.log(1);
                 return [4 /*yield*/, prisma_client_1.prisma.buy_sell_pro_limit_open.findFirst({
                         where: {
                             order_id: order_id,
@@ -1007,7 +1022,6 @@ var cancelOrder = function (req, res) { return __awaiter(void 0, void 0, void 0,
                     })];
             case 1:
                 getPairData = _a.sent();
-                console.log(1234, getPairData);
                 if (!getPairData) {
                     return [2 /*return*/, res.status(400).send({
                             status_code: 400,
@@ -1045,8 +1059,7 @@ var cancelOrder = function (req, res) { return __awaiter(void 0, void 0, void 0,
                     })];
             case 3:
                 orderData = _a.sent();
-                console.log(orderData);
-                if (!(orderData.status === "CANCELED")) return [3 /*break*/, 9];
+                if (!(orderData.status === "CANCELED")) return [3 /*break*/, 10];
                 origQty = orderData.origQty;
                 executedQty = orderData.executedQty;
                 price = orderData.price;
@@ -1126,14 +1139,25 @@ var cancelOrder = function (req, res) { return __awaiter(void 0, void 0, void 0,
                     status: orderData.status,
                     created_at: orderData.transactTime
                 };
+                return [4 /*yield*/, prisma_client_1.prisma.activity_logs.create({
+                        data: {
+                            user_id: user_id,
+                            activity_type: "cancelled ".concat(order_type, " order"),
+                            ip_address: ip_address,
+                            device_type: device_type,
+                            device_info: device_info
+                        }
+                    })];
+            case 9:
+                _a.sent();
                 return [2 /*return*/, res.status(config_1.config.HTTP_SUCCESS).send({
                         status_code: config_1.config.HTTP_SUCCESS,
                         status: "1",
                         message: "Order Canceled Successfully",
                         Data: [responseData]
                     })];
-            case 9: return [3 /*break*/, 11];
-            case 10:
+            case 10: return [3 /*break*/, 12];
+            case 11:
                 e_5 = _a.sent();
                 console.log("error", e_5);
                 // await prisma.$transaction.rollback();
@@ -1141,7 +1165,7 @@ var cancelOrder = function (req, res) { return __awaiter(void 0, void 0, void 0,
                 return [2 /*return*/, res
                         .status(500)
                         .send({ status_code: 500, status: false, msg: e_5, Data: [] })];
-            case 11: return [2 /*return*/];
+            case 12: return [2 /*return*/];
         }
     });
 }); };

@@ -31,6 +31,36 @@ const raw_query = async function (query, values) {
   }
 };
 
+async function updateOrInsertBalances({
+  userId,
+  currencyId,
+  mainBalanceChange = 0,
+  currentBalanceChange = 0,
+  lockedBalanceChange = 0,
+}) {
+  // Attempt to update the balance
+  const updateQuery = await raw_query(
+    `UPDATE balances 
+     SET main_balance = main_balance + ?, 
+         current_balance = current_balance + ?, 
+         locked_balance = locked_balance + ? 
+     WHERE user_id = ? AND currency_id = ?`,
+    [mainBalanceChange, currentBalanceChange, lockedBalanceChange, userId, currencyId]
+  );
+
+  // If no rows were affected, insert a new balance row
+  if (updateQuery.affectedRows === 0) {
+    await raw_query(
+      `INSERT INTO balances 
+       (user_id, currency_id, main_balance, current_balance, locked_balance) 
+       VALUES (?, ?, ?, ?, ?)`,
+      [userId, currencyId, mainBalanceChange, currentBalanceChange, lockedBalanceChange]
+    );
+  }
+}
+
+
+
 // ... (rest of the code remains the same)
 
  const Get_All_Universal_Data = async function (
@@ -100,4 +130,4 @@ const Update_Universal_Data = async function (
   });
 };
 
-module.exports = { Create_Universal_Data , Update_Universal_Data , Get_All_Universal_Data , Get_Where_Universal_Data, raw_query };
+module.exports = {updateOrInsertBalances, Create_Universal_Data , Update_Universal_Data , Get_All_Universal_Data , Get_Where_Universal_Data, raw_query };

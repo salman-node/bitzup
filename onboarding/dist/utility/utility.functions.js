@@ -217,7 +217,7 @@ const verifyOtp = (user_id, otp) => __awaiter(void 0, void 0, void 0, function* 
         if (!userOtpRecord) {
             return {
                 verified: false,
-                msg: `Invalid email or password.`,
+                msg: `Invalid OTP.`,
             };
         }
         // user otp record exist

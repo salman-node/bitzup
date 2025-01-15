@@ -69,7 +69,7 @@ export const c = {
   networkSymbolMin: 5,
   networkSymbolMax: 25,
   orderIdMin: 10,
-  orderIdMax: 18,
+  orderIdMax: 35,
 };
 
 
