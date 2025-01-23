@@ -31,10 +31,10 @@ const sendExecutionReportToKafka = async (topic, message) => {
   try {
     await producer.send({
       topic,
-      key: JSON.stringify(message.t),
-      messages: [{ value: JSON.stringify(message)}],
+      key: JSON.stringify(message.i),   // used key as i (order id) to make sure all messages for the same order go to the same partition
+      messages: [{ value: JSON.stringify(message)}],   // value is the execution report message
     });
-    console.log(`Sent to Kafka topic: ${topic} :${JSON.stringify(message.t)}`);
+    console.log(`Sent to Kafka topic: ${topic} :${JSON.stringify(message.i)} : ${JSON.stringify(message.t)}`);
   } catch (error) {
     console.error(`Error sending to Kafka topic ${topic}:`, error);
   }
@@ -45,7 +45,7 @@ const callbacks = {
   close: () => console.log("Disconnected with Binance WebSocket server"),
   message: async (executionReport) => {
     const data = JSON.parse(executionReport);
-    console.log('Execution Report: ', data);
+
     if (data.e === "executionReport") {
       // console.log(`Received execution report: ${JSON.stringify(data.t)}`);
 
