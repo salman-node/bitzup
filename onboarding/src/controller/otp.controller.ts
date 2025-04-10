@@ -85,8 +85,7 @@ export const sendEmailOtp = async (req: Request, res: Response) => {
           status:'3',
           message:"Please provide all field"
       })
-    }
-
+    }  
     // check user
    const userEmail = await prisma.user.findFirst({
      where: { user_id },

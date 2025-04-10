@@ -9,13 +9,12 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.checkLogin = exports.verifyUser = void 0;
+exports.verifyUser = void 0;
 const utility_functions_1 = require("../utility/utility.functions");
 const prisma_client_1 = require("../config/prisma.client");
 const verifyUser = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { authorization } = req.headers;
-        console.log({ authorization });
         if (!authorization) {
             // throw new Error('You are not authorized');
             return res.status(400).json({ status: '3', message: 'You are not authorized' });
@@ -27,7 +26,7 @@ const verifyUser = (req, res, next) => __awaiter(void 0, void 0, void 0, functio
         const token = authorization.split(' ')[1];
         if (token === 'null' || token === '' || token === 'undefined') {
             // throw new Error('Something went wrong Please try again!!');
-            return res.status(400).json({ status: '3', message: 'Something went wrong Please try again!!' });
+            return res.status(400).json({ status: '3', message: 'You are not authorized' });
         }
         const payload = yield (0, utility_functions_1.verifyToken)(token);
         if (!payload) {
@@ -37,10 +36,11 @@ const verifyUser = (req, res, next) => __awaiter(void 0, void 0, void 0, functio
         const user = yield prisma_client_1.prisma.user.findFirst({
             where: { email: payload.email },
         });
-        // console.log('user', payload.user_id);
+        if ((user === null || user === void 0 ? void 0 : user.token_string) !== payload.token_string) {
+            return res.status(400).json({ status: '3', message: 'You are not authorized' });
+        }
         const authUser = Object.assign({}, user);
-        delete authUser.password;
-        req.body.user = authUser;
+        req.body.user = { user_id: authUser.user_id, secret_key: authUser.secret_key };
         next();
     }
     catch (err) {
@@ -49,46 +49,4 @@ const verifyUser = (req, res, next) => __awaiter(void 0, void 0, void 0, functio
     }
 });
 exports.verifyUser = verifyUser;
-const checkLogin = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
-    try {
-        const { authorization } = req.headers;
-        if (!authorization) {
-            // throw new Error('You are not authorized');
-            return res.status(400).json({ status: '3', message: 'You are not authorized' });
-        }
-        console.log(12, authorization);
-        if (authorization) {
-            if (!authorization.startsWith('Bearer ')) {
-                // throw new Error('You are not authorized');
-                return res.status(400).json({ status: '3', message: 'You are not authorized' });
-            }
-            const token = authorization.split(' ')[1];
-            if (token === 'null' || token === '') {
-                // throw new Error('Something went wrong Please try again!!');
-                return res.status(400).json({ status: '3', message: 'Something went wrong Please try again!!' });
-            }
-            const payload = yield (0, utility_functions_1.verifyToken)(token);
-            if (!payload) {
-                // throw new Error('You are not authorized');
-                return res.status(200).json({ status: '0', message: 'You are not authorized' });
-            }
-            const user = yield prisma_client_1.prisma.user.findFirst({
-                where: { email: payload.email },
-            });
-            const authUser = Object.assign({}, user);
-            delete authUser.password;
-            req.body.user = authUser;
-            req.body.login = 'True';
-        }
-        else {
-            req.body.login = 'False';
-        }
-        next();
-    }
-    catch (err) {
-        console.log(err);
-        res.status(500).json({ status: '0', message: err.message });
-    }
-});
-exports.checkLogin = checkLogin;
 //# sourceMappingURL=authentication.js.map

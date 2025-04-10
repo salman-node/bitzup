@@ -8,6 +8,7 @@ export interface IUser {
   country_code?: string;
   password: string;
   token?: string | null;
+  token_string?: string | null;
   otp_verify?: string;
   otp?: string;
   authenticator_code?: string;
@@ -24,6 +25,7 @@ export interface IUserPartial {
   country?: string;
   password?: string;
   token?: string | null;
+  token_string?: string | null;
   secret_key?: string | null;
   isAuth: string;
   device_id?: string | null;

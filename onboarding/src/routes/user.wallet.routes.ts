@@ -1,6 +1,6 @@
 import express from 'express';
 const router = express.Router();
-import { verifyUser, checkLogin } from '../middleware/authentication';
+import { verifyUser } from '../middleware/authentication';
 import {
   getBuySellBalance,
   getAllCurrenciesBalance,
@@ -17,7 +17,7 @@ import {
   getTrades,
   getTradeHistory,
   // executedBuySellOrder,
-  getwalletHistory
+  // getwalletHistory
 } from '../controller/user.wallet.controller';
 
 // Object to store the last timestamp of each user's API call
@@ -43,28 +43,17 @@ const userLastCall: { [key: string]: number } = {};
 router.route('/get-buy-sell-balance').post([verifyUser], getBuySellBalance);
 router
   .route('/get-all-currencies-balance')
-  .post([checkLogin], getAllCurrenciesBalance);
-// router
-//   .route('/add-buy-sell-order')
-  // .post([verifyUser, throttleMiddleware], addBuySellOrder); // response mofidied
-// router.route('/get-buy-sell-order').post([verifyUser], getBuySellOrder); //apk
+  .post([verifyUser], getAllCurrenciesBalance);
 router.route('/get-avg-price-order').post([verifyUser], getAvgPriceOrder);
 router.route('/get-all-buy-sell-order').post([verifyUser], getAllBuySellOrder); //web
-// router.route('/get-all-funds').post([verifyUser], getAllFunds); //apk
 router.route('/get-wallet-funds').post([verifyUser], getWalletFunds); //web
 router.route('/get-symbol-funds').post([verifyUser], getSymbolFunds);
 router.route('/get-trades').post([verifyUser], getTrades); //web
 router.route('/get-trade-history').post([verifyUser], getTradeHistory);
 router.route('/get-buy-sell-fees').post([verifyUser], getBuySellFees);
-// router.route('/cancel-buy-sell-order').post([verifyUser], cancelBuySellOrder);
 router
   .route('/cancel-all-buy-sell-order')
-  // .post([verifyUser], cancelAllBuySellOrder);
-  // 
-
-// Temporary Executed Amount Callback
-// router.post('/executed-buy-sell-order', executedBuySellOrder);
-router.route('/get-wallet-history').post([verifyUser], getwalletHistory);
+// router.route('/get-wallet-history').post([verifyUser], getwalletHistory);
 
 // Throttle middleware function
 export function throttleMiddleware(

@@ -33,6 +33,8 @@ const defaults_1 = __importDefault(require("./config/defaults"));
 // import {depositRouter} from './routes/deposit.router';
 // import { withdrawalRouter } from './routes/withdrawal.router';
 const user_wallet_routes_1 = require("./routes/user.wallet.routes");
+const withdrawal_router_1 = require("./routes/withdrawal.router");
+const deposit_router_1 = require("./routes/deposit.router");
 // import path from 'path';
 const app = (0, express_1.default)();
 dotenv.config();
@@ -45,6 +47,8 @@ app.use(express_1.default.static('src/public'));
 // app.use('/deposit', depositRouter);
 // app.use('/withdraw', withdrawalRouter);
 app.use('/wallet', user_wallet_routes_1.userWalletRouter);
+app.use('/v1', withdrawal_router_1.withdrawalRouter);
+app.use('/v2', deposit_router_1.depositRouter);
 app.listen(PORT, () => {
     console.log(`⚙️ BitzUp: server is running on port ${defaults_1.default.BASE_URL}`);
 });

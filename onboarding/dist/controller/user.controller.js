@@ -64,7 +64,6 @@ const signUp = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
                 .status(400)
                 .send({ status: "3", message: "Please provide all field" });
         }
-        console.log('otp verify', otp_verify);
         // Check country
         const country = yield prisma_client_1.prisma.countries.findFirst({
             where: { phonecode: country_code },
@@ -162,7 +161,6 @@ const signUp = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         //   data: { isVerified: 'true' },
         // });
         // create activity log
-        console.log(user_id, ip_address, device_type, device_info);
         yield (0, activity_log_1.createActivityLog)({
             user_id: user_id,
             ip_address: ip_address !== null && ip_address !== void 0 ? ip_address : "",
@@ -188,14 +186,12 @@ exports.signUp = signUp;
 const logIn = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { email, password, otp_verify, otp, authenticator_code, fcm_token, source, device_type, ip_address, device_info, } = req.body;
-        console.log(email, password, otp_verify, otp, device_type, ip_address, device_info);
         if (!email || !password || !otp_verify || !device_info || !device_type || !ip_address) {
             // throw new Error('Please provide all field');
             return res
                 .status(200)
                 .send({ status: "0", message: "Please provide all field" });
         }
-        console.log(1);
         // Check Email
         if (!/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/.test(email)) {
             // throw new Error('Please provide valid email address');
@@ -290,7 +286,6 @@ const logIn = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         }
         // get client information
         const result = yield (0, utility_functions_2.getClientInfo)(req);
-        console.log(2);
         // check verified
         if (otp_verify === "No") {
             yield prisma_client_1.prisma.otp.deleteMany({ where: { user_id: user.user_id } });
@@ -302,7 +297,6 @@ const logIn = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
                 showAuth: user.isAuth === "Active" ? true : false,
             });
         }
-        console.log(3);
         if (user.isAuth === "Active") {
             if (!authenticator_code) {
                 // throw new Error('Please provide authenticator code');
@@ -387,7 +381,6 @@ const logIn = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     lockout_time = NULL
     WHERE user_id=${user.user_id};
   `;
-        console.log(4);
         yield (0, activity_log_1.createActivityLog)({
             user_id: user.user_id,
             ip_address: ip_address !== null && ip_address !== void 0 ? ip_address : "",
@@ -395,7 +388,6 @@ const logIn = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
             device_type: device_type !== null && device_type !== void 0 ? device_type : "",
             device_info: device_info !== null && device_info !== void 0 ? device_info : "",
         });
-        console.log(5);
         res.status(200).send({
             status: "1",
             message: "User loggedIn Successfully",

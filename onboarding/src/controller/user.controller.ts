@@ -51,7 +51,7 @@ export const signUp = async (req: Request, res: Response) => {
         .send({ status: "3", message: "Please provide all field" });
     }
 
-   console.log('otp verify',otp_verify)
+
     // Check country
     const country = await prisma.countries.findFirst({
       where: { phonecode: country_code },
@@ -160,7 +160,7 @@ export const signUp = async (req: Request, res: Response) => {
     // });
 
     // create activity log
-    console.log(user_id,ip_address,device_type,device_info);
+
     await createActivityLog({
       user_id: user_id,
       ip_address: ip_address ?? "",
@@ -399,7 +399,6 @@ export const logIn = async (req: Request, res: Response) => {
     const logUser = { ...user } as IUserPartial;
     delete logUser.password;
     const token = await getToken(user.user_id);
-
 
     //update token in db
     await prisma.$queryRaw`

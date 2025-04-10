@@ -46,25 +46,24 @@ export const verifyToken = async (token: string) => {
       if (!config.jwtsecret) {
         throw new Error('JWT secret is not defined in the configuration.');
       }
-      const payload: JwtPayload | string = jwt.verify(token, config.jwtsecret, {
-        ignoreExpiration: true,
-      });
+      const payload: JwtPayload | string = jwt.verify(token, config.jwtsecret);
       if (typeof payload === 'string') {
         throw new Error('Token is not valid.');
       }
       if (err) {
         if (err.name === 'TokenExpiredError') {
+          return new Error('Session expired, please login again.');
           // Token is expired, generate a new token
-          try {
-            const user:any = await prisma.$queryRaw`
-            SELECT * from user where email = ${payload.email} and token_string = ${payload.token_string};`;
-            const newToken = await getToken(user.email);
-            await prisma.$queryRaw`
-            UPDATE user SET token = ${newToken} where email = ${payload.email};`;
-            resolve(payload);
-          } catch (error) {
-            reject(error);
-          }
+          // try {
+          //   const user:any = await prisma.$queryRaw`
+          //   SELECT * from user where email = ${payload.email} and token_string = ${payload.token_string};`;
+          //   const newToken = await getToken(user.email);
+          //   await prisma.$queryRaw`
+          //   UPDATE user SET token = ${newToken} where email = ${payload.email};`;
+          //   resolve(payload);
+          // } catch (error) {
+          //   reject(error);
+          // }
         } else {
           reject(err);
         }

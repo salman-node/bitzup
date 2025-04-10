@@ -28,6 +28,7 @@ router.route('/get-buy-sell-balance').post([authentication_1.verifyUser], user_w
 router
     .route('/get-all-currencies-balance')
     .post([authentication_1.checkLogin], user_wallet_controller_1.getAllCurrenciesBalance);
+router.post('/get-all-networks', authentication_1.verifyUser, user_wallet_controller_1.getAllNetwork);
 // router
 //   .route('/add-buy-sell-order')
 // .post([verifyUser, throttleMiddleware], addBuySellOrder); // response mofidied
@@ -41,13 +42,12 @@ router.route('/get-trades').post([authentication_1.verifyUser], user_wallet_cont
 router.route('/get-trade-history').post([authentication_1.verifyUser], user_wallet_controller_1.getTradeHistory);
 router.route('/get-buy-sell-fees').post([authentication_1.verifyUser], user_wallet_controller_1.getBuySellFees);
 // router.route('/cancel-buy-sell-order').post([verifyUser], cancelBuySellOrder);
-router
-    .route('/cancel-all-buy-sell-order');
+// router.route('/cancel-all-buy-sell-order')
 // .post([verifyUser], cancelAllBuySellOrder);
 // 
 // Temporary Executed Amount Callback
 // router.post('/executed-buy-sell-order', executedBuySellOrder);
-router.route('/get-wallet-history').post([authentication_1.verifyUser], user_wallet_controller_1.getwalletHistory);
+// router.route('/get-wallet-history').post([verifyUser], getwalletHistory);
 // Throttle middleware function
 function throttleMiddleware(req, res, next) {
     // Extract the user ID from the request

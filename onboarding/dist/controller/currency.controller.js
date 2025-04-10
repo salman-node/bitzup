@@ -186,8 +186,6 @@ const addFavorite = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
     try {
         const { user_id: userId } = req.body.user;
         const { pair_id, type } = req.body;
-        console.log("currency", pair_id);
-        console.log("type", type);
         if (!userId) {
             return res.status(400).send({
                 status: "3",
@@ -275,7 +273,6 @@ const getFavorites = (req, res) => __awaiter(void 0, void 0, void 0, function* (
                 message: "You are not authorized or user not present",
             });
         }
-        console.log("before query");
         const result = yield prisma_client_1.prisma.$queryRaw `
     SELECT
       fc.id,
@@ -292,7 +289,6 @@ const getFavorites = (req, res) => __awaiter(void 0, void 0, void 0, function* (
       fc.user_id = ${user_id}`;
         // Currency not present
         if (!result.length) {
-            console.log("Currency not present in favorite list");
             return res.status(200).json({
                 status: "0",
                 message: "No Data Found.",
@@ -300,7 +296,6 @@ const getFavorites = (req, res) => __awaiter(void 0, void 0, void 0, function* (
             });
         }
         // 
-        // console.log("after query", result);
         // Function to fetch data with retry mechanism
         function fetchDataWithRetry() {
             return __awaiter(this, void 0, void 0, function* () {
@@ -359,7 +354,6 @@ const checkFavorite = (req, res) => __awaiter(void 0, void 0, void 0, function* 
     try {
         const { user_id: userId } = req.body.user;
         const { pair_id } = req.body;
-        console.log("currency_id", pair_id);
         if (!pair_id) {
             // throw new Error('Please select currency to check favourite or not');
             return res.status(400).json({
@@ -482,7 +476,6 @@ const getCurrencyList = (req, res) => __awaiter(void 0, void 0, void 0, function
 exports.getCurrencyList = getCurrencyList;
 const getValidateCurrencies = (_req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        console.log('getValidateCurrencies');
         // get All Currencies list
         const allCurrencies = yield prisma_client_1.prisma.$queryRaw `
     SELECT
@@ -502,22 +495,10 @@ const getValidateCurrencies = (_req, res) => __awaiter(void 0, void 0, void 0, f
     INNER JOIN
       currencies c2 ON cp.quote_asset_id = c2.currency_id
   `;
-        // Filter the currencies array based on the fav currency
-        const filteredCurrencies = allCurrencies.map((currency) => ({
-            pair_id: currency.pair_id,
-            pair_symbol: currency.pair_symbol,
-            change_in_price: currency.change_in_price,
-            usdtprice: currency.usdtprice,
-            current_price: currency.current_price,
-            quantity_decimal: currency.quantity_decimal,
-            price_decimal: currency.price_decimal,
-            base_asset_symbol: currency.base_asset_symbol,
-            quote_asset_symbol: currency.quote_asset_symbol,
-        }));
         // send fetched data to user
         res.status(200).json({
             status: "1",
-            data: filteredCurrencies,
+            data: allCurrencies,
         });
     }
     catch (err) {

@@ -1,14 +1,16 @@
-// import express from 'express';
-// const router = express.Router();
-// import { verifyUser } from '../middleware/authentication';
-// import {
-//  withdrawFunds
-// } from '../controller/withdrawal.controller';
+import express from 'express';
+const router = express.Router();
+import { verifyUser } from '../middleware/authentication';
+import {
+ withdrawFunds,
+ withdrawalHistory
+} from '../controller/withdrawal.controller';
 
 
 
-// router.post('/withdraw', [verifyUser], withdrawFunds);
+router.post('/withdraw', [verifyUser], withdrawFunds);
+router.get('/withdrawal-history', [verifyUser], withdrawalHistory);
 
 
-// export { router as withdrawalRouter };
+export { router as withdrawalRouter };
 

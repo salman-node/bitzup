@@ -15,7 +15,7 @@ const AdminAuthentication = async function (req, res, next) {
       { cuser_id_btx: adminId },
       ["cuser_id_btx", "secret_key_btx"]
     );
-    //console.log(GetSecretKey);
+ 
     if (GetSecretKey.length == 0) {
       return res.status(400).send({
         status_code: 400,
@@ -24,7 +24,7 @@ const AdminAuthentication = async function (req, res, next) {
       });
     }
     let token = req.headers["x-api-key"];
-    console.log(token);
+
     if (!token) token = req.headers["X-Api-Key"];
     if (!token) {
       return res.status(400).send({ Error: "Enter x-api-key In Header" });
@@ -49,13 +49,13 @@ const Authentication = async function (req, res, next) {
     // getting token from req(header)
     let token = req.headers["x-api-key"];
     const user_id = req.params.user_id;
-    console.log(user_id);
+
     var userId = user_id;
     if (!user_id) {
       const { user_id } = req.body;
       userId = user_id;
     }
-    console.log("userId : " + userId);
+
     //     const GetTokenDetails = await db.Get_Where_Universal_Data_Specific("tbl_user_registration_master",{clogin_jwt_btx:token},["cuser_id_btx","clogin_jwt_btx"])    //     console.log("GetTokenDetails : " + GetTokenDetails);    //    if(GetTokenDetails.length == 0){    //     return res.status(400).send({    //         status_code: 400,    //         status: false,    //         msg: "Invalid token",    //       });    //    }
     const GetSecretKey = await db.Get_Where_Universal_Data_Specific(
       "tbl_user_key_details",

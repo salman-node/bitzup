@@ -50,6 +50,44 @@ exports.__esModule = true;
 exports.checkLogin = exports.verifyUser = void 0;
 var utility_functions_1 = require("../utility/utility.functions");
 var prisma_client_1 = require("../config/prisma_client");
+// export const verifyUser = async (
+//   req: Request,
+//   res: Response,
+//   next: NextFunction,
+// ) => {
+//   try {
+//     const { authorization } = req.headers;
+//     console.log({ authorization });
+//     if (!authorization) {
+//       // throw new Error('You are not authorized');
+//       return res.status(400).json({ status: '3', message: 'You are not authorized' });
+//     } else if (!authorization.startsWith('Bearer ')) {
+//       // throw new Error('You are not authorized');
+//       return res.status(400).send({ status: '3', message: 'You are not authorized' });
+//     }
+//     const token = authorization.split(' ')[1];
+//     if (token === 'null' || token === '' || token === 'undefined') {
+//       // throw new Error('Something went wrong Please try again!!');
+//       return res.status(400).json({ status: '3', message: 'Something went wrong Please try again!!' });
+//     }
+//     const payload: any = await verifyToken(token);
+//     if (!payload) {
+//       // throw new Error('You are not authorized');
+//       return res.status(400).json({ status: '3', message: 'You are not authorized' });
+//     }
+//     const user = await prisma.user.findFirst({
+//       where: { email: payload.email },
+//     });
+//     // console.log('user', payload.user_id);
+//     const authUser = { ...user };
+//     delete authUser.password;
+//     req.body.user = authUser;
+//     next();
+//   } catch (err) {
+//     console.log(err);
+//     res.status(500).json({ status: '0', message: (err as Error).message });
+//   }
+// };
 var verifyUser = function (req, res, next) { return __awaiter(void 0, void 0, void 0, function () {
     var authorization, token, payload, user, authUser, err_1;
     return __generator(this, function (_a) {
@@ -57,7 +95,6 @@ var verifyUser = function (req, res, next) { return __awaiter(void 0, void 0, vo
             case 0:
                 _a.trys.push([0, 3, , 4]);
                 authorization = req.headers.authorization;
-                console.log({ authorization: authorization });
                 if (!authorization) {
                     // throw new Error('You are not authorized');
                     return [2 /*return*/, res.status(400).json({ status: '3', message: 'You are not authorized' })];
@@ -69,7 +106,7 @@ var verifyUser = function (req, res, next) { return __awaiter(void 0, void 0, vo
                 token = authorization.split(' ')[1];
                 if (token === 'null' || token === '' || token === 'undefined') {
                     // throw new Error('Something went wrong Please try again!!');
-                    return [2 /*return*/, res.status(400).json({ status: '3', message: 'Something went wrong Please try again!!' })];
+                    return [2 /*return*/, res.status(400).json({ status: '3', message: 'You are not authorized' })];
                 }
                 return [4 /*yield*/, (0, utility_functions_1.verifyToken)(token)];
             case 1:
@@ -83,9 +120,11 @@ var verifyUser = function (req, res, next) { return __awaiter(void 0, void 0, vo
                     })];
             case 2:
                 user = _a.sent();
+                if ((user === null || user === void 0 ? void 0 : user.token_string) !== payload.token_string) {
+                    return [2 /*return*/, res.status(400).json({ status: '3', message: 'You are not authorized' })];
+                }
                 authUser = __assign({}, user);
-                delete authUser.password;
-                req.body.user = authUser;
+                req.body.user = { user_id: authUser.user_id };
                 next();
                 return [3 /*break*/, 4];
             case 3:
@@ -109,7 +148,6 @@ var checkLogin = function (req, res, next) { return __awaiter(void 0, void 0, vo
                     // throw new Error('You are not authorized');
                     return [2 /*return*/, res.status(400).json({ status: '3', message: 'You are not authorized' })];
                 }
-                console.log(12, authorization);
                 if (!authorization) return [3 /*break*/, 3];
                 if (!authorization.startsWith('Bearer ')) {
                     // throw new Error('You are not authorized');
@@ -118,7 +156,7 @@ var checkLogin = function (req, res, next) { return __awaiter(void 0, void 0, vo
                 token = authorization.split(' ')[1];
                 if (token === 'null' || token === '') {
                     // throw new Error('Something went wrong Please try again!!');
-                    return [2 /*return*/, res.status(400).json({ status: '3', message: 'Something went wrong Please try again!!' })];
+                    return [2 /*return*/, res.status(400).json({ status: '3', message: 'You are not authorized' })];
                 }
                 return [4 /*yield*/, (0, utility_functions_1.verifyToken)(token)];
             case 1:

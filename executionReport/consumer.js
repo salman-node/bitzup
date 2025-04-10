@@ -84,7 +84,7 @@ startPingPong();
 const sendMessageToClients = (report) => {
   frontendClients.forEach((client) => {
     if (client.userId === report.user_id) {
-      console.log(`Sending message to frontend client.`);
+      console.log(`Sending message to frontend client. order_id: ${report.data.order_id}`);
       client.send(JSON.stringify(report));
     }
   });
@@ -98,7 +98,6 @@ const consumeMessages = async () => {
       const data = JSON.parse(message.value.toString());
       console.log('NEW REPORT: ', data)
       if (topic === "execution-report") {
-        // console.log(`Received message from Kafka: ${data.t}`);
         const [userIdFromOrder, uniquePart] = data.c.split("-");
         // Handle report data based on `data.X` status and send to clients
         if (data.X === "NEW") {
@@ -121,12 +120,8 @@ const consumeMessages = async () => {
               created_at: data.O, // Order creation time
             },
           };
-          console.log(data.Z ," : ", data.z)
-          console.log(report);
+          // console.log('NEW ORDER : REPORT', report.data.order_id);
           sendMessageToClients(report);
-          // console.log(
-          //   `\n New ${data.o} Order Placed , Order Type: ${data.o}, Order Price: ${data.p}, Order Quantity: ${data.q}, Order Id: ${data.c}`
-          // );
         }
         if (data.X === "PARTIALLY_FILLED") {
           const report = {
@@ -149,14 +144,8 @@ const consumeMessages = async () => {
             },
           };
           sendMessageToClients(report);
-          // console.log(
-          //   `\nOrder Partially Filled at ${data.l}, Order Id: ${data.c} , Filled Quantity: ${data.z}`
-          // );
         }
         if (data.X === "TRADE") {
-          // console.log(
-          //   `\nOrder Executed at ${data.l}, Order Id: ${data.c} , Filled Quantity: ${data.z}, Trade type: ${data.X}`
-          // );
           const report = {
             status: "3",
             user_id: userIdFromOrder,
@@ -179,9 +168,6 @@ const consumeMessages = async () => {
           sendMessageToClients(report);
         }
         if (data.X === "FILLED") {
-          // console.log(
-          //   `\nOrder Executed at ${data.l}, Order Id: ${data.c} , Filled Quantity: ${data.z}`
-          // );
           const report = {
             status: "3",
             user_id: userIdFromOrder,
@@ -227,21 +213,24 @@ const consumeMessages = async () => {
             },
           };
           sendMessageToClients(report);
-          // console.log(`\nCancelled ${data.o} Order, Order Id: ${data.c}`);
         }
       } else if (topic === "execution-report-dbupdate") {
+
         const [userIdFromOrder, uniquePart] = data.c.split("-");
         const canceled_user_id = data.X === "CANCELED" ? data.c.split("-")[0] : userIdFromOrder;
-        console.log('user_id: ',userIdFromOrder)
+         
+        const api_order_id = await Get_Where_Universal_Data("api_order_id","buy_sell_pro_limit_open",{order_id:data.c});
+        const api_order_id_value = api_order_id[0].api_order_id;
+        if(Number(api_order_id_value) < Number(data.I) ){
         var count = 0;
-        if (data.t != -1) {
-          let row_count = await raw_query(
-            "SELECT COUNT(*) AS count FROM buy_sell_pro_limit_open WHERE trade_id = ?",
-            [data.t]
-          );
-          count = row_count[0].count;
-        }
-        if (count == 0) {
+        // if (data.t != -1) {
+        //   let row_count = await raw_query(
+        //     "SELECT COUNT(*) AS count FROM buy_sell_pro_limit_open WHERE trade_id = ?",
+        //     [data.t]
+        //   );
+        //   count = row_count[0].count;
+        // }
+        // if (count == 0) {
           const symbol = data.s;
           //get pair_id,base_asset_id,quote_asset_id from crypto_pair table
           const pair_id = await Get_Where_Universal_Data(
@@ -261,11 +250,8 @@ const consumeMessages = async () => {
           const total_fees = data.S == "BUY" ? parseFloat((data.z * pair_fees_value/100).toFixed(8)) : parseFloat((data.Z * pair_fees_value/100).toFixed(8));
           const base_amount_after_fees = data.S == "BUY" ? parseFloat((data.l - fees).toFixed(8)) : 0
           const quote_amount_after_fees = data.S == "SELL" ? parseFloat((data.Y - fees).toFixed(8)) : 0;
-          const order_type = data.o;
+          
 
-          console.log(`order: ${order_type} , fees: ${fees} , base amount : ${data.l} , after fees: ${base_amount_after_fees}`)
-          console.log(`order: ${order_type} , fees: ${fees} , base amount : ${data.Y} , after fees: ${quote_amount_after_fees}`)
-         
           const base_asset_id = pair_id[0].base_asset_id;
           const quote_asset_id = pair_id[0].quote_asset_id;
           const pairId = pair_id[0].pair_id;
@@ -274,7 +260,6 @@ const consumeMessages = async () => {
             if (data.S === "BUY") {
               if (data.o === "LIMIT") {
                 const quote_quantity = (data.q * data.p).toFixed(8);
-                console.log('UPDATE USER BUY LIMIT BALANCE')
                 await updateOrInsertBalances({
                   userId: userIdFromOrder,
                   currencyId: quote_asset_id,
@@ -295,8 +280,6 @@ const consumeMessages = async () => {
           if (data.X === "PARTIALLY_FILLED") {
             if (data.S === "BUY") {
               if (data.o === "MARKET") {
-                console.log('current balance: ', base_amount_after_fees)
-                console.log('quote balance: ', data.Y)
                 await updateBalances(
                   {
                     userId: userIdFromOrder,
@@ -392,8 +375,7 @@ const consumeMessages = async () => {
                     currentBalanceChange: -data.Y,
                     lockedBalanceChange:0
                   }
-                )
-                  
+                )   
               }
               if (data.o === "LIMIT") {
                 const order_value = (data.q * data.p).toFixed(8);
@@ -570,7 +552,7 @@ const consumeMessages = async () => {
               final_amount: data.S === "BUY" ? base_amount_after_fees : quote_amount_after_fees,
               order_id: data.c,
               trade_id: data.t,
-              api_order_id: data.C,
+              api_order_id: data.I,
               order_type: data.o,
               buy_sell_fees:  total_fees,
               api_id: data.i,
@@ -578,14 +560,16 @@ const consumeMessages = async () => {
               date_time: data.T,
               response_time: data.E,
             };
-
+            //update if data.I is greater then api_order_id in db 
+            // const api_order_id = await Get_Where_Universal_Data("api_order_id","buy_sell_pro_limit_open",{order_id:data.c});
+            // if(api_order_id[0].api_order_id < data.I){
             await Update_Universal_Data(
               "buy_sell_pro_limit_open",
               updatedData,
               filterQuery
             );
+          // }
           }
-          console.log('BUY SELL PRO LIMIT OPEN DATA INSERTING',userIdFromOrder)
           await Create_Universal_Data('buy_sell_pro_in_order',{
             pair_id: pairId,
             status: data.X,
@@ -600,17 +584,19 @@ const consumeMessages = async () => {
             executed_quote_after_fees : quote_amount_after_fees,
             order_id: data.c,
             trade_id: data.t,
-            api_order_id: data.C,
+            api_order_id: data.I,
             order_type: data.o,
             buy_sell_fees:  total_fees,
             api_id: data.i,
             date_time: data.T,
             api:'order consumer report'
           })
-         console.log('BUY SELL PRO LIMIT OPEN DATA INSERTED')
-        } else {
-          console.log("DUPLICATE ORDER...");
-        }
+        // } else {
+        //   console.log("DUPLICATE ORDER...");
+        // }
+      }else{
+        console.log("Duplicate Order ID: ", data.c, "API Order ID: ", data.I);
+      }
       }
     }catch(e){
       console.log('Error in consumer: ',e)

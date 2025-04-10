@@ -1,11 +1,14 @@
-// import express from 'express';
-// const router = express.Router();
-// import { verifyUser, checkLogin } from '../middleware/authentication';
-// import {
-//  withdraw
-// } from '../controller/withdrawal.controller';
+import express from 'express';
+const router = express.Router();
+import { verifyUser } from '../middleware/authentication';
+import {
+ depositHistory
+
+} from '../controller/deposit.controller';
 
 
+router.get('/deposit-history', [verifyUser], depositHistory);
 
-// router.post('/withdraw', [verifyUser], withdraw);
+
+export { router as depositRouter };
 

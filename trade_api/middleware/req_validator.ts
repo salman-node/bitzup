@@ -66,25 +66,21 @@ export const validate_buy_asset_pro = (req: any, res: any, next: any) => {
 
   const user_id_error =  validateStringMinMaxRequired(user_id, c.userIdMin, c.userIdMax);
   if (user_id_error) {
-    console.log('user_id_error',user_id_error)
     return responseFormat(res, user_id_error, 'user_id');
   }
 
   const pair_id_error =  validateStringMinMaxRequired(pair_id, c.pairIdMin, c.pairIdMax);
   if (pair_id_error) {
-    console.log('pair_id_error',pair_id_error)
     return responseFormat(res, pair_id_error, 'pair_id');
   }
 
   const quote_value_error =  validateNumberRequired(quote_volume);
   if (quote_value_error) {
-    console.log('quote_value_error',quote_value_error)
     return responseFormat(res, quote_value_error, 'quote_volume');
   }
 
   const base_price_rate_error =  validateNumberRequired(limit_price);
   if (base_price_rate_error) {
-    console.log('limit_price_error',base_price_rate_error)
     return responseFormat(res, base_price_rate_error, 'limit_price');
   }
 

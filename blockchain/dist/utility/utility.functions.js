@@ -67,7 +67,7 @@ const getToken = (user_id) => __awaiter(void 0, void 0, void 0, function* () {
 exports.getToken = getToken;
 /*----- Verify token -----*/
 /* export const verifyToken = async (token: string) => {
-  console.log('verify token')
+
   
   if (!config.jwtsecret) {
     throw new Error('JWT secret is not defined in the configuration.');
@@ -81,6 +81,44 @@ exports.getToken = getToken;
   });
 }; */
 /*----- Verify token -----*/
+// export const verifyToken = async (token: string) => {
+//   return new Promise(async (resolve, reject) => {
+//     if (!config.jwtsecret) {
+//       throw new Error('JWT secret is not defined in the configuration.');
+//     }
+//     jwt.verify(token, config.jwtsecret, async (err, _decoded: any) => {
+//       if (!config.jwtsecret) {
+//         throw new Error('JWT secret is not defined in the configuration.');
+//       }
+//       const payload: JwtPayload | string = jwt.verify(token, config.jwtsecret, {
+//         ignoreExpiration: true,
+//       });
+//       if (typeof payload === 'string') {
+//         throw new Error('Token is not valid.');
+//       }
+//       if (err) {
+//         if (err.name === 'TokenExpiredError') {
+//           // Token is expired, generate a new token
+//           try {
+//             const user: IUser[] = await prisma.$queryRaw`
+//             SELECT * from user where email = ${payload.email};`;
+//             const newToken = await getToken(user[0].email);
+//             await prisma.$queryRaw`
+//             UPDATE user SET token = ${newToken} where email = ${payload.email};`;
+//             resolve(payload);
+//           } catch (error) {
+//             console.log(error);
+//             reject(error);
+//           }
+//         } else {
+//           reject(err);
+//         }
+//       } else {
+//         resolve(payload);
+//       }
+//     });
+//   });
+// };
 const verifyToken = (token) => __awaiter(void 0, void 0, void 0, function* () {
     return new Promise((resolve, reject) => __awaiter(void 0, void 0, void 0, function* () {
         if (!defaults_1.default.jwtsecret) {
@@ -98,19 +136,7 @@ const verifyToken = (token) => __awaiter(void 0, void 0, void 0, function* () {
             }
             if (err) {
                 if (err.name === 'TokenExpiredError') {
-                    // Token is expired, generate a new token
-                    try {
-                        const user = yield prisma_client_1.prisma.$queryRaw `
-            SELECT * from user where email = ${payload.email};`;
-                        const newToken = yield (0, exports.getToken)(user[0].email);
-                        yield prisma_client_1.prisma.$queryRaw `
-            UPDATE user SET token = ${newToken} where email = ${payload.email};`;
-                        resolve(payload);
-                    }
-                    catch (error) {
-                        console.log(error);
-                        reject(error);
-                    }
+                    throw new Error('session expired, please login again.');
                 }
                 else {
                     reject(err);

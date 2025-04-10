@@ -199,8 +199,7 @@ export const addFavorite = async (req: Request, res: Response) => {
     const { user_id: userId }: { user_id: string } = req.body.user;
     const { pair_id, type } = req.body;
 
-    console.log("currency", pair_id);
-    console.log("type", type);
+  
 
     if (!userId) {
       return res.status(400).send({
@@ -298,7 +297,7 @@ export const getFavorites = async (req: Request, res: Response) => {
         message: "You are not authorized or user not present",
       });
     }
-    console.log("before query");
+
     const result: Array<any> = await prisma.$queryRaw`
     SELECT
       fc.id,
@@ -316,7 +315,6 @@ export const getFavorites = async (req: Request, res: Response) => {
 
     // Currency not present
     if (!result.length) {
-      console.log("Currency not present in favorite list");
       return res.status(200).json({
         status: "0",
         message: "No Data Found.",
@@ -324,7 +322,7 @@ export const getFavorites = async (req: Request, res: Response) => {
       });
     }
 // 
-    // console.log("after query", result);
+
     // Function to fetch data with retry mechanism
     async function fetchDataWithRetry() {
       const maxRetries = 5;
@@ -400,7 +398,7 @@ export const checkFavorite = async (req: Request, res: Response) => {
   try {
     const { user_id: userId }: { user_id: string } = req.body.user;
     const { pair_id } = req.body;
-    console.log("currency_id", pair_id);
+
     if (!pair_id) {
       // throw new Error('Please select currency to check favourite or not');
       return res.status(400).json({
@@ -538,7 +536,6 @@ export const getCurrencyList = async (req: Request, res: Response) => {
 };
 export const getValidateCurrencies = async (_req: Request, res: Response) => {
   try {
-    console.log('getValidateCurrencies')
     // get All Currencies list
     const allCurrencies:any = await prisma.$queryRaw`
     SELECT
@@ -557,25 +554,11 @@ export const getValidateCurrencies = async (_req: Request, res: Response) => {
       currencies c1 ON cp.base_asset_id = c1.currency_id
     INNER JOIN
       currencies c2 ON cp.quote_asset_id = c2.currency_id
-  `;
-
-    // Filter the currencies array based on the fav currency
-    const filteredCurrencies = allCurrencies.map((currency:any) => ({
-      pair_id: currency.pair_id,
-      pair_symbol: currency.pair_symbol,
-      change_in_price: currency.change_in_price,
-      usdtprice: currency.usdtprice,
-      current_price: currency.current_price,
-      quantity_decimal: currency.quantity_decimal,
-      price_decimal: currency.price_decimal,
-      base_asset_symbol: currency.base_asset_symbol,
-      quote_asset_symbol: currency.quote_asset_symbol,
-    }));
-
+  `; 
     // send fetched data to user
     res.status(200).json({
       status: "1",
-      data: filteredCurrencies,
+      data: allCurrencies,
     });
   } catch (err: any) {
     console.log(err);

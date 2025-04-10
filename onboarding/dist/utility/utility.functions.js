@@ -73,28 +73,21 @@ const getToken = (user_id) => __awaiter(void 0, void 0, void 0, function* () {
     if (!token_data) {
         throw new Error('User not found.');
     }
-    const token_string = token_data.token_string;
+    const token_string = (0, crypto_1.randomBytes)(8).toString("hex");
     const email = token_data.email;
+    yield prisma_client_1.prisma.user.updateMany({
+        where: {
+            user_id: user_id,
+        },
+        data: {
+            token_string: token_string
+        }
+    });
     return jsonwebtoken_1.default.sign({ token_string: token_string, email: email }, defaults_1.default.jwtsecret, {
         expiresIn: defaults_1.default.jwtExp,
     });
 });
 exports.getToken = getToken;
-/*----- Verify token -----*/
-/* export const verifyToken = async (token: string) => {
-  console.log('verify token')
-  
-  if (!config.jwtsecret) {
-    throw new Error('JWT secret is not defined in the configuration.');
-  }
-
-  return new Promise((resolve, reject) => {
-    jwt.verify(token, config.jwtsecret, (err, payload) => {
-      if (err) return reject(err);
-      resolve(payload);
-    });
-  });
-}; */
 /*----- Verify token -----*/
 const verifyToken = (token) => __awaiter(void 0, void 0, void 0, function* () {
     return new Promise((resolve, reject) => __awaiter(void 0, void 0, void 0, function* () {
@@ -113,18 +106,7 @@ const verifyToken = (token) => __awaiter(void 0, void 0, void 0, function* () {
             }
             if (err) {
                 if (err.name === 'TokenExpiredError') {
-                    // Token is expired, generate a new token
-                    try {
-                        const user = yield prisma_client_1.prisma.$queryRaw `
-            SELECT * from user where email = ${payload.email} and token_string = ${payload.token_string};`;
-                        const newToken = yield (0, exports.getToken)(user[0].email);
-                        yield prisma_client_1.prisma.$queryRaw `
-            UPDATE user SET token = ${newToken} where email = ${payload.email};`;
-                        resolve(payload);
-                    }
-                    catch (error) {
-                        reject(error);
-                    }
+                    throw new Error('session expired, please login again.');
                 }
                 else {
                     reject(err);

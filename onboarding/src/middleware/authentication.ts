@@ -10,7 +10,7 @@ export const verifyUser = async (
 ) => {
   try {
     const { authorization } = req.headers;
-    console.log({ authorization });
+  
 
     if (!authorization) {
       // throw new Error('You are not authorized');
@@ -24,7 +24,7 @@ export const verifyUser = async (
 
     if (token === 'null' || token === '' || token === 'undefined') {
       // throw new Error('Something went wrong Please try again!!');
-      return res.status(400).json({ status: '3', message: 'Something went wrong Please try again!!' });
+      return res.status(400).json({ status: '3', message: 'You are not authorized' });
     }
 
     const payload: any = await verifyToken(token);
@@ -33,15 +33,18 @@ export const verifyUser = async (
       return res.status(400).json({ status: '3', message: 'You are not authorized' });
     }
 
-
     const user = await prisma.user.findFirst({
       where: { email: payload.email },
     });
-    // console.log('user', payload.user_id);
-    const authUser = { ...user } as IUserPartial;
-    delete authUser.password;
-    req.body.user = authUser;
 
+
+    if(user?.token_string !== payload.token_string) {
+      return res.status(400).json({ status: '3', message: 'You are not authorized' });  
+    }
+    
+    const authUser = { ...user } as IUserPartial;
+    req.body.user = { user_id: authUser.user_id,secret_key: authUser.secret_key}
+    
     next();
   } catch (err) {
     console.log(err);
@@ -49,48 +52,4 @@ export const verifyUser = async (
   }
 };
 
-export const checkLogin = async (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) => {
-  try {
-    const { authorization } = req.headers;
-    if (!authorization) {
-      // throw new Error('You are not authorized');
-      return res.status(400).json({ status: '3', message: 'You are not authorized' });
-    }
-    console.log(12, authorization);
-    if (authorization) {
-    
-      if (!authorization.startsWith('Bearer ')) {
-        // throw new Error('You are not authorized');
-        return res.status(400).json({ status: '3', message: 'You are not authorized' });
-      }
-      const token = authorization.split(' ')[1];
 
-      if (token === 'null' || token === '') {
-        // throw new Error('Something went wrong Please try again!!');
-        return res.status(400).json({ status: '3', message: 'Something went wrong Please try again!!' });
-      }
-      const payload: any = await verifyToken(token);
-      if (!payload) {
-        // throw new Error('You are not authorized');
-        return res.status(200).json({ status: '0', message: 'You are not authorized' });
-      }
-      const user = await prisma.user.findFirst({
-        where: { email: payload.email },
-      });
-      const authUser = { ...user };
-      delete authUser.password;
-      req.body.user = authUser;
-      req.body.login = 'True';
-    } else {
-      req.body.login = 'False';
-    }
-    next();
-  } catch (err: any) {
-    console.log(err);
-    res.status(500).json({ status: '0', message: err.message });
-  }
-};

@@ -26,8 +26,8 @@ const config: EnvironmentVariables = {
   HTTP_SERVER_ERROR: parseInt(process.env.HTTP_SERVER_ERROR, 10),
   HTTP_SUCCESS: parseInt(process.env.HTTP_SUCCESS, 10),
   HTTP_SUCCESSFULLY_CREATED: parseInt(process.env.HTTP_SUCCESSFULLY_CREATED, 10),
-  binance_apiKey:process.env.binance_apiKey || 'gppTzIeLcnA2uAf8E0Hwda9RcwsIPoBdoA0dsqbU0AEXmLCRDccArhGMa4r71H3x',
-  api_secret:process.env.api_secret || 'LDIUwHvnrSapjMrUb7xQLw4HfQbRBs2cBCEn96vLmHDl85fntvknGYr7jS6VIisE',
+  binance_apiKey:process.env.binance_apiKey || 'l6SlJipQWrLRSAPCezEJcM8yrjVzhrDQU2QQSh4AnuKq4sRJao87jEgmFsLeyWEq',
+  api_secret:process.env.api_secret || 'JW85c09ek8e0c7PnBkig03TSwN3ENH4KremdNekgRx16twhK7YN0HMU2J5IbhuJW',
   binance_url:process.env.binance_url || "https://testnet.binance.vision"
 };
 

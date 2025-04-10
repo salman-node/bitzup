@@ -1,8 +1,4 @@
 "use strict";
-var __makeTemplateObject = (this && this.__makeTemplateObject) || function (cooked, raw) {
-    if (Object.defineProperty) { Object.defineProperty(cooked, "raw", { value: raw }); } else { cooked.raw = raw; }
-    return cooked;
-};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -91,49 +87,38 @@ var verifyToken = function (token) { return __awaiter(void 0, void 0, void 0, fu
                         throw new Error('JWT secret is not defined in the configuration.');
                     }
                     jsonwebtoken_1["default"].verify(token, defaults_1["default"].jwtsecret, function (err, _decoded) { return __awaiter(void 0, void 0, void 0, function () {
-                        var payload, user, newToken, error_1;
+                        var payload;
                         return __generator(this, function (_a) {
-                            switch (_a.label) {
-                                case 0:
-                                    if (!defaults_1["default"].jwtsecret) {
-                                        throw new Error('JWT secret is not defined in the configuration.');
-                                    }
-                                    payload = jsonwebtoken_1["default"].verify(token, defaults_1["default"].jwtsecret, {
-                                        ignoreExpiration: true
-                                    });
-                                    if (typeof payload === 'string') {
-                                        throw new Error('Token is not valid.');
-                                    }
-                                    if (!err) return [3 /*break*/, 9];
-                                    if (!(err.name === 'TokenExpiredError')) return [3 /*break*/, 7];
-                                    _a.label = 1;
-                                case 1:
-                                    _a.trys.push([1, 5, , 6]);
-                                    return [4 /*yield*/, prisma_client_1.prisma.$queryRaw(templateObject_1 || (templateObject_1 = __makeTemplateObject(["\n            SELECT * from user where email = ", " and token_string = ", ";"], ["\n            SELECT * from user where email = ", " and token_string = ", ";"])), payload.email, payload.token_string)];
-                                case 2:
-                                    user = _a.sent();
-                                    return [4 /*yield*/, (0, exports.getToken)(user.email)];
-                                case 3:
-                                    newToken = _a.sent();
-                                    return [4 /*yield*/, prisma_client_1.prisma.$queryRaw(templateObject_2 || (templateObject_2 = __makeTemplateObject(["\n            UPDATE user SET token = ", " where email = ", ";"], ["\n            UPDATE user SET token = ", " where email = ", ";"])), newToken, payload.email)];
-                                case 4:
-                                    _a.sent();
-                                    resolve(payload);
-                                    return [3 /*break*/, 6];
-                                case 5:
-                                    error_1 = _a.sent();
-                                    reject(error_1);
-                                    return [3 /*break*/, 6];
-                                case 6: return [3 /*break*/, 8];
-                                case 7:
-                                    reject(err);
-                                    _a.label = 8;
-                                case 8: return [3 /*break*/, 10];
-                                case 9:
-                                    resolve(payload);
-                                    _a.label = 10;
-                                case 10: return [2 /*return*/];
+                            if (!defaults_1["default"].jwtsecret) {
+                                throw new Error('JWT secret is not defined in the configuration.');
                             }
+                            payload = jsonwebtoken_1["default"].verify(token, defaults_1["default"].jwtsecret);
+                            if (typeof payload === 'string') {
+                                throw new Error('Token is not valid.');
+                            }
+                            if (err) {
+                                if (err.name === 'TokenExpiredError') {
+                                    return [2 /*return*/, new Error('Session expired, please login again.')];
+                                    // Token is expired, generate a new token
+                                    // try {
+                                    //   const user:any = await prisma.$queryRaw`
+                                    //   SELECT * from user where email = ${payload.email} and token_string = ${payload.token_string};`;
+                                    //   const newToken = await getToken(user.email);
+                                    //   await prisma.$queryRaw`
+                                    //   UPDATE user SET token = ${newToken} where email = ${payload.email};`;
+                                    //   resolve(payload);
+                                    // } catch (error) {
+                                    //   reject(error);
+                                    // }
+                                }
+                                else {
+                                    reject(err);
+                                }
+                            }
+                            else {
+                                resolve(payload);
+                            }
+                            return [2 /*return*/];
                         });
                     }); });
                     return [2 /*return*/];
@@ -142,5 +127,4 @@ var verifyToken = function (token) { return __awaiter(void 0, void 0, void 0, fu
     });
 }); };
 exports.verifyToken = verifyToken;
-var templateObject_1, templateObject_2;
 //# sourceMappingURL=utility.functions.js.map

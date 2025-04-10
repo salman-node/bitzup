@@ -9,7 +9,7 @@
 // ) => {
 //   try {
 //     const { authorization } = req.headers;
-//     console.log({ authorization });
+
 
 //     if (!authorization) {
 //       // throw new Error('You are not authorized');
@@ -36,7 +36,7 @@
 //     const user = await prisma.user.findFirst({
 //       where: { user_id: payload.user_id },
 //     });
-//     console.log('user', payload.user_id);
+//  
 //     const authUser = { ...user } as IUserPartial;
 //     delete authUser.password;
 //     req.body.user = authUser;
@@ -58,7 +58,7 @@
 //       // throw new Error('You are not authorized');
 //       return res.status(400).json({ status: '3', message: 'You are not authorized' });
 //     }
-//     console.log(12, authorization);
+
 //     if (authorization) {
     
 //       if (!authorization.startsWith('Bearer ')) {

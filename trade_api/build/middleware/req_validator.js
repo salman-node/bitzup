@@ -39,22 +39,18 @@ var validate_buy_asset_pro = function (req, res, next) {
     var _a = req.body, user_id = _a.user_id, pair_id = _a.pair_id, quote_volume = _a.quote_volume, limit_price = _a.limit_price, order_type = _a.order_type, ip_address = _a.ip_address, device_type = _a.device_type, device_info = _a.device_info;
     var user_id_error = (0, validation_1.validateStringMinMaxRequired)(user_id, constants_1.c.userIdMin, constants_1.c.userIdMax);
     if (user_id_error) {
-        console.log('user_id_error', user_id_error);
         return responseFormat(res, user_id_error, 'user_id');
     }
     var pair_id_error = (0, validation_1.validateStringMinMaxRequired)(pair_id, constants_1.c.pairIdMin, constants_1.c.pairIdMax);
     if (pair_id_error) {
-        console.log('pair_id_error', pair_id_error);
         return responseFormat(res, pair_id_error, 'pair_id');
     }
     var quote_value_error = (0, validation_1.validateNumberRequired)(quote_volume);
     if (quote_value_error) {
-        console.log('quote_value_error', quote_value_error);
         return responseFormat(res, quote_value_error, 'quote_volume');
     }
     var base_price_rate_error = (0, validation_1.validateNumberRequired)(limit_price);
     if (base_price_rate_error) {
-        console.log('limit_price_error', base_price_rate_error);
         return responseFormat(res, base_price_rate_error, 'limit_price');
     }
     var order_type_error = (0, validation_1.validateStringRequired)(order_type);

@@ -5,7 +5,7 @@ import { randomBytes } from 'crypto';
 import config from '../config/defaults';
 import { prisma } from '../config/prisma.client';
 import sendEmail, { sendOTPEmail } from './mail.function';
-import { IUser, IClientInfo } from '../types/models.types';
+import { IClientInfo } from '../types/models.types';
 import { JwtPayload } from 'jsonwebtoken';
 import * as admin from 'firebase-admin';
 const dotenv = require('dotenv');;
@@ -41,29 +41,23 @@ export const getToken = async (user_id: string) => {
   if (!token_data) {
     throw new Error('User not found.');
   }
-  const token_string = token_data.token_string;
+  const token_string = randomBytes(8).toString("hex");
   const email = token_data.email;
+
+  await prisma.user.updateMany({
+    where: {
+      user_id: user_id,
+    },
+    data: {
+      token_string: token_string
+    }
+  })
 
   return jwt.sign({ token_string: token_string, email: email }, config.jwtsecret, {
     expiresIn: config.jwtExp,
   });
 };
 
-/*----- Verify token -----*/
-/* export const verifyToken = async (token: string) => {
-  console.log('verify token')
-  
-  if (!config.jwtsecret) {
-    throw new Error('JWT secret is not defined in the configuration.');
-  }
-
-  return new Promise((resolve, reject) => {
-    jwt.verify(token, config.jwtsecret, (err, payload) => {
-      if (err) return reject(err);
-      resolve(payload);
-    });
-  });
-}; */
 
 /*----- Verify token -----*/
 export const verifyToken = async (token: string) => {
@@ -83,17 +77,8 @@ export const verifyToken = async (token: string) => {
       }
       if (err) {
         if (err.name === 'TokenExpiredError') {
-          // Token is expired, generate a new token
-          try {
-            const user: IUser[] = await prisma.$queryRaw`
-            SELECT * from user where email = ${payload.email} and token_string = ${payload.token_string};`;
-            const newToken = await getToken(user[0].email);
-            await prisma.$queryRaw`
-            UPDATE user SET token = ${newToken} where email = ${payload.email};`;
-            resolve(payload);
-          } catch (error) {
-            reject(error);
-          }
+          throw new Error('session expired, please login again.');
+        
         } else {
           reject(err);
         }

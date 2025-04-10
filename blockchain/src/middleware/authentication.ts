@@ -3,6 +3,52 @@ import { verifyToken } from '../utility/utility.functions';
 import { prisma } from '../config/prisma.client';
 import { IUserPartial } from '../types/models.types';
 
+// export const verifyUser = async (
+//   req: Request,
+//   res: Response,
+//   next: NextFunction,
+// ) => {
+//   try {
+//     const { authorization } = req.headers;
+
+
+//     if (!authorization) {
+//       // throw new Error('You are not authorized');
+//       return res.status(400).json({ status: '3', message: 'You are not authorized' });
+//     } else if (!authorization.startsWith('Bearer ')) {
+//       // throw new Error('You are not authorized');
+//       return res.status(400).send({ status: '3', message: 'You are not authorized' });
+//     }
+
+//     const token = authorization.split(' ')[1];
+
+//     if (token === 'null' || token === '' || token === 'undefined') {
+//       // throw new Error('Something went wrong Please try again!!');
+//       return res.status(400).json({ status: '3', message: 'Something went wrong Please try again!!' });
+//     }
+
+//     const payload: any = await verifyToken(token);
+//     if (!payload) {
+//       // throw new Error('You are not authorized');
+//       return res.status(400).json({ status: '3', message: 'You are not authorized' });
+//     }
+
+//     const user = await prisma.user.findFirst({
+//       where: { email: payload.email },
+//     });
+   
+//     const authUser = { ...user } as IUserPartial;
+//
+//     delete authUser.password;
+//     req.body.user = authUser;
+
+//     next();
+//   } catch (err) {
+//     console.log('err', err);
+//     res.status(500).json({ status: '0', message: (err as Error).message });
+//   }
+// };
+
 export const verifyUser = async (
   req: Request,
   res: Response,
@@ -10,7 +56,7 @@ export const verifyUser = async (
 ) => {
   try {
     const { authorization } = req.headers;
-    console.log({ authorization });
+
 
     if (!authorization) {
       // throw new Error('You are not authorized');
@@ -24,7 +70,7 @@ export const verifyUser = async (
 
     if (token === 'null' || token === '' || token === 'undefined') {
       // throw new Error('Something went wrong Please try again!!');
-      return res.status(400).json({ status: '3', message: 'Something went wrong Please try again!!' });
+      return res.status(400).json({ status: '3', message: 'You are not authorized' });
     }
 
     const payload: any = await verifyToken(token);
@@ -36,19 +82,20 @@ export const verifyUser = async (
     const user = await prisma.user.findFirst({
       where: { email: payload.email },
     });
+
+    if(user?.token_string !== payload.token_string) {
+      return res.status(400).json({ status: '3', message: 'You are not authorized' });  
+    }
    
     const authUser = { ...user } as IUserPartial;
-    console.log('authUser', authUser);
-    delete authUser.password;
-    req.body.user = authUser;
-
+    req.body.user = { user_id: authUser.user_id }
+ 
     next();
   } catch (err) {
-    console.log('err', err);
+    console.log(err);
     res.status(500).json({ status: '0', message: (err as Error).message });
   }
 };
-
 export const checkLogin = async (
   req: Request,
   res: Response,
@@ -60,10 +107,10 @@ export const checkLogin = async (
       // throw new Error('You are not authorized');
       return res.status(400).json({ status: '3', message: 'You are not authorized' });
     }
-    console.log(12, authorization);
+ 
     if (authorization) {
     
-      if (!authorization.startsWith('Bearer ')) {
+      if (!authorization.startsWith('Bearer')) {
         // throw new Error('You are not authorized');
         return res.status(400).json({ status: '3', message: 'You are not authorized' });
       }
@@ -71,7 +118,7 @@ export const checkLogin = async (
 
       if (token === 'null' || token === '') {
         // throw new Error('Something went wrong Please try again!!');
-        return res.status(400).json({ status: '3', message: 'Something went wrong Please try again!!' });
+        return res.status(400).json({ status: '3', message: 'You are not authorized' });
       }
       const payload: any = await verifyToken(token);
       if (!payload) {

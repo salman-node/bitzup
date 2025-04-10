@@ -75,16 +75,15 @@ model balances_inorder {
 }
 
 model chains {
-  id             Int                   @id @default(autoincrement())
-  coin_id        Int
-  chain_name     String                @db.VarChar(20)
-  status         chain_status          @default(Active)
-  evm_compatible chains_evm_compatible @default(ZERO)
-  min_with       Decimal               @default(0.00000000) @db.Decimal(15, 8)
-  min_dep        Decimal               @default(0.00000000) @db.Decimal(15, 8)
-  netw_fee       Decimal               @default(0.00000000) @db.Decimal(15, 8)
-
-  @@unique([coin_id, chain_name], map: "coin_id")
+  id                Int                      @id @default(autoincrement())
+  chain_name        String                   @unique(map: "coin_id") @db.VarChar(20)
+  deposit_address   String                   @db.VarChar(250)
+  withdrawal_status chains_withdrawal_status
+  deposit_status    chains_deposit_status
+  status            chain_status             @default(Active)
+  min_with          Decimal                  @default(0.00000000) @db.Decimal(15, 8)
+  min_dep           Decimal                  @default(0.00000000) @db.Decimal(15, 8)
+  netw_fee          Decimal                  @default(0.00000000) @db.Decimal(15, 8)
 }
 
 model wallet_history {
@@ -110,8 +109,8 @@ model fees {
 model deposit_history {
   id              Int                     @id @default(autoincrement())
   date            DateTime                @db.DateTime(0)
-  user_id         Int
-  coin_id         Int
+  user_id         String                  @db.VarChar(35)
+  coin_id         String                  @db.VarChar(35)
   chain_id        Int
   memo            String                  @db.VarChar(50)
   address         String                  @db.VarChar(50)
@@ -129,8 +128,8 @@ model deposit_history {
 model withdrawl_history {
   id              Int                       @unique(map: "id") @default(autoincrement())
   date            DateTime                  @db.DateTime(0)
-  user_id         Int
-  coin_id         Int
+  user_id         String                    @db.VarChar(35)
+  coin_id         String                    @db.VarChar(35)
   chain_id        Int
   memo            String                    @db.VarChar(50)
   address         String                    @db.VarChar(50)
@@ -169,7 +168,7 @@ model buy_sell_pro_limit_open {
   response                String?             @db.Text
   trade_id                Int                 @default(-1)
   date_time               BigInt?
-  cancelled_date_time     String?             @db.VarChar(35)
+  cancelled_date_time     BigInt?
   response_time           String              @default("") @db.VarChar(50)
   profit                  Decimal             @default(0.00000) @db.Decimal(10, 5)
   api                     Int                 @default(0)
@@ -183,31 +182,28 @@ model buy_sell_pro_limit_open {
 }
 
 model buy_sell_pro_in_order {
-  id                   Int                             @id @default(autoincrement())
-  user_id              Int
-  coin_id              Int
-  coin_base            buy_sell_pro_in_order_coin_base @default(INR)
-  type                 buy_sell_type
-  usdt_price           Decimal                         @db.Decimal(30, 12)
-  quantity             Decimal                         @db.Decimal(30, 12)
-  amount               Decimal                         @db.Decimal(30, 12)
-  stop_limit_price     Decimal                         @default(0.00000000) @db.Decimal(30, 8)
-  oco_stop_limit_price Decimal                         @default(0.00000000) @db.Decimal(30, 8)
-  tds                  Decimal                         @default(0.00000000) @db.Decimal(30, 8)
-  fees                 Decimal                         @default(0.00000000) @db.Decimal(30, 8)
-  final_amount         Decimal                         @default(0.000000000000) @db.Decimal(30, 12)
-  order_id             String                          @db.VarChar(100)
-  api_order_id         String                          @default("") @db.VarChar(100)
-  order_type           buy_sell_order_type
-  status               buy_sell_pro_in_order_status    @default(FILLED)
-  api_status           buy_sell_api_status             @default(ZERO)
-  api_id               Int                             @default(0)
-  response             String?                         @db.Text
-  date_time            BigInt?
-  response_time        String                          @default("") @db.VarChar(50)
-  profit               Decimal                         @default(0.00000) @db.Decimal(10, 5)
-  api                  Int                             @default(0)
-  device               String                          @default("") @db.VarChar(30)
+  id                        Int                 @id @default(autoincrement())
+  user_id                   String              @db.VarChar(35)
+  pair_id                   String              @db.VarChar(20)
+  type                      buy_sell_type
+  base_quantity             Decimal             @db.Decimal(30, 12)
+  quote_quantity            Decimal             @db.Decimal(30, 12)
+  executed_base_quantity    Decimal             @default(0.000000000000) @db.Decimal(30, 12)
+  executed_quote_quantity   Decimal             @default(0.000000000000) @db.Decimal(30, 12)
+  order_price               Decimal             @default(0.00000000) @db.Decimal(30, 8)
+  executed_base_after_fees  Decimal             @default(0.000000000000) @db.Decimal(30, 12)
+  executed_quote_after_fees Decimal             @default(0.000000000000) @db.Decimal(30, 12)
+  order_id                  String              @db.VarChar(100)
+  api_order_id              String              @default("") @db.VarChar(100)
+  order_type                buy_sell_order_type
+  status                    String              @default("NEW") @db.VarChar(25)
+  trade_id                  Int
+  api_id                    Int                 @default(0)
+  date_time                 BigInt?
+  buy_sell_fees             Decimal             @db.Decimal(30, 0)
+  stop_limit_price          Decimal             @default(0.000000000000) @db.Decimal(30, 12)
+  api                       String              @default("0") @db.VarChar(35)
+  device                    String              @default("") @db.VarChar(30)
 }
 
 model buy_sell_order_response {
@@ -251,7 +247,8 @@ model user {
   phone        String
   country      String
   password     String
-  token        String?
+  token        String?   @db.VarChar(300)
+  token_string String    @db.VarChar(100)
   login_count  Int       @default(0)
   otp_count    Int       @default(0)
   lockout_time DateTime? @db.Timestamp(0)
@@ -336,6 +333,61 @@ model crypto_pair {
   @@unique([base_asset_id, quote_asset_id], map: "unique_pair")
 }
 
+model activity_logs {
+  id            Int      @id @default(autoincrement())
+  user_id       String   @db.VarChar(35)
+  ip_address    String   @db.VarChar(35)
+  activity_type String   @db.VarChar(100)
+  device_type   String   @db.VarChar(50)
+  device_info   String   @db.VarChar(100)
+  timestamp     DateTime @default(now()) @db.Timestamp(0)
+}
+
+model buy_open_orders {
+  id                Int                    @id @default(autoincrement())
+  order_id          String                 @db.VarChar(35)
+  pair_id           String                 @db.VarChar(20)
+  side              Int
+  price             Decimal                @db.Decimal(11, 0)
+  quantity          Float
+  executed_quantity Float
+  timestamp         String?                @db.VarChar(50)
+  status            buy_open_orders_status @default(open)
+  updated_at        DateTime?              @db.Timestamp(0)
+  uid               String                 @db.VarChar(35)
+  user_id           String                 @db.VarChar(35)
+}
+
+model matched_orders {
+  id                Int       @id @default(autoincrement())
+  order_id          String    @db.VarChar(35)
+  user_id           String    @db.VarChar(35)
+  pair_id           String    @db.VarChar(35)
+  price             Float
+  quantity          Float
+  executed_quantity Float
+  uid               String    @db.VarChar(100)
+  timestamp         DateTime  @default(now()) @db.Timestamp(0)
+  side              Int
+  updated_at        DateTime? @db.Timestamp(0)
+}
+
+model sell_open_orders {
+  id                Int                     @id @default(autoincrement())
+  order_id          String                  @db.VarChar(35)
+  pair_id           String                  @db.VarChar(20)
+  price             Float
+  side              Int
+  quantity          Float
+  executed_quantity Float
+  uid               String                  @db.VarChar(35)
+  hash              String                  @db.VarChar(100)
+  timestamp         DateTime                @default(now()) @db.Timestamp(0)
+  status            sell_open_orders_status @default(open)
+  updated_at        DateTime?               @db.Timestamp(0)
+  user_id           String                  @db.VarChar(35)
+}
+
 enum fa_auth {
   Inactive
   Active
@@ -369,11 +421,6 @@ enum chain_status {
 enum buy_sell_type {
   BUY
   SELL
-}
-
-enum buy_sell_api_status {
-  ZERO
-  ONE
 }
 
 enum deposit_history_status {
@@ -415,22 +462,7 @@ enum remark_type {
   CANCELLED
 }
 
-enum buy_sell_pro_in_order_coin_base {
-  INR
-  USDT
-}
-
-enum buy_sell_pro_in_order_status {
-  FILLED
-  PARTIALLY
-}
-
 enum apis_status {
-  ZERO
-  ONE
-}
-
-enum chains_evm_compatible {
   ZERO
   ONE
 }
@@ -438,4 +470,28 @@ enum chains_evm_compatible {
 enum crypto_pair_status {
   ZERO
   ONE
+}
+
+enum buy_open_orders_status {
+  open
+  filled
+  partially_filled
+  canceled
+}
+
+enum sell_open_orders_status {
+  open
+  filled
+  partially_filled
+  canceled
+}
+
+enum chains_withdrawal_status {
+  active
+  inactive
+}
+
+enum chains_deposit_status {
+  active
+  inactive
 }

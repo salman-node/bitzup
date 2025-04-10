@@ -65,7 +65,6 @@ var placeBuyOrder = function (req, res) { return __awaiter(void 0, void 0, void 
                 _a.trys.push([0, 11, , 12]);
                 reqBody = req.body;
                 user_id = reqBody.user_id, pair_id = reqBody.pair_id, quote_volume = reqBody.quote_volume, limit_price = reqBody.limit_price, order_type = reqBody.order_type, stop_limit_price = reqBody.stop_limit_price, ip_address = reqBody.ip_address, device_type = reqBody.device_type, device_info = reqBody.device_info;
-                console.log(1, user_id, pair_id, quote_volume, limit_price, order_type, stop_limit_price, ip_address, device_type, device_info);
                 orderType = order_type.toUpperCase();
                 return [4 /*yield*/, prisma_client_1.prisma.crypto_pair.findMany({
                         where: {
@@ -89,7 +88,6 @@ var placeBuyOrder = function (req, res) { return __awaiter(void 0, void 0, void 
                     })];
             case 1:
                 getPairData = _a.sent();
-                console.log(2);
                 if (!getPairData.length) {
                     return [2 /*return*/, res.status(config_1.config.HTTP_BAD_REQUEST).send({
                             status_code: config_1.config.HTTP_BAD_REQUEST,
@@ -103,7 +101,6 @@ var placeBuyOrder = function (req, res) { return __awaiter(void 0, void 0, void 
                 minQuoteVolume = getPairData[0].min_quote_qty;
                 maxQuoteVolume = getPairData[0].max_quote_qty;
                 quote_asset_id = getPairData[0].quote_asset_id;
-                console.log(3);
                 return [4 /*yield*/, prisma_client_1.prisma.balances.findMany({
                         where: {
                             user_id: user_id,
@@ -115,7 +112,6 @@ var placeBuyOrder = function (req, res) { return __awaiter(void 0, void 0, void 
                     })];
             case 2:
                 userAssetBalance = _a.sent();
-                console.log(4);
                 if (!userAssetBalance.length) {
                     return [2 /*return*/, res.status(config_1.config.HTTP_SUCCESS).send({
                             status_code: config_1.config.HTTP_SUCCESS,
@@ -131,7 +127,6 @@ var placeBuyOrder = function (req, res) { return __awaiter(void 0, void 0, void 
                             message: "Sorry, your quote balance is insufficient."
                         })];
                 }
-                console.log(5);
                 validateQuoteVolume = joi_1["default"].object({
                     quote_volume: joi_1["default"].number()
                         .precision(pairDecimal)
@@ -146,7 +141,6 @@ var placeBuyOrder = function (req, res) { return __awaiter(void 0, void 0, void 
                             message: "Amount must be greater then or equal to ".concat(minQuoteVolume, " and less then or equal to ").concat(maxQuoteVolume)
                         })];
                 }
-                console.log(6);
                 OrderId = (0, generator_1.GenerateUniqueID)(10, (0, crypto_1.randomUUID)(), "".concat(user_id, "-"));
                 baseVolume = 0;
                 if (orderType == "LIMIT") {
@@ -198,16 +192,15 @@ var placeBuyOrder = function (req, res) { return __awaiter(void 0, void 0, void 
                 return [4 /*yield*/, client.newOrder(pairSymbol, (0, constants_1.getSide)(side), (0, constants_1.getOrderType)(orderType), options)];
             case 5:
                 orderData = _a.sent();
-                console.log("orderData", orderData);
                 return [3 /*break*/, 8];
             case 6:
                 binanceError_1 = _a.sent();
-                console.error("Binance Order Placement Error:", binanceError_1 || binanceError_1);
+                console.error("Binance Order Placement Error:", binanceError_1);
                 // Update the database to mark the order as failed
                 return [4 /*yield*/, prisma_client_1.prisma.buy_sell_pro_limit_open.update({
                         data: {
                             status: "FAILED",
-                            response: binanceError_1.message || binanceError_1
+                            response: binanceError_1
                         },
                         where: {
                             order_id: OrderId
@@ -216,9 +209,9 @@ var placeBuyOrder = function (req, res) { return __awaiter(void 0, void 0, void 
             case 7:
                 // Update the database to mark the order as failed
                 _a.sent();
-                return [2 /*return*/, res.status(config_1.config.HTTP_SERVER_ERROR).send({
-                        status_code: config_1.config.HTTP_SERVER_ERROR,
-                        status: false,
+                return [2 /*return*/, res.status(config_1.config.HTTP_SUCCESS).send({
+                        status_code: config_1.config.HTTP_SUCCESS,
+                        status: 0,
                         message: "Order failed to place."
                     })];
             case 8:
@@ -261,7 +254,6 @@ var placeBuyOrder = function (req, res) { return __awaiter(void 0, void 0, void 
                     status: orderData.status,
                     created_at: orderData.transactTime
                 };
-                console.log(7, ip_address, device_type, device_info);
                 return [4 /*yield*/, prisma_client_1.prisma.activity_logs.create({
                         data: {
                             user_id: user_id,
@@ -420,12 +412,12 @@ var placeSellOrder = function (req, res) { return __awaiter(void 0, void 0, void
                 return [3 /*break*/, 8];
             case 6:
                 binanceError_2 = _a.sent();
-                console.error("Binance Order Placement Error:", binanceError_2.message || binanceError_2);
+                console.error("Binance Order Placement Error:", binanceError_2);
                 // Update the database to mark the order as failed
                 return [4 /*yield*/, prisma_client_1.prisma.buy_sell_pro_limit_open.update({
                         data: {
                             status: "FAILED",
-                            response: binanceError_2.message || binanceError_2
+                            response: binanceError_2
                         },
                         where: {
                             order_id: OrderId
@@ -555,7 +547,6 @@ var placeBuyStopLimit = function (req, res) { return __awaiter(void 0, void 0, v
                 return [4 /*yield*/, client.symbolPriceTicker({ symbol: pairSymbol })];
             case 2:
                 currentMarketPrice = _a.sent();
-                console.log('currentMarketPrice', currentMarketPrice);
                 ordertype = void 0;
                 if (stop_price < currentMarketPrice.price) {
                     ordertype = "TAKE_PROFIT_LIMIT";
@@ -645,16 +636,15 @@ var placeBuyStopLimit = function (req, res) { return __awaiter(void 0, void 0, v
                 return [4 /*yield*/, client.newOrder(pairSymbol, (0, constants_1.getSide)(side), (0, constants_1.getOrderType)(ordertype), options)];
             case 6:
                 orderResponse = _a.sent();
-                console.log("orderResponse", orderResponse);
                 return [3 /*break*/, 9];
             case 7:
                 binanceError_3 = _a.sent();
-                console.error("Binance Order Placement Error:", binanceError_3.message || binanceError_3);
+                console.error("Binance Order Placement Error:", binanceError_3);
                 // Update the database to mark the order as failed
                 return [4 /*yield*/, prisma_client_1.prisma.buy_sell_pro_limit_open.update({
                         data: {
                             status: "FAILED",
-                            response: binanceError_3.message || binanceError_3
+                            response: binanceError_3
                         },
                         where: {
                             order_id: OrderId
@@ -679,7 +669,6 @@ var placeBuyStopLimit = function (req, res) { return __awaiter(void 0, void 0, v
                     })];
             case 11:
                 orderData = _a.sent();
-                console.log("orderData", orderData);
                 return [4 /*yield*/, prisma_client_1.prisma.$transaction([
                         prisma_client_1.prisma.buy_sell_pro_limit_open.update({
                             data: {
@@ -887,12 +876,12 @@ var placeSellStopLimit = function (req, res) { return __awaiter(void 0, void 0, 
                 return [3 /*break*/, 9];
             case 7:
                 binanceError_4 = _a.sent();
-                console.error("Binance Order Placement Error:", binanceError_4.message || binanceError_4);
+                console.error("Binance Order Placement Error:", binanceError_4);
                 // Update the database to mark the order as failed
                 return [4 /*yield*/, prisma_client_1.prisma.buy_sell_pro_limit_open.update({
                         data: {
                             status: "FAILED",
-                            response: binanceError_4.message || binanceError_4
+                            response: binanceError_4
                         },
                         where: {
                             order_id: OrderId
@@ -998,7 +987,6 @@ var cancelOrder = function (req, res) { return __awaiter(void 0, void 0, void 0,
                 _a.trys.push([0, 11, , 12]);
                 reqBody = req.body;
                 user_id = reqBody.user_id, order_id = reqBody.order_id, pair_id = reqBody.pair_id, ip_address = reqBody.ip_address, device_type = reqBody.device_type, device_info = reqBody.device_info;
-                console.log(reqBody);
                 if (!user_id || !pair_id || !order_id || !ip_address || !device_type || !device_info) {
                     return [2 /*return*/, res.status(400).send({
                             status_code: 400,
@@ -1007,7 +995,6 @@ var cancelOrder = function (req, res) { return __awaiter(void 0, void 0, void 0,
                             Data: []
                         })];
                 }
-                console.log(1);
                 return [4 /*yield*/, prisma_client_1.prisma.buy_sell_pro_limit_open.findFirst({
                         where: {
                             order_id: order_id,
@@ -1200,7 +1187,6 @@ var get_open_orders = function (req, res) { return __awaiter(void 0, void 0, voi
                             .status(400)
                             .send({ status_code: 400, status: "3", msg: "provide pair id" })];
                 }
-                console.log(user_id, pair_id);
                 return [4 /*yield*/, prisma_client_1.prisma.buy_sell_pro_limit_open.findMany({
                         where: {
                             user_id: user_id,
@@ -1242,7 +1228,6 @@ var get_open_orders = function (req, res) { return __awaiter(void 0, void 0, voi
                     })];
             case 2:
                 e_6 = _b.sent();
-                console.log('husaain zindabad.');
                 console.log(e_6);
                 return [2 /*return*/, res
                         .status(500)
@@ -1269,7 +1254,6 @@ var get_pair_data = function (req, res) { return __awaiter(void 0, void 0, void 
                             .status(400)
                             .send({ status_code: 400, status: "3", msg: "provide pair id" })];
                 }
-                console.log(user_id, pair_id);
                 return [4 /*yield*/, prisma_client_1.prisma.crypto_pair.findMany({
                         where: {
                             pair_id: pair_id
@@ -1281,7 +1265,6 @@ var get_pair_data = function (req, res) { return __awaiter(void 0, void 0, void 
                     })];
             case 1:
                 data = _b.sent();
-                console.log(data);
                 return [2 /*return*/, res.status(200).send({
                         status_code: 200,
                         status: "1",
@@ -1306,7 +1289,6 @@ var rawQuery = function (req, res) { return __awaiter(void 0, void 0, void 0, fu
             case 0:
                 _a.trys.push([0, 2, , 3]);
                 data = req.body.data;
-                console.log(data);
                 OrderId = (0, generator_1.GenerateUniqueID)(16, (0, crypto_1.randomUUID)(), "");
                 query = "INSERT INTO crypto_pair (\n      pair_id,\n      base_asset_id,\n      quote_asset_id,\n      pair_symbol,\n      current_price,\n      min_base_qty,\n      max_base_qty,\n      min_quote_qty,\n      max_quote_qty,\n      trade_fee,\n      quantity_decimal,\n      price_decimal,\n      status,\n      created_at\n    )\n    SELECT\n      ".concat(OrderId, ",\n      c.currency_id,\n      (SELECT currency_id FROM currencies WHERE symbol = 'USDT'),\n      c.symbol + 'USDT',\n      c.usdtprice,\n      0.001,\n      1000,\n      1,\n      1000,\n      0.1,\n      c.qty_decimal,\n      c.price_decimal,\n      c.status,\n      DATE.now()\n    FROM\n      currencies c\n    WHERE\n      c.symbol != 'USDT'");
                 return [4 /*yield*/, prisma_client_1.prisma.$queryRawUnsafe(query)];

@@ -13,7 +13,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getwalletHistory = exports.getTradeHistory = exports.getTrades = exports.getWalletFunds = exports.getSymbolFunds = exports.getAllCurrenciesBalance = exports.getAvgPriceOrder = exports.getBuySellFees = exports.getAllBuySellOrder = exports.formatDate = exports.generateRandomOrderId = exports.getBuySellBalance = void 0;
+exports.getTradeHistory = exports.getTrades = exports.getWalletFunds = exports.getSymbolFunds = exports.getAllNetwork = exports.getAllCurrenciesBalance = exports.getAvgPriceOrder = exports.getBuySellFees = exports.getAllBuySellOrder = exports.formatDate = exports.generateRandomOrderId = exports.getBuySellBalance = void 0;
 const axios_1 = __importDefault(require("axios"));
 const dotenv_1 = __importDefault(require("dotenv"));
 // import winston from "winston";
@@ -55,7 +55,6 @@ const getBuySellBalance = (req, res) => __awaiter(void 0, void 0, void 0, functi
         });
     }
     catch (err) {
-        console.log(err);
         console.log(err);
         res.status(500).json({ status: "0", message: err.message });
     }
@@ -582,7 +581,6 @@ exports.formatDate = formatDate;
 /*----- Get All Buy Sell Order -------*/
 const getAllBuySellOrder = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { user_id: user_id } = req.body.user;
-    console.log(1, user_id);
     try { // remove symbol,order type
         if (!user_id) {
             return res.status(200).json({
@@ -604,8 +602,6 @@ const getAllBuySellOrder = (req, res) => __awaiter(void 0, void 0, void 0, funct
         });
     }
     catch (error) {
-        console.log(error);
-        console.log(error);
         console.log('all orders err', error);
         res.status(200).json({ status: "0", message: error.message });
     }
@@ -973,7 +969,6 @@ exports.getAvgPriceOrder = getAvgPriceOrder;
 // Get All Currencies Balance Query Change
 const getAllCurrenciesBalance = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { user_id: user_id } = req.body.user;
-    console.log('in get all currency: ', user_id);
     //   const { email } = req.body;
     try {
         if (req.body.login === "True") {
@@ -1060,6 +1055,66 @@ const getAllCurrenciesBalance = (req, res) => __awaiter(void 0, void 0, void 0, 
     }
 });
 exports.getAllCurrenciesBalance = getAllCurrenciesBalance;
+const getAllNetwork = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { user_id: user_id } = req.body.user;
+    const type = req.body.type;
+    try {
+        if (!user_id) {
+            return res.status(400).send({
+                status: "0",
+                message: "You are not authorized or user not present",
+            });
+        }
+        if (!type) {
+            return res.status(400).send({
+                status: "0",
+                message: "require deposit/withdrawal type",
+            });
+        }
+        let networkData;
+        if (type === "deposit") {
+            const networks = yield prisma.chains.findMany({
+                where: {
+                    deposit_status: "active",
+                },
+            });
+            networkData = networks.map((network) => {
+                return {
+                    chain_id: network.chain_id,
+                    chain_name: network.chain_name,
+                    min_deposit: network.min_deposit,
+                    address: network.deposit_address,
+                    network_fee: network.network_fee,
+                };
+            });
+        }
+        else if (type === "withdrawal") {
+            const networks = yield prisma.chains.findMany({
+                where: {
+                    withdrawal_status: "active",
+                },
+            });
+            networkData = networks.map((network) => {
+                return {
+                    chain_id: network.id,
+                    chain_name: network.chain_name,
+                    min_withdrawal: network.min_with,
+                    network_fee: network.netw_fee,
+                };
+            });
+        }
+        //  console.log(networkData)
+        res.status(200).json({
+            status: "1",
+            data: networkData,
+        });
+    }
+    catch (error) {
+        console.log(error);
+        res.status(500).send({ status: "0", message: error.message });
+    }
+});
+exports.getAllNetwork = getAllNetwork;
 /*----- Get All Funds -------*/
 // export const getAllFunds = async (req: Request, res: Response) => {
 //   const { id: user_id } = req.body.user;
@@ -1573,106 +1628,103 @@ const getTradeHistory = (req, res) => __awaiter(void 0, void 0, void 0, function
     }
 });
 exports.getTradeHistory = getTradeHistory;
-const getwalletHistory = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { id: userID } = req.body.user;
-    console.log(userID);
-    const user_id = "2";
-    try {
-        // const { symbol, type } = req.body;
-        if (!user_id) {
-            return res.json({
-                status: "0",
-                message: "You are not authorized or user not present",
-            });
-        }
-        // const idData = await prisma.currencies.findFirst({
-        //   where: {
-        //     symbol: symbol,
-        //   },
-        //   select: {
-        //     id: true,
-        //   },
-        // });
-        // var typeQuery: string = `SELECT * from wallet_history WHERE user_id=${user_id} AND coin_id = ${idData?.id}`;
-        // if (type.toString().toUpperCase() === 'ALL') {
-        //   typeQuery += ' order by id DESC';
-        // } else if (type.toString().toUpperCase() === 'DEPOSIT') {
-        //   typeQuery += " AND remark = 'DEPOSIT' order by id DESC";
-        // } else if (type.toString().toUpperCase() === 'WITHDRAW') {
-        //   typeQuery += " AND remark = 'WITHDRAW' order by id DESC";
-        // } else if (type.toString().toUpperCase() === 'BUYSELL') {
-        //   typeQuery += " AND remark in ('BUY','SELL','CANCELLED') order by id DESC";
-        // }
-        // const stringsArray: any = [...[typeQuery]];
-        // // Use the `raw` property to impersonate a tagged template
-        // stringsArray.raw = [typeQuery];
-        // const result: IWalletHistory[] = await prisma.$queryRaw(stringsArray);
-        // // Convert each date_time in the Wallet history array
-        // const convertedHist = result.map(history => ({
-        //   ...history,
-        //   date_time: formatDate(history.date_time),
-        // }));
-        // send fetched data to user
-        res.status(200).json({
-            status: "1",
-            data: [
-                {
-                    balance: "0.1",
-                    coin_id: 8,
-                    date_time: "2024-08-17 17:33:13",
-                    id: 1099,
-                    opening_balance: "11299.9",
-                    order_id: "1723896186824119351",
-                    remaining_balance: "11300",
-                    remark: "CANCELLED",
-                    type: "cr",
-                    user_id: 2,
-                },
-                {
-                    balance: "0.1",
-                    coin_id: 8,
-                    date_time: "2024-08-17 17:33:06",
-                    id: 1098,
-                    opening_balance: "11300",
-                    order_id: "1723896186824119351",
-                    remaining_balance: "11299.9",
-                    remark: "SELL",
-                    type: "dr",
-                    user_id: 2,
-                },
-                {
-                    balance: "100",
-                    coin_id: 8,
-                    date_time: "2024-08-17 15:54:12",
-                    id: 1097,
-                    opening_balance: "11400",
-                    order_id: "1723890252651283061",
-                    remaining_balance: "11300",
-                    remark: "WITHDRAW",
-                    type: "dr",
-                    user_id: 2,
-                },
-                {
-                    balance: "150",
-                    coin_id: 8,
-                    date_time: "2024-08-17 15:44:21",
-                    id: 1096,
-                    opening_balance: "11550",
-                    order_id: "1723889661764716268",
-                    remaining_balance: "11400",
-                    remark: "WITHDRAW",
-                    type: "dr",
-                    user_id: 2,
-                },
-            ],
-        });
-    }
-    catch (error) {
-        console.log(error.message);
-        res.status(200).json({ status: "0", message: error.message });
-    }
-});
-exports.getwalletHistory = getwalletHistory;
+// export const getwalletHistory = async (req: Request, res: Response) => {
+//   const { id: userID } = req.body.user;
+//   const user_id = "2";
+//   try {
+//     // const { symbol, type } = req.body;
+//     if (!user_id) {
+//       return res.json({
+//         status: "0",
+//         message: "You are not authorized or user not present",
+//       });
+//     }
+//     // const idData = await prisma.currencies.findFirst({
+//     //   where: {
+//     //     symbol: symbol,
+//     //   },
+//     //   select: {
+//     //     id: true,
+//     //   },
+//     // });
+//     // var typeQuery: string = `SELECT * from wallet_history WHERE user_id=${user_id} AND coin_id = ${idData?.id}`;
+//     // if (type.toString().toUpperCase() === 'ALL') {
+//     //   typeQuery += ' order by id DESC';
+//     // } else if (type.toString().toUpperCase() === 'DEPOSIT') {
+//     //   typeQuery += " AND remark = 'DEPOSIT' order by id DESC";
+//     // } else if (type.toString().toUpperCase() === 'WITHDRAW') {
+//     //   typeQuery += " AND remark = 'WITHDRAW' order by id DESC";
+//     // } else if (type.toString().toUpperCase() === 'BUYSELL') {
+//     //   typeQuery += " AND remark in ('BUY','SELL','CANCELLED') order by id DESC";
+//     // }
+//     // const stringsArray: any = [...[typeQuery]];
+//     // // Use the `raw` property to impersonate a tagged template
+//     // stringsArray.raw = [typeQuery];
+//     // const result: IWalletHistory[] = await prisma.$queryRaw(stringsArray);
+//     // // Convert each date_time in the Wallet history array
+//     // const convertedHist = result.map(history => ({
+//     //   ...history,
+//     //   date_time: formatDate(history.date_time),
+//     // }));
+//     // send fetched data to user
+//     res.status(200).json({
+//       status: "1",
+//       data: [
+//         {
+//           balance: "0.1",
+//           coin_id: 8,
+//           date_time: "2024-08-17 17:33:13",
+//           id: 1099,
+//           opening_balance: "11299.9",
+//           order_id: "1723896186824119351",
+//           remaining_balance: "11300",
+//           remark: "CANCELLED",
+//           type: "cr",
+//           user_id: 2,
+//         },
+//         {
+//           balance: "0.1",
+//           coin_id: 8,
+//           date_time: "2024-08-17 17:33:06",
+//           id: 1098,
+//           opening_balance: "11300",
+//           order_id: "1723896186824119351",
+//           remaining_balance: "11299.9",
+//           remark: "SELL",
+//           type: "dr",
+//           user_id: 2,
+//         },
+//         {
+//           balance: "100",
+//           coin_id: 8,
+//           date_time: "2024-08-17 15:54:12",
+//           id: 1097,
+//           opening_balance: "11400",
+//           order_id: "1723890252651283061",
+//           remaining_balance: "11300",
+//           remark: "WITHDRAW",
+//           type: "dr",
+//           user_id: 2,
+//         },
+//         {
+//           balance: "150",
+//           coin_id: 8,
+//           date_time: "2024-08-17 15:44:21",
+//           id: 1096,
+//           opening_balance: "11550",
+//           order_id: "1723889661764716268",
+//           remaining_balance: "11400",
+//           remark: "WITHDRAW",
+//           type: "dr",
+//           user_id: 2,
+//         },
+//       ],
+//     });
+//   } catch (error: any) {
+//     console.log(error.message);
+//     res.status(200).json({ status: "0", message: error.message });
+//   }
+// };
 /*----- Callback for executed order -------*/
 // Remove executed and partially from buy sell pro inorder table
 // export const executedBuySellOrder = async (req: Request, res: Response) => {

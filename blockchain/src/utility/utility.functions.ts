@@ -5,7 +5,7 @@ import { randomBytes } from 'crypto';
 import config from '../config/defaults';
 import { prisma } from '../config/prisma.client';
 import sendEmail, { sendOTPEmail } from './mail.function';
-import { IUser, IClientInfo } from '../types/models.types';
+import { IClientInfo } from '../types/models.types';
 import { JwtPayload } from 'jsonwebtoken';
 import * as admin from 'firebase-admin';
 const dotenv = require('dotenv');;
@@ -35,7 +35,7 @@ export const getToken = async (user_id: string) => {
 
 /*----- Verify token -----*/
 /* export const verifyToken = async (token: string) => {
-  console.log('verify token')
+
   
   if (!config.jwtsecret) {
     throw new Error('JWT secret is not defined in the configuration.');
@@ -50,6 +50,45 @@ export const getToken = async (user_id: string) => {
 }; */
 
 /*----- Verify token -----*/
+// export const verifyToken = async (token: string) => {
+//   return new Promise(async (resolve, reject) => {
+//     if (!config.jwtsecret) {
+//       throw new Error('JWT secret is not defined in the configuration.');
+//     }
+//     jwt.verify(token, config.jwtsecret, async (err, _decoded: any) => {
+//       if (!config.jwtsecret) {
+//         throw new Error('JWT secret is not defined in the configuration.');
+//       }
+//       const payload: JwtPayload | string = jwt.verify(token, config.jwtsecret, {
+//         ignoreExpiration: true,
+//       });
+//       if (typeof payload === 'string') {
+//         throw new Error('Token is not valid.');
+//       }
+//       if (err) {
+//         if (err.name === 'TokenExpiredError') {
+//           // Token is expired, generate a new token
+//           try {
+//             const user: IUser[] = await prisma.$queryRaw`
+//             SELECT * from user where email = ${payload.email};`;
+//             const newToken = await getToken(user[0].email);
+//             await prisma.$queryRaw`
+//             UPDATE user SET token = ${newToken} where email = ${payload.email};`;
+//             resolve(payload);
+//           } catch (error) {
+//             console.log(error);
+//             reject(error);
+//           }
+//         } else {
+//           reject(err);
+//         }
+//       } else {
+//         resolve(payload);
+//       }
+//     });
+//   });
+// };
+
 export const verifyToken = async (token: string) => {
   return new Promise(async (resolve, reject) => {
     if (!config.jwtsecret) {
@@ -67,18 +106,8 @@ export const verifyToken = async (token: string) => {
       }
       if (err) {
         if (err.name === 'TokenExpiredError') {
-          // Token is expired, generate a new token
-          try {
-            const user: IUser[] = await prisma.$queryRaw`
-            SELECT * from user where email = ${payload.email};`;
-            const newToken = await getToken(user[0].email);
-            await prisma.$queryRaw`
-            UPDATE user SET token = ${newToken} where email = ${payload.email};`;
-            resolve(payload);
-          } catch (error) {
-            console.log(error);
-            reject(error);
-          }
+          throw new Error('session expired, please login again.');
+        
         } else {
           reject(err);
         }

@@ -47,7 +47,7 @@ export function validateIp(value: string): Joi.ValidationError | null {
 }
 
 export function validateCoordinate(value: { latitude: number; longitude: number }): Joi.ValidationError | null {
-  console.log(value);
+ 
   const { error } = Joi.object({
     latitude: Joi.number().min(-90).max(90).required(),
     longitude: Joi.number().min(-180).max(180).required(),
