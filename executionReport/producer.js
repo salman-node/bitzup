@@ -31,7 +31,7 @@ const sendExecutionReportToKafka = async (topic, message) => {
   try {
     await producer.send({
       topic,
-      key: JSON.stringify(message.t),   // used key as i (order id) to make sure all messages for the same order go to the same partition
+      key: JSON.stringify(message.c),   // used key as i (order id) to make sure all messages for the same order go to the same partition
       messages: [{ value: JSON.stringify(message)}],   // value is the execution report message
     });
     console.log(`Sent to Kafka topic: ${topic} :${JSON.stringify(message.i)} : ${JSON.stringify(message.t)}`);
@@ -52,10 +52,10 @@ const callbacks = {
         // Send to Kafka
         await sendExecutionReportToKafka('execution-report', data);
 
-      // For updates (e.g., partially filled, filled), send to update topic
-      // if (["PARTIALLY_FILLED", "FILLED", "CANCELED"].includes(data.X)) {
-        await sendExecutionReportToKafka('execution-report-dbupdate', data);
-      // }
+      // // For updates (e.g., partially filled, filled), send to update topic
+      // // if (["PARTIALLY_FILLED", "FILLED", "CANCELED"].includes(data.X)) {
+      //   await sendExecutionReportToKafka('execution-report-dbupdate', data);
+      // // }
     }
   },
 };

@@ -21,4 +21,7 @@ export default {
   HTTP_SERVER_ERROR: 500,
   HTTP_SUCCESS: 200,
   HTTP_SUCCESSFULLY_CREATED: 201,
+  Wallet_server_getAddress_url: "http://172.105.52.30:6001/api/generateAddress",
+  wallet_server_token:process.env.wallet_server_token || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImV4YW1wbGVVc2VyIiwiaWF0IjoxNzM0OTUzMzQ4LCJleHAiOjE5MDc3NTMzNDh9.WqYXyqchIS2rfNoXoW8WwRxR-Y-j2MjRfK44vbszKY8'
+
 };

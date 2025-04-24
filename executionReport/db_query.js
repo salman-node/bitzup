@@ -111,8 +111,9 @@ const updateBalances = async function(baseData, quoteData) {
             }
 
             if (updateResult1.affectedRows === 0) {
+              console.log("No rows updated for base asset, inserting new row.");
               // Insert if no rows were updated
-              connection.query(
+               connection.query(
                 `INSERT INTO balances 
                  (user_id, currency_id, main_balance, current_balance) 
                  VALUES (?, ?, ?, ?)`,
@@ -121,7 +122,7 @@ const updateBalances = async function(baseData, quoteData) {
                   if (err) {
                     return connection.rollback(() => reject(err));
                   }
-
+                   
                   // Update or insert for the second object (quote asset)
                   connection.query(
                     `UPDATE balances 
@@ -136,6 +137,7 @@ const updateBalances = async function(baseData, quoteData) {
                       }
 
                       if (updateResult2.affectedRows === 0) {
+                        console.log("No rows updated for quote asset, inserting new row.2");
                         // Insert if no rows were updated
                         connection.query(
                           `INSERT INTO balances 
@@ -152,7 +154,7 @@ const updateBalances = async function(baseData, quoteData) {
                               if (err) {
                                 return connection.rollback(() => reject(err));
                               }
-                              resolve(); // Resolve the promise after commit
+                              return resolve(); // Resolve the promise after commit
                             });
                           }
                         );
@@ -162,7 +164,7 @@ const updateBalances = async function(baseData, quoteData) {
                           if (err) {
                             return connection.rollback(() => reject(err));
                           }
-                          resolve(); // Resolve the promise after commit
+                         return  resolve(); // Resolve the promise after commit
                         });
                       }
                     }
@@ -184,6 +186,7 @@ const updateBalances = async function(baseData, quoteData) {
                   }
 
                   if (updateResult2.affectedRows === 0) {
+                    console.log("No rows updated for quote asset, inserting new row.3");
                     // Insert if no rows were updated
                     connection.query(
                       `INSERT INTO balances 
@@ -200,7 +203,7 @@ const updateBalances = async function(baseData, quoteData) {
                           if (err) {
                             return connection.rollback(() => reject(err));
                           }
-                          resolve(); // Resolve the promise after commit
+                          return resolve(); // Resolve the promise after commit
                         });
                       }
                     );
@@ -210,7 +213,8 @@ const updateBalances = async function(baseData, quoteData) {
                       if (err) {
                         return connection.rollback(() => reject(err));
                       }
-                      resolve(); // Resolve the promise after commit
+                      console.log("Transaction committed successfully.1");
+                      return  resolve(); // Resolve the promise after commit
                     });
                   }
                 }

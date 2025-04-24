@@ -18,10 +18,6 @@ const consumer = kafka.consumer({ groupId: "execution-group" });
 const connectKafka = async () => {
   await consumer.connect();
   await consumer.subscribe({ topic: "execution-report", fromBeginning: true });
-  await consumer.subscribe({
-    topic: "execution-report-dbupdate",
-    fromBeginning: true,
-  });
   await consumeMessages();
 };
 
@@ -57,6 +53,7 @@ wss.on("connection", (ws) => {
     const data = JSON.parse(message);
     if (data.user_id) {
       ws.userId = data.user_id; // Store user ID in WebSocket object
+      console.log(`Frontend client ${ws.userId} connected`);
     }
   });
 
@@ -84,11 +81,12 @@ startPingPong();
 const sendMessageToClients = (report) => {
   frontendClients.forEach((client) => {
     if (client.userId === report.user_id) {
-      console.log(`Sending message to frontend client. order_id: ${report.data.order_id}`);
       client.send(JSON.stringify(report));
     }
   });
 };
+
+const processedOrders = new Set();
 
 // Consume messages from Kafka and process them
 const consumeMessages = async () => {
@@ -96,141 +94,41 @@ const consumeMessages = async () => {
     eachMessage: async ({ topic, message }) => {
       try{
       const data = JSON.parse(message.value.toString());
-      console.log('NEW REPORT: ', data)
+      if (!processedOrders.has(data.I)) {
+        processedOrders.add(data.I);
+
+        console.log("NEW REPORTT: ", data , topic);
+        
       if (topic === "execution-report") {
+   
+     
         const [userIdFromOrder, uniquePart] = data.c.split("-");
-        // Handle report data based on `data.X` status and send to clients
-        if (data.X === "NEW") {
-          const report = {
-            status: "1",
-            user_id: userIdFromOrder,
-            message: `New ${data.o} Order Placed , Order Type: ${data.o}, Order Price: ${data.p}, Order Quantity: ${data.q}, Order Id: ${data.c}`,
-            data: {
-              order_id: data.c, // Order ID
-              base_quantity: data.q, // Order quantity
-              quote_quantity: data.S === "BUY" ? data.Q : data.Z, // Cumulative quote asset transacted quantity
-              order_price: data.p, // Order price
-              type: data.S, // Order type
-              order_type: data.o, // Order type
-              stop_limit_price: data.P, // Stop price
-              oco_stop_limit_price: null, // Not present in the execution report
-              executed_base_quantity: data.z, // Last executed quantity
-              executed_quote_quantity: data.Z, // Last quote asset transacted quantity
-              status: data.X, // Current order status
-              created_at: data.O, // Order creation time
-            },
-          };
-          // console.log('NEW ORDER : REPORT', report.data.order_id);
-          sendMessageToClients(report);
-        }
-        if (data.X === "PARTIALLY_FILLED") {
-          const report = {
-            status: "2",
-            user_id: userIdFromOrder,
-            message: `Order Partially Filled at ${data.l}, Order Id: ${data.c} , Filled Quantity: ${data.z}`,
-            data: {
-              order_id: data.c, // Order ID
-              base_quantity: data.q, // Order quantity
-              quote_quantity: data.S === "BUY" ? data.Q : data.Z, // Cumulative quote asset transacted quantity
-              order_price: (data.Z/data.z).toFixed(8), // Order price
-              type: data.S, // Order type
-              order_type: data.o, // Order type
-              stop_limit_price: data.P, // Stop price
-              oco_stop_limit_price: null, // Not present in the execution report
-              executed_base_quantity: data.z, // Last executed quantity
-              executed_quote_quantity: data.Z, // Last quote asset transacted quantity
-              status: data.X, // Current order status
-              created_at: data.O, // Order creation time
-            },
-          };
-          sendMessageToClients(report);
-        }
-        if (data.X === "TRADE") {
-          const report = {
-            status: "3",
-            user_id: userIdFromOrder,
-            message: `Order Executed at ${data.l}, Order Id: ${data.c} , Filled Quantity: ${data.z}, Trade type: ${data.X}`,
-            data: {
-              order_id: data.c, // Order ID
-              base_quantity: data.q, // Order quantity
-              quote_quantity: data.S === "BUY" ? data.Q : data.Z, // Cumulative quote asset transacted quantity
-              order_price: (data.Z/data.z).toFixed(8), // Order price
-              type: data.S, // Order type
-              order_type: data.o, // Order type
-              stop_limit_price: data.P, // Stop price
-              oco_stop_limit_price: null, // Not present in the execution report
-              executed_base_quantity: data.z, // Last executed quantity
-              executed_quote_quantity: data.Z, // Last quote asset transacted quantity
-              status: data.X, // Current order status
-              created_at: data.O, // Order creation time
-            },
-          };
-          sendMessageToClients(report);
-        }
-        if (data.X === "FILLED") {
-          const report = {
-            status: "3",
-            user_id: userIdFromOrder,
-            message: `Order Executed at ${data.l}, Order Id: ${data.c} , Filled Quantity: ${data.z}`,
-            data: {
-              order_id: data.c, // Order ID
-              base_quantity: data.q, // Order quantity
-              quote_quantity: data.S === "BUY" ? data.Q : data.Z, // Cumulative quote asset transacted quantity
-              order_price: (data.Z/data.z).toFixed(8), // Order price
-              type: data.S, // Order type
-              order_type: data.o, // Order type
-              stop_limit_price: data.P, // Stop price
-              oco_stop_limit_price: null, // Not present in the execution report
-              executed_base_quantity: data.z, // Last executed quantity
-              executed_quote_quantity: data.Z, // Last quote asset transacted quantity
-              status: data.X, // Current order status
-              created_at: data.O, // Order creation time
-            },
-          };
-          sendMessageToClients(report);
-        }
-        if (data.X === "CANCELED") {
-          const [userIdFromOrder, uniquePart] = data.C.split("-");
+        const canceled_user_id = data.X === "CANCELED" ? data.C.split("-")[0] : userIdFromOrder;
 
-          const report = {
-            status: "4",
-            user_id: userIdFromOrder,
-            message: `Cancelled ${data.o} Order Placed, Order Id: ${data.c}`,
-            data: {
-              order_id: data.C, // Order ID
-              base_volume: data.q, // Order quantity
-              type: data.S, // Order type
-              order_type: data.o, // Order type
-              quote_volume: data.Z, // Cumulative quote asset transacted quantity
-              order_price: (data.Z/data.z).toFixed(8), // Order price
-              stop_limit_price: data.P, // Stop price
-              oco_stop_limit_price: null, // Not present in the execution report
-              executed_base_volume: data.l, // Last executed quantity
-              executed_quote_volume: data.Y, // Last quote asset transacted quantity
-              status: data.X, // Current order status
-              cancelled_date_time: new Date(data.O).toLocaleString(),
-              created_at: new Date(data.O).toLocaleString(), // Order creation time
-            },
-          };
-          sendMessageToClients(report);
+        const reportData = {
+          order_id: data.X == "CANCELED" ? data.C : data.c, // Order ID
+          base_quantity: data.q, // Order quantity
+          quote_quantity: data.S === "BUY" ? data.Q : data.Z, // Cumulative quote asset transacted quantity
+          order_price: data.X === "NEW" ? data.p : (data.Z/data.z).toFixed(8), // Order price
+          type: data.S, // Order type
+          order_type: data.o, // Order type
+          stop_limit_price: data.P, // Stop price
+          oco_stop_limit_price: null, // Not present in the execution report
+          executed_base_quantity: data.z, // Last executed quantity
+          executed_quote_quantity: data.Z, // Last quote asset transacted quantity
+          status: data.X, // Current order status
+          created_at: data.O, // Order creation time
         }
-      } else if (topic === "execution-report-dbupdate") {
-
-        const [userIdFromOrder, uniquePart] = data.c.split("-");
-        const canceled_user_id = data.X === "CANCELED" ? data.c.split("-")[0] : userIdFromOrder;
          
-        const api_order_id = await Get_Where_Universal_Data("api_order_id","buy_sell_pro_limit_open",{order_id:data.c});
-        const api_order_id_value = api_order_id[0].api_order_id;
-        if(Number(api_order_id_value) < Number(data.I) ){
         var count = 0;
-        // if (data.t != -1) {
-        //   let row_count = await raw_query(
-        //     "SELECT COUNT(*) AS count FROM buy_sell_pro_limit_open WHERE trade_id = ?",
-        //     [data.t]
-        //   );
-        //   count = row_count[0].count;
-        // }
-        // if (count == 0) {
+        if (data.t != -1) {
+          let row_count = await raw_query(
+            "SELECT COUNT(*) AS count FROM buy_sell_pro_limit_open WHERE trade_id = ?",
+            [data.t]
+          );
+          count = row_count[0].count;
+        }
+        if (count == 0) {
           const symbol = data.s;
           //get pair_id,base_asset_id,quote_asset_id from crypto_pair table
           const pair_id = await Get_Where_Universal_Data(
@@ -257,6 +155,14 @@ const consumeMessages = async () => {
           const pairId = pair_id[0].pair_id;
           // Handle report data based on `data.X` status and send to clients
           if (data.X === "NEW") {
+            const report = {
+              status: "1",
+              user_id: userIdFromOrder,
+              message: `New ${data.o} Order Placed , Order Type: ${data.o}, Order Price: ${data.p}, Order Quantity: ${data.q}, Order Id: ${data.c}`,
+              data: reportData,
+            };
+            sendMessageToClients(report);
+
             if (data.S === "BUY") {
               if (data.o === "LIMIT") {
                 const quote_quantity = (data.q * data.p).toFixed(8);
@@ -269,18 +175,28 @@ const consumeMessages = async () => {
               }
             }
             if (data.S === "SELL") {
-              await updateOrInsertBalances({
+             const updateBalance = await updateOrInsertBalances({
                 userId: userIdFromOrder,
                 currencyId: base_asset_id,
                 currentBalanceChange: -data.q,
                 lockedBalanceChange: data.q,
               });
+              
             }
           }
           if (data.X === "PARTIALLY_FILLED") {
+
+            const report = {
+              status: "2",
+              user_id: userIdFromOrder,
+              message: `Order Partially Filled at ${data.l}, Order Id: ${data.c} , Filled Quantity: ${data.z}`,
+              data: reportData,
+            };
+            sendMessageToClients(report);
+
             if (data.S === "BUY") {
               if (data.o === "MARKET") {
-                await updateBalances(
+                const result =await updateBalances(
                   {
                     userId: userIdFromOrder,
                     currencyId: base_asset_id,
@@ -296,6 +212,7 @@ const consumeMessages = async () => {
                     lockedBalanceChange:0
                   }
                 );
+                
               }
               if (data.o === "LIMIT") {
                 const order_value = (data.q * data.p).toFixed(8);
@@ -339,7 +256,7 @@ const consumeMessages = async () => {
               }
             }
             if (data.S === "SELL") {
-              await updateBalances(
+              const updatedQuery = await updateBalances(
                 {
                   userId: userIdFromOrder,
                   currencyId: base_asset_id,
@@ -355,9 +272,18 @@ const consumeMessages = async () => {
                   lockedBalanceChange:0
                 }
               )
+              
             }
           }
           if (data.X === "TRADE") {
+
+            const report = {
+              status: "3",
+              user_id: userIdFromOrder,
+              message: `Order Executed at ${data.l}, Order Id: ${data.c} , Filled Quantity: ${data.z}, Trade type: ${data.X}`,
+              data: reportData,
+            };
+            sendMessageToClients(report);
             if (data.S === "BUY") {
               if (data.o === "MARKET") {
                 await updateBalances(
@@ -439,9 +365,17 @@ const consumeMessages = async () => {
             };
           }
           if (data.X === "FILLED") {
+
+            const report = {
+              status: "3",
+              user_id: userIdFromOrder,
+              message: `Order Executed at ${data.l}, Order Id: ${data.c} , Filled Quantity: ${data.z}`,
+              data: reportData,
+            };
+            sendMessageToClients(report);
             if (data.S === "BUY") {
               if (data.o === "MARKET") {
-                await updateBalances(
+               const result =  await updateBalances(
                   {
                     userId: userIdFromOrder,
                     currencyId: base_asset_id,
@@ -457,6 +391,7 @@ const consumeMessages = async () => {
                     lockedBalanceChange:0              
                   }
                 )
+               
               }
               if (data.o === "LIMIT") {
                 const order_value = (data.q * data.p).toFixed(8);
@@ -501,7 +436,7 @@ const consumeMessages = async () => {
               }
             }
             if (data.S === "SELL") {
-              await updateBalances({
+              const result = await updateBalances({
                 userId: userIdFromOrder,
                 currencyId: base_asset_id,
                 mainBalanceChange: -data.l,
@@ -516,15 +451,22 @@ const consumeMessages = async () => {
                 lockedBalanceChange:0
               }
             )
+            
             }
           }
           if (data.X === "CANCELED") {
 
-            const [userIdFromOrder, uniquePart] = data.C.split("-");
+            const report = {
+              status: "4",
+              user_id: canceled_user_id,
+              message: `Cancelled ${data.o} Order Placed, Order Id: ${data.c}`,
+              data: reportData,
+            };
+            sendMessageToClients(report);
 
             if (data.S === "BUY") {
               await updateOrInsertBalances({
-                userId: userIdFromOrder,
+                userId: canceled_user_id,
                 currencyId: base_asset_id,
                 currentBalanceChange: data.Y,
                 lockedBalanceChange: -data.Y,
@@ -532,7 +474,7 @@ const consumeMessages = async () => {
             }
             if (data.S === "SELL"){
               await updateOrInsertBalances({
-                userId: userIdFromOrder,
+                userId: canceled_user_id,
                 currencyId: quote_asset_id,
                 currentBalanceChange: data.l,
                 lockedBalanceChange: -data.l,
@@ -561,15 +503,15 @@ const consumeMessages = async () => {
               response_time: data.E,
             };
             //update if data.I is greater then api_order_id in db 
-            // const api_order_id = await Get_Where_Universal_Data("api_order_id","buy_sell_pro_limit_open",{order_id:data.c});
-            // if(api_order_id[0].api_order_id < data.I){
+            const api_order_id = await Get_Where_Universal_Data("api_order_id","buy_sell_pro_limit_open",{order_id:data.c});
+            if(api_order_id[0].api_order_id < data.I){
             await Update_Universal_Data(
               "buy_sell_pro_limit_open",
               updatedData,
               filterQuery
             );
-          // }
-          }
+          };
+          };
           await Create_Universal_Data('buy_sell_pro_in_order',{
             pair_id: pairId,
             status: data.X,
@@ -590,13 +532,9 @@ const consumeMessages = async () => {
             api_id: data.i,
             date_time: data.T,
             api:'order consumer report'
-          })
-        // } else {
-        //   console.log("DUPLICATE ORDER...");
-        // }
-      }else{
-        console.log("Duplicate Order ID: ", data.c, "API Order ID: ", data.I);
+          });
       }
+      };
       }
     }catch(e){
       console.log('Error in consumer: ',e)

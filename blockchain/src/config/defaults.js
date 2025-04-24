@@ -10,6 +10,6 @@ exports.default = {
     BASE_URL: process.env.APP_ENV === 'development'
         ? 'http://localhost:4001'
         : 'http://192.46.213.147:4001',
-    zoho_token: process.env.ZOHO_TOKEN,
-    zepto_url: 'https://api.zeptomail.in/v1.1/email',
+    Wallet_server_getAddress_url: "https://5dea-2401-4900-1c1a-617b-c4af-f1a4-9f8c-b4b8.ngrok-free.app/api/generateAddress"
+
 };

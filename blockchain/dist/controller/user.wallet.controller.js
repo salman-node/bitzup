@@ -13,7 +13,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getTradeHistory = exports.getTrades = exports.getWalletFunds = exports.getSymbolFunds = exports.getAllNetwork = exports.getAllCurrenciesBalance = exports.getAvgPriceOrder = exports.getBuySellFees = exports.getAllBuySellOrder = exports.formatDate = exports.generateRandomOrderId = exports.getBuySellBalance = void 0;
+exports.getTradeHistory = exports.getTrades = exports.getWalletFunds = exports.getSymbolFunds = exports.getUserWalletAddress = exports.getAllNetwork = exports.getDepositWithdrawList = exports.getAllCurrenciesBalance = exports.getAvgPriceOrder = exports.getBuySellFees = exports.getAllBuySellOrder = exports.formatDate = exports.generateRandomOrderId = exports.getBuySellBalance = void 0;
 const axios_1 = __importDefault(require("axios"));
 const dotenv_1 = __importDefault(require("dotenv"));
 // import winston from "winston";
@@ -969,7 +969,6 @@ exports.getAvgPriceOrder = getAvgPriceOrder;
 // Get All Currencies Balance Query Change
 const getAllCurrenciesBalance = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { user_id: user_id } = req.body.user;
-    //   const { email } = req.body;
     try {
         if (req.body.login === "True") {
             if (!user_id) {
@@ -979,38 +978,38 @@ const getAllCurrenciesBalance = (req, res) => __awaiter(void 0, void 0, void 0, 
                 });
             }
         }
-        // await prisma.currencies.deleteMany({
-        //   where: {
-        //     currency_id: user_id,
-        //   },
-        // });
-        // Initialize an array to store the all currency balance data
         const currenciesWithBalances = yield prisma.$queryRaw `
-  SELECT 
-    c.currency_id,
-    c.coin,
-    c.symbol,
-    c.icon,
-    c.status,
-    c.coin_decimal,
-    c.deposit,
-    c.withdraw,
-    c.withdrawl_fees,
-    c.usdtprice,
-    c.change_in_price,
-    COALESCE(b.current_balance, 0) AS main_balance
-  FROM 
-    currencies c
-  LEFT JOIN balances b ON c.currency_id = b.currency_id AND b.user_id = ${user_id}
-  WHERE 
-    c.symbol != 'INR'
-`;
-        // console.log(currenciesWithBalances)
+      SELECT 
+        c.currency_id,
+        c.coin,
+        c.symbol,
+        c.icon,
+        c.status,
+        c.coin_decimal,
+        c.qty_decimal,
+        c.price_decimal,
+        c.deposit,
+        c.withdraw,
+        c.withdrawl_fees,
+        c.usdtprice,
+        c.change_in_price,
+        COALESCE(b.current_balance, 0) AS main_balance
+      FROM 
+        currencies c
+      LEFT JOIN balances b ON c.currency_id = b.currency_id AND b.user_id = ${user_id}
+      WHERE 
+        c.symbol != 'INR'`;
         let usdtInvestedSum = 0;
         let coin_price;
+        let btc_decimal = 0;
+        let usdt_decimal = 0;
         const formattedData = currenciesWithBalances.map((currency) => {
             if (currency.symbol === "BTC") {
                 coin_price = currency.usdtprice;
+                btc_decimal = currency.qty_decimal;
+            }
+            if (currency.symbol === "USDT") {
+                usdt_decimal = currency.qty_decimal;
             }
             const balance = currency.main_balance ? currency.main_balance : 0.0;
             const usdtPrice = currency.usdtprice;
@@ -1021,30 +1020,22 @@ const getAllCurrenciesBalance = (req, res) => __awaiter(void 0, void 0, void 0, 
                 coin: currency.coin,
                 symbol: currency.symbol,
                 icon: currency.icon,
-                //status: currency.status,
-                //deposit: currency.deposit,
-                //withdraw: currency.withdraw,
                 withdrawl_fees: currency.withdrawl_fees,
                 usdtprice: currency.usdtprice,
+                qty_decimal: currency.qty_decimal,
+                price_decimal: currency.price_decimal,
                 balance: balance,
                 usdtInvested: usdtInvested,
             };
         });
-        // console.log(formattedData)
         formattedData.sort((a, b) => b.usdtInvested - a.usdtInvested);
-        // console.log({
-        //   status: "1",
-        //   iconPath: `${process.env.ICON_URL}/icon/`,
-        //   iconPath1: `${process.env.ICON_URL1}/icon/`,
-        //   totalBalance: usdtInvestedSum,
-        //   totalCoinBalance: usdtInvestedSum / coin_price,
-        //   data: formattedData,
-        // })
         res.status(200).json({
             status: "1",
             iconPath: `${defaults_1.default.ICON_URL}/icon/`,
             iconPath1: `${defaults_1.default.ICON_URL1}/icon/`,
             totalBalance: usdtInvestedSum,
+            btc_decimal: btc_decimal,
+            usdt_decimal: usdt_decimal,
             totalCoinBalance: usdtInvestedSum / coin_price,
             data: formattedData,
         });
@@ -1055,55 +1046,121 @@ const getAllCurrenciesBalance = (req, res) => __awaiter(void 0, void 0, void 0, 
     }
 });
 exports.getAllCurrenciesBalance = getAllCurrenciesBalance;
+const getDepositWithdrawList = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { user_id: user_id } = req.body.user;
+    const { type: type } = req.query;
+    try {
+        if (type !== 'deposit' && type !== 'withdraw') {
+            return res.status(400).send({
+                status: "3",
+                message: "Invalid type parameter. Expected 'deposit' or 'withdraw'.",
+            });
+        }
+        const currenciesWithBalances = type === "deposit"
+            ? yield prisma.$queryRaw `
+        SELECT 
+          c.currency_id,
+          c.coin,
+          c.symbol,
+          c.icon,
+          c.coin_decimal,
+          c.qty_decimal,
+          c.price_decimal,
+          c.withdrawl_fees,
+          c.usdtprice,
+          COALESCE(b.current_balance, 0) AS main_balance
+        FROM 
+          currencies c
+        LEFT JOIN balances b ON c.currency_id = b.currency_id AND b.user_id = ${user_id}
+        WHERE 
+          c.deposit = 'Active'
+      `
+            : yield prisma.$queryRaw `
+        SELECT 
+          c.currency_id,
+          c.coin,
+          c.symbol,
+          c.icon,
+          c.coin_decimal,
+          c.qty_decimal,
+          c.price_decimal,
+          c.withdrawl_fees,
+          c.usdtprice,
+          COALESCE(b.current_balance, 0) AS main_balance
+        FROM 
+          currencies c
+        LEFT JOIN balances b ON c.currency_id = b.currency_id AND b.user_id = ${user_id}
+        WHERE 
+          c.withdraw = 'Active'
+      `;
+        res.status(200).json({
+            status: "1",
+            iconPath: `${defaults_1.default.ICON_URL}/icon/`,
+            data: currenciesWithBalances,
+        });
+    }
+    catch (error) {
+        console.log(error);
+        res.status(500).send({ status: "0", message: error.message });
+    }
+});
+exports.getDepositWithdrawList = getDepositWithdrawList;
 const getAllNetwork = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { user_id: user_id } = req.body.user;
-    const type = req.body.type;
+    const { currency_id: currency_id, type: type } = req.query;
     try {
+        if (!currency_id) {
+            return res.status(400).send({
+                status: "0",
+                message: "currency_id is required",
+            });
+        }
+        if (type !== 'deposit' && type !== 'withdraw') {
+            return res.status(400).send({
+                status: "0",
+                message: "Invalid type parameter. Expected 'deposit' or 'withdraw'.",
+            });
+        }
         if (!user_id) {
             return res.status(400).send({
                 status: "0",
                 message: "You are not authorized or user not present",
             });
         }
-        if (!type) {
-            return res.status(400).send({
-                status: "0",
-                message: "require deposit/withdrawal type",
-            });
-        }
-        let networkData;
-        if (type === "deposit") {
-            const networks = yield prisma.chains.findMany({
-                where: {
-                    deposit_status: "active",
-                },
-            });
-            networkData = networks.map((network) => {
-                return {
-                    chain_id: network.chain_id,
-                    chain_name: network.chain_name,
-                    min_deposit: network.min_deposit,
-                    address: network.deposit_address,
-                    network_fee: network.network_fee,
-                };
-            });
-        }
-        else if (type === "withdrawal") {
-            const networks = yield prisma.chains.findMany({
-                where: {
-                    withdrawal_status: "active",
-                },
-            });
-            networkData = networks.map((network) => {
-                return {
-                    chain_id: network.id,
-                    chain_name: network.chain_name,
-                    min_withdrawal: network.min_with,
-                    network_fee: network.netw_fee,
-                };
-            });
-        }
-        //  console.log(networkData)
+        const networkData = type === "deposit" ? yield prisma.$queryRaw `SELECT 
+               c.id,
+               cn.network_id,
+               cn.contract_address,
+               ch.evm_compatible,
+               ch.chain_name AS chain_name,
+               ch.chain_id,
+               ch.netw_fee AS network_fee,
+               ch.min_dep AS min_deposit
+               FROM 
+                 currencies c
+               JOIN 
+                 currency_network cn ON c.id = cn.currency_id
+               JOIN 
+                 chains ch ON cn.network_id = ch.id 
+               WHERE 
+                c.currency_id = ${currency_id} and ch.deposit_status = 'Active'` :
+            yield prisma.$queryRaw `SELECT 
+                c.id,
+                cn.network_id,
+                cn.contract_address,
+                ch.evm_compatible,
+                ch.chain_name AS chain_name,
+                ch.chain_id,
+                ch.netw_fee as network_fee,
+                ch.min_with AS min_withdraw
+                FROM 
+                  currencies c
+                JOIN 
+                  currency_network cn ON c.id = cn.currency_id
+                JOIN 
+                  chains ch ON cn.network_id = ch.id
+                WHERE 
+                 c.currency_id = ${currency_id} and ch.withdrawal_status = 'Active'`;
         res.status(200).json({
             status: "1",
             data: networkData,
@@ -1115,6 +1172,78 @@ const getAllNetwork = (req, res) => __awaiter(void 0, void 0, void 0, function* 
     }
 });
 exports.getAllNetwork = getAllNetwork;
+const getUserWalletAddress = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _c;
+    try {
+        const { user_id } = req.body.user || {};
+        const { currency_id, evm_compatible, chain_id } = req.body;
+        // Validation
+        if (!user_id) {
+            return res.status(401).json({ status: "0", message: "Unauthorized or user not present" });
+        }
+        if (!currency_id) {
+            return res.status(400).json({ status: "0", message: "currency_id is required" });
+        }
+        if (chain_id === undefined || chain_id === null || chain_id === "") {
+            return res.status(400).json({ status: "0", message: "chain_id is required" });
+        }
+        if (evm_compatible !== 0 && evm_compatible !== 1) {
+            return res.status(400).json({ status: "0", message: "evm_compatible must be 0 or 1" });
+        }
+        // Check if address exists in DB
+        const existingWallet = yield prisma.user_wallet.findFirst({
+            where: {
+                user_id,
+                currency_id: currency_id,
+                chain_id: Number(chain_id),
+            },
+            select: {
+                address: true,
+            },
+        });
+        console.log('existingWallet', existingWallet);
+        if (existingWallet) {
+            return res.status(200).json({ status: "1", data: existingWallet });
+        }
+        const url = defaults_1.default.Wallet_server_getAddress_url;
+        const headers = {
+            'Authorization': `Bearer ${defaults_1.default.wallet_server_token}`,
+            'Content-Type': 'application/json'
+        };
+        const body = {
+            user_id: user_id,
+            evm_compatible: evm_compatible,
+            chain_id: chain_id
+        };
+        console.log('body', body);
+        const response = yield axios_1.default.post(url, body, { headers });
+        console.log('response', response.data);
+        if (((_c = response === null || response === void 0 ? void 0 : response.data) === null || _c === void 0 ? void 0 : _c.success) == "1") {
+            const newWallet = yield prisma.user_wallet.create({
+                data: {
+                    user_id: user_id,
+                    currency_id: currency_id,
+                    chain_id: Number(chain_id),
+                    memo: "N/A",
+                    address: response.data.data.address,
+                    destination_tag: "N/A"
+                },
+            });
+            if (newWallet) {
+                return res.status(200).json({ status: "1", data: { address: response.data.data.address } });
+            }
+            return res.status(500).json({ status: "0", message: "Failed to create wallet address" });
+        }
+        else {
+            return res.status(500).json({ status: "0", message: "Failed to get address from wallet server" });
+        }
+    }
+    catch (error) {
+        console.error("getUserWalletAddress error:", error.message);
+        return res.status(500).json({ status: "0", message: "Internal Server Error", error: error.message });
+    }
+});
+exports.getUserWalletAddress = getUserWalletAddress;
 /*----- Get All Funds -------*/
 // export const getAllFunds = async (req: Request, res: Response) => {
 //   const { id: user_id } = req.body.user;
@@ -1248,7 +1377,7 @@ exports.getAllNetwork = getAllNetwork;
 //   }
 // };
 const getSymbolFunds = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _c, _d, _e, _f;
+    var _d, _e, _f, _g;
     const { user_id: user_id } = req.body.user;
     const { currency_id } = req.body;
     try {
@@ -1276,8 +1405,8 @@ const getSymbolFunds = (req, res) => __awaiter(void 0, void 0, void 0, function*
             },
         });
         const data = {
-            available: (_d = (_c = currencyData[0]) === null || _c === void 0 ? void 0 : _c.main_balance) !== null && _d !== void 0 ? _d : 0.0,
-            unavailable: (_f = (_e = currencyData[0]) === null || _e === void 0 ? void 0 : _e.locked_balance) !== null && _f !== void 0 ? _f : 0.0,
+            available: (_e = (_d = currencyData[0]) === null || _d === void 0 ? void 0 : _d.main_balance) !== null && _e !== void 0 ? _e : 0.0,
+            unavailable: (_g = (_f = currencyData[0]) === null || _f === void 0 ? void 0 : _f.locked_balance) !== null && _g !== void 0 ? _g : 0.0,
         };
         return res.status(200).json({
             status: "1",

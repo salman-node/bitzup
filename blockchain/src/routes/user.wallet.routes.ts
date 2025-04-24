@@ -5,8 +5,7 @@ import {
   getBuySellBalance,
   getAllCurrenciesBalance,
   getAllNetwork,
-  // addBuySellOrder,
-  // getBuySellOrder,
+  getDepositWithdrawList,
   getAvgPriceOrder,
   getBuySellFees,
   // cancelBuySellOrder,
@@ -17,6 +16,7 @@ import {
   getSymbolFunds,
   getTrades,
   getTradeHistory,
+  getUserWalletAddress,
   // executedBuySellOrder,
   // getwalletHistory
 } from '../controller/user.wallet.controller';
@@ -45,11 +45,12 @@ router.route('/get-buy-sell-balance').post([verifyUser], getBuySellBalance);
 router
   .route('/get-all-currencies-balance')
   .post([checkLogin], getAllCurrenciesBalance);
-router.post('/get-all-networks', verifyUser , getAllNetwork )
-// router
-//   .route('/add-buy-sell-order')
-  // .post([verifyUser, throttleMiddleware], addBuySellOrder); // response mofidied
-// router.route('/get-buy-sell-order').post([verifyUser], getBuySellOrder); //apk
+  router
+  .route('/get-deposit-withdraw-asset')
+  .get([checkLogin], getDepositWithdrawList);
+router.get('/get-all-networks', verifyUser , getAllNetwork )
+router.post('/get-user-walletAddress', verifyUser , getUserWalletAddress )
+
 router.route('/get-avg-price-order').post([verifyUser], getAvgPriceOrder);
 router.route('/get-all-buy-sell-order').post([verifyUser], getAllBuySellOrder); //web
 // router.route('/get-all-funds').post([verifyUser], getAllFunds); //apk
@@ -58,10 +59,6 @@ router.route('/get-symbol-funds').post([verifyUser], getSymbolFunds);
 router.route('/get-trades').post([verifyUser], getTrades); //web
 router.route('/get-trade-history').post([verifyUser], getTradeHistory);
 router.route('/get-buy-sell-fees').post([verifyUser], getBuySellFees);
-// router.route('/cancel-buy-sell-order').post([verifyUser], cancelBuySellOrder);
-// router.route('/cancel-all-buy-sell-order')
-  // .post([verifyUser], cancelAllBuySellOrder);
-  // 
 
 // Temporary Executed Amount Callback
 // router.post('/executed-buy-sell-order', executedBuySellOrder);

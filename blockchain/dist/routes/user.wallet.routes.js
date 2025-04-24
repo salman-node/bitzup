@@ -28,11 +28,11 @@ router.route('/get-buy-sell-balance').post([authentication_1.verifyUser], user_w
 router
     .route('/get-all-currencies-balance')
     .post([authentication_1.checkLogin], user_wallet_controller_1.getAllCurrenciesBalance);
-router.post('/get-all-networks', authentication_1.verifyUser, user_wallet_controller_1.getAllNetwork);
-// router
-//   .route('/add-buy-sell-order')
-// .post([verifyUser, throttleMiddleware], addBuySellOrder); // response mofidied
-// router.route('/get-buy-sell-order').post([verifyUser], getBuySellOrder); //apk
+router
+    .route('/get-deposit-withdraw-asset')
+    .get([authentication_1.checkLogin], user_wallet_controller_1.getDepositWithdrawList);
+router.get('/get-all-networks', authentication_1.verifyUser, user_wallet_controller_1.getAllNetwork);
+router.post('/get-user-walletAddress', authentication_1.verifyUser, user_wallet_controller_1.getUserWalletAddress);
 router.route('/get-avg-price-order').post([authentication_1.verifyUser], user_wallet_controller_1.getAvgPriceOrder);
 router.route('/get-all-buy-sell-order').post([authentication_1.verifyUser], user_wallet_controller_1.getAllBuySellOrder); //web
 // router.route('/get-all-funds').post([verifyUser], getAllFunds); //apk
@@ -41,10 +41,6 @@ router.route('/get-symbol-funds').post([authentication_1.verifyUser], user_walle
 router.route('/get-trades').post([authentication_1.verifyUser], user_wallet_controller_1.getTrades); //web
 router.route('/get-trade-history').post([authentication_1.verifyUser], user_wallet_controller_1.getTradeHistory);
 router.route('/get-buy-sell-fees').post([authentication_1.verifyUser], user_wallet_controller_1.getBuySellFees);
-// router.route('/cancel-buy-sell-order').post([verifyUser], cancelBuySellOrder);
-// router.route('/cancel-all-buy-sell-order')
-// .post([verifyUser], cancelAllBuySellOrder);
-// 
 // Temporary Executed Amount Callback
 // router.post('/executed-buy-sell-order', executedBuySellOrder);
 // router.route('/get-wallet-history').post([verifyUser], getwalletHistory);
