@@ -25,10 +25,6 @@ const server = gateway({
       target: `${api_end_point}:4002`,
     },
     {
-      prefix: "/trading",
-      target: `${api_end_point}:4003`, 
-    },
-    {
       prefix: "/blockchain", 
       target: `${api_end_point}:4004`,
     },

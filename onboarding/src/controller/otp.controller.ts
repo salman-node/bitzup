@@ -3,6 +3,7 @@ import { getClientInfo, sendGeneralOTP } from '../utility/utility.functions';
 import { prisma } from '../config/prisma.client';
 import { IClientInfo } from '../types/models.types';
 import { verifyOtp } from '../utility/utility.functions';
+import { getIplocation } from '../utility/activity.log';
 
 /*----- send OTP handler -----*/
 export const sendOTP = async (req: Request, res: Response) => {
@@ -54,7 +55,8 @@ export const sendOTP = async (req: Request, res: Response) => {
     // send OTP email
     await prisma.otp.deleteMany({ where: { user_id: exist.user_id } });
     await sendGeneralOTP(email, subject, result,exist.user_id);
-
+    
+    const location: string = await getIplocation(ip_address);
     await prisma.activity_logs.create({
       data: {
         user_id: exist.user_id,
@@ -62,6 +64,7 @@ export const sendOTP = async (req: Request, res: Response) => {
         device_type,
         device_info,
         activity_type: 'Send OTP',
+        location: location,
       },
     });
 
@@ -110,6 +113,8 @@ export const sendEmailOtp = async (req: Request, res: Response) => {
     await prisma.otp.deleteMany({ where: { user_id: user_id } });
     await sendGeneralOTP(userEmail.email, subject, result,user_id);
 
+    const location: string = await getIplocation(ip_address);
+
     await prisma.activity_logs.create({
       data: {
         user_id: user_id,
@@ -117,6 +122,7 @@ export const sendEmailOtp = async (req: Request, res: Response) => {
         device_type,
         device_info,
         activity_type: 'Send OTP on email',
+        location: location,
       },
     });
     return res.status(200).send({
@@ -154,7 +160,8 @@ export const verifyOTP = async (req: Request, res: Response) => {
         message: verifyOTP?.msg,
       });
     }
-
+   
+   const location: string = await getIplocation(ip_address);
    await prisma.activity_logs.create({
       data: {
         user_id: user_id,
@@ -162,6 +169,7 @@ export const verifyOTP = async (req: Request, res: Response) => {
         device_type,
         device_info,
         activity_type: 'Verify OTP',
+        location: location
       },
     });
 

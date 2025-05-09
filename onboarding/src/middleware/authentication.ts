@@ -40,7 +40,7 @@ export const verifyUser = async (
 
     if(user?.token_string !== payload.token_string) {
       return res.status(400).json({ status: '3', message: 'You are not authorized' });  
-    }
+    } 
     
     const authUser = { ...user } as IUserPartial;
     req.body.user = { user_id: authUser.user_id,secret_key: authUser.secret_key}

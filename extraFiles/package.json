@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "@binance/connector": "^3.6.1",
+    "@binance/connector-typescript": "^0.3.16",
+    "axios": "^1.9.0"
+  }
+}

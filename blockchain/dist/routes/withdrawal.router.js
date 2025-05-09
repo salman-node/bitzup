@@ -9,6 +9,6 @@ const router = express_1.default.Router();
 exports.withdrawalRouter = router;
 const authentication_1 = require("../middleware/authentication");
 const withdrawal_controller_1 = require("../controller/withdrawal.controller");
-router.post('/withdraw', [authentication_1.verifyUser], withdrawal_controller_1.withdrawFunds);
+router.post('/request-withdraw', [authentication_1.verifyUser], withdrawal_controller_1.withdrawFunds);
 router.get('/withdrawal-history', [authentication_1.verifyUser], withdrawal_controller_1.withdrawalHistory);
 //# sourceMappingURL=withdrawal.router.js.map

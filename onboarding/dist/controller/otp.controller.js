@@ -13,6 +13,7 @@ exports.verifyOTP = exports.sendEmailOtp = exports.sendOTP = void 0;
 const utility_functions_1 = require("../utility/utility.functions");
 const prisma_client_1 = require("../config/prisma.client");
 const utility_functions_2 = require("../utility/utility.functions");
+const activity_log_1 = require("../utility/activity.log");
 /*----- send OTP handler -----*/
 const sendOTP = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
@@ -50,6 +51,7 @@ const sendOTP = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         // send OTP email
         yield prisma_client_1.prisma.otp.deleteMany({ where: { user_id: exist.user_id } });
         yield (0, utility_functions_1.sendGeneralOTP)(email, subject, result, exist.user_id);
+        const location = yield (0, activity_log_1.getIplocation)(ip_address);
         yield prisma_client_1.prisma.activity_logs.create({
             data: {
                 user_id: exist.user_id,
@@ -57,6 +59,7 @@ const sendOTP = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
                 device_type,
                 device_info,
                 activity_type: 'Send OTP',
+                location: location,
             },
         });
         return res.status(200).send({
@@ -100,6 +103,7 @@ const sendEmailOtp = (req, res) => __awaiter(void 0, void 0, void 0, function* (
         // send OTP email
         yield prisma_client_1.prisma.otp.deleteMany({ where: { user_id: user_id } });
         yield (0, utility_functions_1.sendGeneralOTP)(userEmail.email, subject, result, user_id);
+        const location = yield (0, activity_log_1.getIplocation)(ip_address);
         yield prisma_client_1.prisma.activity_logs.create({
             data: {
                 user_id: user_id,
@@ -107,6 +111,7 @@ const sendEmailOtp = (req, res) => __awaiter(void 0, void 0, void 0, function* (
                 device_type,
                 device_info,
                 activity_type: 'Send OTP on email',
+                location: location,
             },
         });
         return res.status(200).send({
@@ -142,6 +147,7 @@ const verifyOTP = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
                 message: verifyOTP === null || verifyOTP === void 0 ? void 0 : verifyOTP.msg,
             });
         }
+        const location = yield (0, activity_log_1.getIplocation)(ip_address);
         yield prisma_client_1.prisma.activity_logs.create({
             data: {
                 user_id: user_id,
@@ -149,6 +155,7 @@ const verifyOTP = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
                 device_type,
                 device_info,
                 activity_type: 'Verify OTP',
+                location: location
             },
         });
         return res.status(200).send({

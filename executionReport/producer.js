@@ -17,7 +17,7 @@ const kafka = new Kafka({
   brokers: ['localhost:9092'], // Adjust your Kafka broker address
 });
 
-const producer = kafka.producer()
+const producer = kafka.producer();
 
 // Connect the Kafka producer
 const connectKafka = async () => {
@@ -47,15 +47,8 @@ const callbacks = {
     const data = JSON.parse(executionReport);
    console.log(`Received message: ${JSON.stringify(data)}`);
     if (data.e === "executionReport") {
-      // console.log(`Received execution report: ${JSON.stringify(data.t)}`);
-
         // Send to Kafka
         await sendExecutionReportToKafka('execution-report', data);
-
-      // // For updates (e.g., partially filled, filled), send to update topic
-      // // if (["PARTIALLY_FILLED", "FILLED", "CANCELED"].includes(data.X)) {
-      //   await sendExecutionReportToKafka('execution-report-dbupdate', data);
-      // // }
     }
   },
 };

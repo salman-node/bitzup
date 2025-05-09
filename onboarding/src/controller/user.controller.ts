@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import * as bcrypt from "bcrypt";
-import {createActivityLog} from '../utility/activity.log'
+import { createActivityLog } from '../utility/activity.log'
+import { getIplocation } from "../utility/activity.log";
 import { randomBytes } from "crypto";
 import config from "../config/defaults";
 import speakeasy from "speakeasy";
@@ -17,6 +18,11 @@ import {
   getClientInfo,
 } from "../utility/utility.functions";
 // import { json } from "stream/consumers";
+
+function generate9DigitUID() {
+  return Math.floor(100000000 + Math.random() * 900000000);
+}
+
 
 /*----- SignUp -----*/
 export const signUp = async (req: Request, res: Response) => {
@@ -40,7 +46,7 @@ export const signUp = async (req: Request, res: Response) => {
       !phone ||
       !country_code ||
       !password ||
-      !otp_verify || 
+      !otp_verify ||
       !device_type ||
       !ip_address ||
       !device_info
@@ -90,7 +96,7 @@ export const signUp = async (req: Request, res: Response) => {
       });
     }
     // Check user
-    const user_exist = await prisma.user.findUnique({ where: { email },select: { user_id: true } });
+    const user_exist = await prisma.user.findUnique({ where: { email }, select: { user_id: true } });
     if (user_exist) {
       return res
         .status(200)
@@ -150,6 +156,7 @@ export const signUp = async (req: Request, res: Response) => {
         country: JSON.stringify(country.id),
         token_string: tokenString,
         password: hashed_password,
+        uid: generate9DigitUID()
       },
     });
 
@@ -159,7 +166,7 @@ export const signUp = async (req: Request, res: Response) => {
     //   data: { isVerified: 'true' },
     // });
 
-    // create activity log
+    const ipLocation:string = await getIplocation(ip_address);
 
     await createActivityLog({
       user_id: user_id,
@@ -167,6 +174,7 @@ export const signUp = async (req: Request, res: Response) => {
       activity_type: "Sign Up",
       device_type: device_type ?? "",
       device_info: device_info ?? "",
+      location: ipLocation
     });
 
     return res.status(200).send({
@@ -193,10 +201,12 @@ export const logIn = async (req: Request, res: Response) => {
       authenticator_code,
       fcm_token,
       source,
-      device_type,
       ip_address,
+      device_type,
       device_info,
     }: IUser = req.body;
+
+    // const ip_address = req.headers[]
 
     if (!email || !password || !otp_verify || !device_info || !device_type || !ip_address) {
       // throw new Error('Please provide all field');
@@ -233,7 +243,7 @@ export const logIn = async (req: Request, res: Response) => {
         secret_key: true,
         login_count: true,
         lockout_time: true,
-        otp_count:true
+        otp_count: true
       },
     });
 
@@ -248,30 +258,30 @@ export const logIn = async (req: Request, res: Response) => {
     var otp_count = user?.otp_count
 
     // check if user is locked out
-    if (user?.lockout_time !=null && new Date() < user?.lockout_time) {
+    if (user?.lockout_time != null && new Date() < user?.lockout_time) {
       return res.status(200).send({
         status: "0",
         message:
           "Your account is locked out until " +
           user?.lockout_time.toLocaleString(),
       });
-    }else if(user?.lockout_time !== null && new Date() > user?.lockout_time){
+    } else if (user?.lockout_time !== null && new Date() > user?.lockout_time) {
       login_count = 0;
       otp_count = 0;
-      await prisma.user.updateMany({    
+      await prisma.user.updateMany({
         where: { user_id: user.user_id },
         data: {
           login_count: 0,
-          otp_count:0,
+          otp_count: 0,
           lockout_time: null,
-        },   
+        },
       });
-    } 
+    }
     // check password
     const same_password = await checkPassword(password, user.password);
     if (!same_password) {
       // throw new Error('Please provide correct password');
-      if (login_count+1 >= 3) {
+      if (login_count + 1 >= 3) {
         // adjust this value as needed
         const lockoutTime = new Date();
         lockoutTime.setMinutes(lockoutTime.getMinutes() + 1); // adjust this value as needed
@@ -288,18 +298,18 @@ export const logIn = async (req: Request, res: Response) => {
             message:
               "Your account is locked out for 1 minutes due to too many failed login attempts.",
           });
-      }else{
-      //   // increment login count
-      await prisma.user.updateMany({
-        where: { user_id: user.user_id },
-        data: {
-          login_count: { increment: 1 },
-        },
-      });
-      return res
-        .status(200)
-        .send({ status: "0", message: "Please provide correct password" });
-    }
+      } else {
+        //   // increment login count
+        await prisma.user.updateMany({
+          where: { user_id: user.user_id },
+          data: {
+            login_count: { increment: 1 },
+          },
+        });
+        return res
+          .status(200)
+          .send({ status: "0", message: "Please provide correct password" });
+      }
     }
     // get client information
     const result: IClientInfo | undefined = await getClientInfo(req);
@@ -353,8 +363,8 @@ export const logIn = async (req: Request, res: Response) => {
     // if not verified
     if (!verifyOTP?.verified) {
       // throw new Error(verifyOTP?.msg);
-      if(verifyOTP?.msg === "Invalid OTP"){
-        if (otp_count+1 >= 3) {
+      if (verifyOTP?.msg === "Invalid OTP") {
+        if (otp_count + 1 >= 3) {
           // adjust this value as needed
           const lockoutTime = new Date();
           lockoutTime.setMinutes(lockoutTime.getMinutes() + 1); // adjust this value as needed
@@ -371,17 +381,17 @@ export const logIn = async (req: Request, res: Response) => {
               message:
                 "Your account is locked out for 1 minutes due to too many wrong OTP attempts.",
             });
-        }else{
-        //   // increment login count
-        await prisma.user.updateMany({
-          where: { user_id: user.user_id },
-          data: {
-            otp_count: { increment: 1 },
-          },
-        });
-        return res.status(200).send({ status: "0", message: verifyOTP?.msg });
+        } else {
+          //   // increment login count
+          await prisma.user.updateMany({
+            where: { user_id: user.user_id },
+            data: {
+              otp_count: { increment: 1 },
+            },
+          });
+          return res.status(200).send({ status: "0", message: verifyOTP?.msg });
+        }
       }
-      } 
       return res.status(200).send({ status: "0", message: verifyOTP?.msg });
     }
     // if(!fcm_token){
@@ -409,13 +419,16 @@ export const logIn = async (req: Request, res: Response) => {
     WHERE user_id=${user.user_id};
   `;
 
-  await createActivityLog({
-    user_id: user.user_id,
-    ip_address: ip_address ?? "",
-    activity_type: "Login",
-    device_type: device_type ?? "",
-    device_info: device_info ?? "",
-  });
+    const location:string = await getIplocation(ip_address);
+
+    await createActivityLog({
+      user_id: user.user_id,
+      ip_address: ip_address ?? "",
+      activity_type: "Login",
+      device_type: device_type ?? "",
+      device_info: device_info ?? "",
+      location: location
+    });
 
     res.status(200).send({
       status: "1",
@@ -426,6 +439,95 @@ export const logIn = async (req: Request, res: Response) => {
         token: token,
       },
     });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ status: "3", message: (err as Error).message });
+  }
+};
+
+export const getuserProfile = async (req: Request, res: Response) => {
+  try {
+    const { user_id } = req.body.user;
+    if (!user_id) {
+      return res.status(200).send({ status: "0", message: "User not found" });
+    }
+    const user = await prisma.user.findUnique({
+      where: { user_id: user_id },
+      select: {
+        name: true,
+        email: true,
+        uid: true,
+      },
+    });
+    if (!user) {
+      return res.status(200).send({ status: "0", message: "User not found" });
+    }
+    res.status(200).send({ status: "1", message: "User found", data: user });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ status: "3", message: (err as Error).message });
+  }
+}
+
+export const getUserActivity = async (req: Request, res: Response) => {
+  try {
+    const { user_id } = req.body.user;
+    if (!user_id) {
+      return res.status(200).send({ status: "0", message: "User not found" });
+    }
+    const activity = await prisma.activity_logs.findMany({
+      where: { user_id: user_id },
+      select: {
+        activity_type: true,
+        ip_address: true,
+        device_type: true,
+        device_info: true,
+        location: true,
+        timestamp: true,
+      },
+      orderBy: { timestamp: "desc" },
+      take: 10
+    });
+    if (!activity) {
+      return res.status(200).send({ status: "0", message: "User not found" });
+    }
+    res.status(200).send({ status: "1", message: "User found", data: activity });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ status: "3", message: (err as Error).message });
+  }
+};  
+
+export const logOut = async (req: Request, res: Response) => {
+  try {
+    const { user_id } = req.body.user;
+    const { ip_address, device_type, device_info } = req.body;
+    if (!ip_address || !device_type || !device_info) {
+      return res.status(200).send({ status: "0", message: "Please provide all field" });
+    }
+    if (!user_id) {
+      return res.status(200).send({ status: "0", message: "User not found" });
+    }
+    await prisma.user.updateMany({
+      where: { user_id: user_id },
+      data: {
+        token: null,
+        token_string: "",
+      },
+    });
+
+    const location:string = await getIplocation(ip_address);
+
+    await createActivityLog({
+      user_id: user_id,
+      ip_address: ip_address ?? "",
+      activity_type: "logout",
+      device_type: device_type ?? "",
+      device_info: device_info ?? "",
+      location: location
+    });
+
+    res.status(200).send({ status: "1", message: "User logged out Successfully" });
   } catch (err) {
     console.log(err);
     res.status(500).json({ status: "3", message: (err as Error).message });
@@ -598,7 +700,7 @@ export const verifyOtpAuth = async (req: Request, res: Response) => {
       const verifyOTP = await verifyOtp(user_id, otp);
 
       // if not verified
-      if (!verifyOTP?.verified){
+      if (!verifyOTP?.verified) {
         // throw new Error(verifyOTP?.msg);
         return res.status(200).send({ status: "0", message: verifyOTP?.msg });
       }
@@ -696,7 +798,7 @@ export const delete2FaAuth = async (req: Request, res: Response) => {
       // throw new Error('Please provide correct password');
       return res
         .status(200).
-       json({ status: "0", message: "Please provide correct password" });
+        json({ status: "0", message: "Please provide correct password" });
     }
 
     await prisma.user.updateMany({
@@ -774,14 +876,14 @@ export const generate2FaKey = async (req: Request, res: Response) => {
 /*----- Change password -----*/
 export const changePassword = async (req: Request, res: Response) => {
   try {
-    const { new_password, confirm_new_password,otp,email,ip_address,device_type,device_info} = req.body;
+    const { new_password, confirm_new_password, otp, email, ip_address, device_type, device_info } = req.body;
 
-     if(!new_password || !confirm_new_password || !otp || !email || !ip_address || !device_type || !device_info){
-       return res.status(200).send({
-         status: "0",
-         message: "Please provide all field",
-       });
-     }
+    if (!new_password || !confirm_new_password || !otp || !email || !ip_address || !device_type || !device_info) {
+      return res.status(200).send({
+        status: "0",
+        message: "Please provide all field",
+      });
+    }
     // check password
     if (new_password.length < 6) {
       return res.status(200).send({
@@ -789,17 +891,18 @@ export const changePassword = async (req: Request, res: Response) => {
         message: "Old Password is too short! password must be of 6 length",
       });
     }
-    if(otp.length !== 6){
+    if (otp.length !== 6) {
       return res.status(200).send({
         status: "0",
         message: "OTP is too short! OTP must be 6 char long",
       });
     }
 
-    if(new_password !== confirm_new_password){
-      return res.status(200).send({ 
-        status: "0", 
-        message: "New Password and Confirm New Password are not same" });
+    if (new_password !== confirm_new_password) {
+      return res.status(200).send({
+        status: "0",
+        message: "New Password and Confirm New Password are not same"
+      });
     }
 
     // check user
@@ -821,7 +924,7 @@ export const changePassword = async (req: Request, res: Response) => {
     if (same_password) {
       return res.status(200).send({
         status: "0",
-        message:"Kuch naya password daal bhai, purana wala nahi chalega bro.",
+        message: "Kuch naya password daal bhai, purana wala nahi chalega bro.",
       });
     }
 
@@ -833,30 +936,34 @@ export const changePassword = async (req: Request, res: Response) => {
         message: otpVerified?.msg,
       });
     }
-    if(otpVerified?.verified){
-    // Password hashed
-    const hash = await bcrypt.hash(new_password, config.saltworkFactor);
+    if (otpVerified?.verified) {
+      // Password hashed
+      const hash = await bcrypt.hash(new_password, config.saltworkFactor);
 
-    await prisma.user.updateMany({
-      where: { user_id: user.user_id },
-      data: { password: hash , token: null },
-    });
+      await prisma.user.updateMany({
+        where: { user_id: user.user_id },
+        data: { password: hash, token: null },
+      });
 
-    // activity log
-    await prisma.activity_logs.create({
-      data: {
-        user_id: user.user_id,
-        ip_address: ip_address,
-        activity_type: "Change Password",
-        device_type: device_type,
-        device_info: device_info,
-      },
-    })
 
-    res.status(200).json({
-      status: "1",
-      message: "password changed successfully",
-    });}
+      const location:string = await getIplocation(ip_address);
+      // activity log
+      await prisma.activity_logs.create({
+        data: {
+          user_id: user.user_id,
+          ip_address: ip_address,
+          activity_type: "Change Password",
+          device_type: device_type,
+          device_info: device_info,
+          location: location
+        },
+      });
+
+      res.status(200).json({
+        status: "1",
+        message: "password changed successfully",
+      });
+    }
   } catch (err) {
     console.log(err);
     res.status(500).json({ status: "0", message: (err as Error).message });
@@ -914,6 +1021,8 @@ export const forgotPass = async (req: Request, res: Response) => {
         message: verifyOTP?.msg,
       });
     }
+
+    const location:string = await getIplocation(ip_address);  
     // activity logs
     await prisma.activity_logs.create({
       data: {
@@ -922,10 +1031,11 @@ export const forgotPass = async (req: Request, res: Response) => {
         activity_type: "Forgot Password",
         device_type: device_type ?? "",
         device_info: device_info ?? "",
+        location: location
       },
     })
-    if(verifyOTP?.verified){
-      return  res.status(200).json({
+    if (verifyOTP?.verified) {
+      return res.status(200).json({
         status: "1",
         message: "Otp Verified Successfully",
       });
@@ -950,7 +1060,7 @@ export const forgotPass = async (req: Request, res: Response) => {
 
     // send user a mail
     // await sendEmail(user.email, randomGenPass, "", client_info);
-   
+
   } catch (err) {
     console.log(err);
     res.status(500).json({ status: "0", message: (err as Error).message });

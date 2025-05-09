@@ -66,7 +66,6 @@ const getToken = (user_id) => __awaiter(void 0, void 0, void 0, function* () {
             user_id: user_id,
         },
         select: {
-            token_string: true,
             email: true
         }
     });

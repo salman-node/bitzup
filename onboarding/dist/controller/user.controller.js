@@ -35,9 +35,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAllCountries = exports.forgotPass = exports.changePassword = exports.generate2FaKey = exports.delete2FaAuth = exports.get2FaAuth = exports.verifyOtpAuth = exports.verifyAuth = exports.logIn = exports.signUp = void 0;
+exports.getAllCountries = exports.forgotPass = exports.changePassword = exports.generate2FaKey = exports.delete2FaAuth = exports.get2FaAuth = exports.verifyOtpAuth = exports.verifyAuth = exports.logOut = exports.getUserActivity = exports.getuserProfile = exports.logIn = exports.signUp = void 0;
 const bcrypt = __importStar(require("bcrypt"));
 const activity_log_1 = require("../utility/activity.log");
+const activity_log_2 = require("../utility/activity.log");
 const crypto_1 = require("crypto");
 const defaults_1 = __importDefault(require("../config/defaults"));
 const speakeasy_1 = __importDefault(require("speakeasy"));
@@ -45,6 +46,9 @@ const prisma_client_1 = require("../config/prisma.client");
 const utility_functions_1 = require("../utility/utility.functions");
 const utility_functions_2 = require("../utility/utility.functions");
 // import { json } from "stream/consumers";
+function generate9DigitUID() {
+    return Math.floor(100000000 + Math.random() * 900000000);
+}
 /*----- SignUp -----*/
 const signUp = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
@@ -153,6 +157,7 @@ const signUp = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
                 country: JSON.stringify(country.id),
                 token_string: tokenString,
                 password: hashed_password,
+                uid: generate9DigitUID()
             },
         });
         // update user verified
@@ -160,13 +165,14 @@ const signUp = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         //   where: { email: user.email },
         //   data: { isVerified: 'true' },
         // });
-        // create activity log
+        const ipLocation = yield (0, activity_log_2.getIplocation)(ip_address);
         yield (0, activity_log_1.createActivityLog)({
             user_id: user_id,
             ip_address: ip_address !== null && ip_address !== void 0 ? ip_address : "",
             activity_type: "Sign Up",
             device_type: device_type !== null && device_type !== void 0 ? device_type : "",
             device_info: device_info !== null && device_info !== void 0 ? device_info : "",
+            location: ipLocation
         });
         return res.status(200).send({
             status: "1",
@@ -381,12 +387,14 @@ const logIn = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     lockout_time = NULL
     WHERE user_id=${user.user_id};
   `;
+        const location = yield (0, activity_log_2.getIplocation)(ip_address);
         yield (0, activity_log_1.createActivityLog)({
             user_id: user.user_id,
             ip_address: ip_address !== null && ip_address !== void 0 ? ip_address : "",
             activity_type: "Login",
             device_type: device_type !== null && device_type !== void 0 ? device_type : "",
             device_info: device_info !== null && device_info !== void 0 ? device_info : "",
+            location: location
         });
         res.status(200).send({
             status: "1",
@@ -404,6 +412,95 @@ const logIn = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     }
 });
 exports.logIn = logIn;
+const getuserProfile = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { user_id } = req.body.user;
+        if (!user_id) {
+            return res.status(200).send({ status: "0", message: "User not found" });
+        }
+        const user = yield prisma_client_1.prisma.user.findUnique({
+            where: { user_id: user_id },
+            select: {
+                name: true,
+                email: true,
+                uid: true,
+            },
+        });
+        if (!user) {
+            return res.status(200).send({ status: "0", message: "User not found" });
+        }
+        res.status(200).send({ status: "1", message: "User found", data: user });
+    }
+    catch (err) {
+        console.log(err);
+        res.status(500).json({ status: "3", message: err.message });
+    }
+});
+exports.getuserProfile = getuserProfile;
+const getUserActivity = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { user_id } = req.body.user;
+        if (!user_id) {
+            return res.status(200).send({ status: "0", message: "User not found" });
+        }
+        const activity = yield prisma_client_1.prisma.activity_logs.findMany({
+            where: { user_id: user_id },
+            select: {
+                activity_type: true,
+                ip_address: true,
+                device_type: true,
+                device_info: true,
+                location: true,
+                timestamp: true,
+            },
+            orderBy: { timestamp: "desc" },
+            take: 10
+        });
+        if (!activity) {
+            return res.status(200).send({ status: "0", message: "User not found" });
+        }
+        res.status(200).send({ status: "1", message: "User found", data: activity });
+    }
+    catch (err) {
+        console.log(err);
+        res.status(500).json({ status: "3", message: err.message });
+    }
+});
+exports.getUserActivity = getUserActivity;
+const logOut = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { user_id } = req.body.user;
+        const { ip_address, device_type, device_info } = req.body;
+        if (!ip_address || !device_type || !device_info) {
+            return res.status(200).send({ status: "0", message: "Please provide all field" });
+        }
+        if (!user_id) {
+            return res.status(200).send({ status: "0", message: "User not found" });
+        }
+        yield prisma_client_1.prisma.user.updateMany({
+            where: { user_id: user_id },
+            data: {
+                token: null,
+                token_string: "",
+            },
+        });
+        const location = yield (0, activity_log_2.getIplocation)(ip_address);
+        yield (0, activity_log_1.createActivityLog)({
+            user_id: user_id,
+            ip_address: ip_address !== null && ip_address !== void 0 ? ip_address : "",
+            activity_type: "logout",
+            device_type: device_type !== null && device_type !== void 0 ? device_type : "",
+            device_info: device_info !== null && device_info !== void 0 ? device_info : "",
+            location: location
+        });
+        res.status(200).send({ status: "1", message: "User logged out Successfully" });
+    }
+    catch (err) {
+        console.log(err);
+        res.status(500).json({ status: "3", message: err.message });
+    }
+});
+exports.logOut = logOut;
 /*----- 2FA Authentication Verification  -----*/
 const verifyAuth = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
@@ -767,6 +864,7 @@ const changePassword = (req, res) => __awaiter(void 0, void 0, void 0, function*
                 where: { user_id: user.user_id },
                 data: { password: hash, token: null },
             });
+            const location = yield (0, activity_log_2.getIplocation)(ip_address);
             // activity log
             yield prisma_client_1.prisma.activity_logs.create({
                 data: {
@@ -775,6 +873,7 @@ const changePassword = (req, res) => __awaiter(void 0, void 0, void 0, function*
                     activity_type: "Change Password",
                     device_type: device_type,
                     device_info: device_info,
+                    location: location
                 },
             });
             res.status(200).json({
@@ -834,6 +933,7 @@ const forgotPass = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
                 message: verifyOTP === null || verifyOTP === void 0 ? void 0 : verifyOTP.msg,
             });
         }
+        const location = yield (0, activity_log_2.getIplocation)(ip_address);
         // activity logs
         yield prisma_client_1.prisma.activity_logs.create({
             data: {
@@ -842,6 +942,7 @@ const forgotPass = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
                 activity_type: "Forgot Password",
                 device_type: device_type !== null && device_type !== void 0 ? device_type : "",
                 device_info: device_info !== null && device_info !== void 0 ? device_info : "",
+                location: location
             },
         });
         if (verifyOTP === null || verifyOTP === void 0 ? void 0 : verifyOTP.verified) {

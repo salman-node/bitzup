@@ -1,11 +1,25 @@
 {
   "compilerOptions": {
-    "outDir": "build",
+    "target": "es6",
+    "module": "commonjs",
+    "rootDir": "./src",
     "sourceMap": true,
-    "noImplicitAny": true,
-    "moduleResolution": "node",
+    "outDir": "./dist",
+    "removeComments": false,
+    "declaration": false,
+    "declarationMap": false,
+    "moduleResolution": "Node",
     "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "typeRoots": ["node_modules/@types"]
-  }
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noEmitOnError": true,
+    "skipLibCheck": true,
+    "noImplicitAny": true,
+    "typeRoots": ["./types", "./node_modules/@types"]
+
+    //"normalTypeScriptOptions": "here"
+  },
+  "exclude": ["node_modules", "dist", "__tests__", "coverage"]
 }

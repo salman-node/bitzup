@@ -533,6 +533,7 @@ function formatDate(timestamp) {
     return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
 }
 exports.formatDate = formatDate;
+;
 /*----- Get Buy Sell Order -------*/
 // export const getBuySellOrder = async (req: Request, res: Response) => {
 //   const { id: user_id } = req.body.user;
@@ -1049,6 +1050,8 @@ exports.getAllCurrenciesBalance = getAllCurrenciesBalance;
 const getDepositWithdrawList = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { user_id: user_id } = req.body.user;
     const { type: type } = req.query;
+    const ip = req.headers;
+    console.log('ip', ip);
     try {
         if (type !== 'deposit' && type !== 'withdraw') {
             return res.status(400).send({
@@ -1127,6 +1130,7 @@ const getAllNetwork = (req, res) => __awaiter(void 0, void 0, void 0, function* 
                 message: "You are not authorized or user not present",
             });
         }
+        console.log('currency_id', currency_id);
         const networkData = type === "deposit" ? yield prisma.$queryRaw `SELECT 
                c.id,
                cn.network_id,
@@ -1139,9 +1143,9 @@ const getAllNetwork = (req, res) => __awaiter(void 0, void 0, void 0, function* 
                FROM 
                  currencies c
                JOIN 
-                 currency_network cn ON c.id = cn.currency_id
+                 currency_network cn ON c.currency_id = cn.currency_id
                JOIN 
-                 chains ch ON cn.network_id = ch.id 
+                 chains ch ON cn.network_id = ch.chain_id 
                WHERE 
                 c.currency_id = ${currency_id} and ch.deposit_status = 'Active'` :
             yield prisma.$queryRaw `SELECT 
@@ -1156,11 +1160,12 @@ const getAllNetwork = (req, res) => __awaiter(void 0, void 0, void 0, function* 
                 FROM 
                   currencies c
                 JOIN 
-                  currency_network cn ON c.id = cn.currency_id
+                  currency_network cn ON c.currency_id = cn.currency_id
                 JOIN 
-                  chains ch ON cn.network_id = ch.id
+                  chains ch ON cn.network_id = ch.chain_id
                 WHERE 
                  c.currency_id = ${currency_id} and ch.withdrawal_status = 'Active'`;
+        console.log('is array khali?: ', networkData);
         res.status(200).json({
             status: "1",
             data: networkData,
@@ -1201,7 +1206,6 @@ const getUserWalletAddress = (req, res) => __awaiter(void 0, void 0, void 0, fun
                 address: true,
             },
         });
-        console.log('existingWallet', existingWallet);
         if (existingWallet) {
             return res.status(200).json({ status: "1", data: existingWallet });
         }
@@ -1398,6 +1402,7 @@ const getSymbolFunds = (req, res) => __awaiter(void 0, void 0, void 0, function*
             select: {
                 main_balance: true,
                 locked_balance: true,
+                current_balance: true,
             },
             where: {
                 user_id: user_id,
@@ -1405,7 +1410,7 @@ const getSymbolFunds = (req, res) => __awaiter(void 0, void 0, void 0, function*
             },
         });
         const data = {
-            available: (_e = (_d = currencyData[0]) === null || _d === void 0 ? void 0 : _d.main_balance) !== null && _e !== void 0 ? _e : 0.0,
+            available: (_e = (_d = currencyData[0]) === null || _d === void 0 ? void 0 : _d.current_balance) !== null && _e !== void 0 ? _e : 0.0,
             unavailable: (_g = (_f = currencyData[0]) === null || _f === void 0 ? void 0 : _f.locked_balance) !== null && _g !== void 0 ? _g : 0.0,
         };
         return res.status(200).json({

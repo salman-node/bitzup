@@ -2,20 +2,20 @@ import express from 'express';
 const router = express.Router();
 import { verifyUser } from '../middleware/authentication';
 import {
-  getBuySellBalance,
-  getAllCurrenciesBalance,
+  // getBuySellBalance,
+  // getAllCurrenciesBalance,
   // addBuySellOrder,
   // getBuySellOrder,
-  getAvgPriceOrder,
-  getBuySellFees,
+  // getAvgPriceOrder,
+  // getBuySellFees,
   // cancelBuySellOrder,
   getAllBuySellOrder,
   // getAllFunds,
   // cancelAllBuySellOrder,
-  getWalletFunds,
+  // getWalletFunds,
   getSymbolFunds,
-  getTrades,
-  getTradeHistory,
+  // getTrades,
+  // getTradeHistory,
   // executedBuySellOrder,
   // getwalletHistory
 } from '../controller/user.wallet.controller';
@@ -40,19 +40,19 @@ const userLastCall: { [key: string]: number } = {};
 //   };
 // }
 
-router.route('/get-buy-sell-balance').post([verifyUser], getBuySellBalance);
-router
-  .route('/get-all-currencies-balance')
-  .post([verifyUser], getAllCurrenciesBalance);
-router.route('/get-avg-price-order').post([verifyUser], getAvgPriceOrder);
+// router.route('/get-buy-sell-balance').post([verifyUser], getBuySellBalance);
+// router
+//   .route('/get-all-currencies-balance')
+//   .post([verifyUser], getAllCurrenciesBalance);
+// router.route('/get-avg-price-order').post([verifyUser], getAvgPriceOrder);
 router.route('/get-all-buy-sell-order').post([verifyUser], getAllBuySellOrder); //web
-router.route('/get-wallet-funds').post([verifyUser], getWalletFunds); //web
+// router.route('/get-wallet-funds').post([verifyUser], getWalletFunds); //web
 router.route('/get-symbol-funds').post([verifyUser], getSymbolFunds);
-router.route('/get-trades').post([verifyUser], getTrades); //web
-router.route('/get-trade-history').post([verifyUser], getTradeHistory);
-router.route('/get-buy-sell-fees').post([verifyUser], getBuySellFees);
-router
-  .route('/cancel-all-buy-sell-order')
+// router.route('/get-trades').post([verifyUser], getTrades); //web
+// router.route('/get-trade-history').post([verifyUser], getTradeHistory);
+// router.route('/get-buy-sell-fees').post([verifyUser], getBuySellFees);
+// router
+//   .route('/cancel-all-buy-sell-order')
 // router.route('/get-wallet-history').post([verifyUser], getwalletHistory);
 
 // Throttle middleware function

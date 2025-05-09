@@ -23,7 +23,7 @@ export const Create_Universal_Data = async function (
    user_id: string
  ): Promise<any> {
    const sql = `SELECT 
-  cp.pair_id,
+  cp.id,
   cp.quantity_decimal AS qty_decimal,
   cp.price_decimal AS price_decimal,
   cp.trade_fee AS trade_fee,
@@ -34,7 +34,7 @@ FROM
   LEFT JOIN balances b1 ON cp.base_asset_id COLLATE utf8mb4_general_ci = b1.currency_id COLLATE utf8mb4_general_ci AND b1.user_id = ?
   LEFT JOIN balances b2 ON cp.quote_asset_id COLLATE utf8mb4_general_ci = b2.currency_id COLLATE utf8mb4_general_ci AND b2.user_id = ?
 WHERE 
-  cp.pair_id = ?;`;
+  cp.id = ?;`;
    try {
      const result = await connection.promise().query(sql, [user_id,user_id,pair_id]);
      return result[0];

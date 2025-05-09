@@ -3,6 +3,8 @@
 import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import config from "../config/defaults";;
+import { getIplocation } from "../utility/activity.logs";
+import { createActivityLog } from "../utility/activity.logs";
 const prisma = new PrismaClient();
 // import winston from "winston";
 
@@ -15,7 +17,7 @@ function generateTransactionId() {
 
 export const withdrawFunds = async (req: Request, res: Response) => {
     const {user_id} = req.body.user;
-    const {chain_id , address , amount, currency_id} = req.body;
+    const {chain_id , address , amount, currency_id, device_info , device_type , ip_address} = req.body;
 
     
     const currencyData = await prisma.currencies.findFirst({
@@ -75,8 +77,8 @@ export const withdrawFunds = async (req: Request, res: Response) => {
           current_balance: {
             decrement: Number(amount),
           },
-          main_balance: {
-            decrement: Number(amount),
+          locked_balance: {
+            increment: Number(amount),
           },
         },
         where: {
@@ -109,6 +111,16 @@ export const withdrawFunds = async (req: Request, res: Response) => {
         },
       });
 
+      const location = await getIplocation(ip_address);
+      await createActivityLog({
+        user_id: user_id,
+        ip_address: ip_address ?? "",
+        activity_type: "Withdrawal",
+        device_type: device_type ?? "",
+        device_info: device_info ?? "",
+        location: location, 
+      });
+
       return res.status(config.HTTP_SUCCESS).send({
         status_code: config.HTTP_SUCCESS,   
         success: "1",
@@ -121,8 +133,6 @@ export const withdrawFunds = async (req: Request, res: Response) => {
         }
       });
 
- 
-    
 };
 
 export const withdrawalHistory = async (req: Request, res: Response) => {

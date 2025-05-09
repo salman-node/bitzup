@@ -10,4 +10,5 @@ exports.depositRouter = router;
 const authentication_1 = require("../middleware/authentication");
 const deposit_controller_1 = require("../controller/deposit.controller");
 router.get('/deposit-history', [authentication_1.verifyUser], deposit_controller_1.depositHistory);
+router.post('/deposit-webhook', deposit_controller_1.depositWebhook);
 //# sourceMappingURL=deposit.router.js.map

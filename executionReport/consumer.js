@@ -76,7 +76,6 @@ wss.on("connection", (ws) => {
 // Start ping-pong mechanism
 startPingPong();
 
-
 // Function to send messages to frontend clients
 const sendMessageToClients = (report) => {
   frontendClients.forEach((client) => {
@@ -91,7 +90,7 @@ const processedOrders = new Set();
 // Consume messages from Kafka and process them
 const consumeMessages = async () => {
   await consumer.run({
-    eachMessage: async ({ topic, message }) => {
+    eachMessage: async ({ topic, message, accountName }) => {
       try{
       const data = JSON.parse(message.value.toString());
       if (!processedOrders.has(data.I)) {
@@ -101,7 +100,6 @@ const consumeMessages = async () => {
         
       if (topic === "execution-report") {
    
-     
         const [userIdFromOrder, uniquePart] = data.c.split("-");
         const canceled_user_id = data.X === "CANCELED" ? data.C.split("-")[0] : userIdFromOrder;
 
@@ -155,6 +153,7 @@ const consumeMessages = async () => {
           const pairId = pair_id[0].pair_id;
           // Handle report data based on `data.X` status and send to clients
           if (data.X === "NEW") {
+            
             const report = {
               status: "1",
               user_id: userIdFromOrder,
@@ -175,13 +174,12 @@ const consumeMessages = async () => {
               }
             }
             if (data.S === "SELL") {
-             const updateBalance = await updateOrInsertBalances({
+              await updateOrInsertBalances({
                 userId: userIdFromOrder,
                 currencyId: base_asset_id,
                 currentBalanceChange: -data.q,
                 lockedBalanceChange: data.q,
               });
-              
             }
           }
           if (data.X === "PARTIALLY_FILLED") {

@@ -1,0 +1,90 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = __importDefault(require("express"));
+const router = express_1.default.Router();
+const controller_1 = require("../controller/controller");
+const token_authentication_1 = require("../middleware/token_authentication");
+const req_validator_1 = require("../middleware/req_validator");
+const OpenOrderCount_1 = require("../middleware/OpenOrderCount");
+// import { DevOpsGuru, DocDB } from 'aws-sdk';
+router.post('/place-buy-order', token_authentication_1.verifyUser, req_validator_1.validate_buy_asset_pro, OpenOrderCount_1.OpenOrderCount, controller_1.placeBuyOrder);
+router.post('/place-sell-order', token_authentication_1.verifyUser, req_validator_1.validate_sell_asset_pro, OpenOrderCount_1.OpenOrderCount, controller_1.placeSellOrder);
+router.post('/place-buy-stop-limit', token_authentication_1.verifyUser, req_validator_1.validate_buy_stop_limit, OpenOrderCount_1.OpenOrderCount, controller_1.placeBuyStopLimit);
+router.post('/place-sell-stop-limit', token_authentication_1.verifyUser, req_validator_1.validate_sell_stop_limit, OpenOrderCount_1.OpenOrderCount, controller_1.placeSellStopLimit);
+router.post('/cancel-order', token_authentication_1.verifyUser, req_validator_1.validate_cancel_order, controller_1.cancelOrder);
+router.get('/get-open-orders', token_authentication_1.verifyUser, controller_1.get_open_orders);
+// router.post('/quick_sell', 
+//   // middleware.Authentication, 
+//   // validator.validate_quick_sr4fgell, 
+//   userController.quick_sell
+// );
+// router.post('/sell_asset_pro', 
+//   // middleware.Authentication, 
+//   // validator.validate_sell_asset_pro, 
+//   userController.sell_asset_pro
+// );
+// router.post('/cancel_order', 
+//   // middleware.Authentication, 
+//   // validator.validate_cancel_order, 
+//   userController.cancel_order
+// );
+// router.post('/modify_order/:user_id', 
+//   // middleware.Authentication, 
+//   // validator.validate_modify_order, 
+//   userController.modify_order
+// );
+// // Swap api
+// router.post('/swap_asset', 
+//   // middleware.Authentication, 
+//   // validator.validate_swap_order, 
+//   userController.swap_asset
+// );
+// // Get Data API's
+// router.post('/dummy_executed_order', userController.dummy_executed_order);
+// router.post('/ask_data', 
+//   // middleware.Authentication, 
+//   // validator.validate_ask_data, 
+//   userController.ask_order_data
+// );
+// router.post('/bid_data', 
+//   // middleware.Authentication, 
+//   // validator.validate_ask_data, 
+//   userController.bid_order_data
+// );
+// // router.post('/get_user_executed_orders/:user_id', 
+// //   // middleware.Authentication, 
+// //   // validator.validate_get_executed_orders, 
+// //   userController.get_executed_orders
+// // ); 
+// router.post('/get_executed_orders/:user_id', 
+//   // middleware.AdminAuthentication, 
+//   // validator.validate_get_executed_orders, 
+//   userController.get_executed_orders
+// ); 
+// // router.post('/get_user_open_orders/:user_id', userController.get_open_orders); 
+// router.post('/get_open_orders/:user_id', 
+//   // middleware.AdminAuthentication, 
+//   // validator.validate_get_executed_orders, 
+//   userController.get_open_orders
+// ); 
+// // router.post('/get_user_cancel_orders/:user_id', userController.get_cancel_orders); 
+// router.post('/get_cancel_orders/:user_id', 
+//   // middleware.AdminAuthentication, 
+//   // validator.validate_get_executed_orders, 
+//   userController.get_cancel_orders
+// ); 
+// // Get Market rate api's
+// router.post('/asset_market_rate/:user_id/:pair_id', 
+//   // middleware.Authentication, 
+//   // validator.validate_pair_id, 
+//   userController.current_market_price
+// );
+// router.post('/get_all_asset_data', 
+//   // middleware.Authentication, 
+//   userController.get_all_asset_data
+// ); 
+exports.default = router;
+//# sourceMappingURL=router.js.map

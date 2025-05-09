@@ -8,7 +8,7 @@ import {
 
 
 
-router.post('/withdraw', [verifyUser], withdrawFunds);
+router.post('/request-withdraw', [verifyUser], withdrawFunds);
 router.get('/withdrawal-history', [verifyUser], withdrawalHistory);
 
 

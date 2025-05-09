@@ -17,6 +17,8 @@ exports.withdrawalHistory = exports.withdrawFunds = void 0;
 const client_1 = require("@prisma/client");
 const defaults_1 = __importDefault(require("../config/defaults"));
 ;
+const activity_logs_1 = require("../utility/activity.logs");
+const activity_logs_2 = require("../utility/activity.logs");
 const prisma = new client_1.PrismaClient();
 // import winston from "winston";
 const { v4: uuidv4 } = require('uuid');
@@ -25,7 +27,7 @@ function generateTransactionId() {
 }
 const withdrawFunds = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { user_id } = req.body.user;
-    const { chain_id, address, amount, currency_id } = req.body;
+    const { chain_id, address, amount, currency_id, device_info, device_type, ip_address } = req.body;
     const currencyData = yield prisma.currencies.findFirst({
         where: {
             currency_id: currency_id,
@@ -76,8 +78,8 @@ const withdrawFunds = (req, res) => __awaiter(void 0, void 0, void 0, function* 
             current_balance: {
                 decrement: Number(amount),
             },
-            main_balance: {
-                decrement: Number(amount),
+            locked_balance: {
+                increment: Number(amount),
             },
         },
         where: {
@@ -106,6 +108,15 @@ const withdrawFunds = (req, res) => __awaiter(void 0, void 0, void 0, function* 
             status: "PENDING",
             fees: calculatedFee,
         },
+    });
+    const location = yield (0, activity_logs_1.getIplocation)(ip_address);
+    yield (0, activity_logs_2.createActivityLog)({
+        user_id: user_id,
+        ip_address: ip_address !== null && ip_address !== void 0 ? ip_address : "",
+        activity_type: "Withdrawal",
+        device_type: device_type !== null && device_type !== void 0 ? device_type : "",
+        device_info: device_info !== null && device_info !== void 0 ? device_info : "",
+        location: location,
     });
     return res.status(defaults_1.default.HTTP_SUCCESS).send({
         status_code: defaults_1.default.HTTP_SUCCESS,

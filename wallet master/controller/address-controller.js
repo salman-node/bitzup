@@ -16,10 +16,9 @@ export const generateAddress = async (req, res) => {
         if (!user_id || !chain_id) {
             return res.status(200).json({ success: "0", message: "Missing required fields" });
         }
-
         // Check if the user already has an address
         let existingAddress;
-        if (evm_compatible === 1) {
+        if (evm_compatible == 1) {
             existingAddress = await pool.query(
                 `SELECT address FROM addresses WHERE user_id = ? AND evm_compatible = 1`,
                 [user_id]
@@ -30,7 +29,6 @@ export const generateAddress = async (req, res) => {
                 [user_id, chain_id]
             );
         }
-
         if (existingAddress.length > 0) {
             return res.status(200).json({
                 success: "1",
@@ -42,8 +40,7 @@ export const generateAddress = async (req, res) => {
         }
 
         let key, address;
-
-        if (evm_compatible === 1 && chain_id !== "1111" && chain_id !== "110" && chain_id !== "111") {
+        if (evm_compatible == 1 && chain_id != "1111" && chain_id != "110" && chain_id != "111") {
 
             // Generate new wallet
             let mnemonic, seed, hdWallet, wallet;
@@ -58,16 +55,16 @@ export const generateAddress = async (req, res) => {
             } catch (walletError) {
                 throw new Error("Error generating address: " + walletError.message);
             }
+        } else if (evm_compatible == 0 && (chain_id == "1111" || chain_id == "110" || chain_id == "111")) {
 
-        } else if (evm_compatible === 0 && (chain_id === "1111" || chain_id === "110" || chain_id === "111")) {
-            if (chain_id === "1111") {
+            if (chain_id == "1111") {
                 const keypair = Keypair.generate();
                 const publicKey = keypair.publicKey.toBase58();
                 address = publicKey;
                 const secretKeyHex = Buffer.from(keypair.secretKey).toString("hex");
                 const recoveredPrivateKey = Buffer.from(secretKeyHex, "hex");
                 key = bs58.encode(recoveredPrivateKey);
-            } else if (chain_id === "110") {
+            } else if (chain_id == "110") {
                 let mnemonic = bip39.generateMnemonic();
                 const network = bitcoin.networks.testnet;  // mainnet for use bitcoin.networks.bitcoin
                 const seed = await bip39.mnemonicToSeed(mnemonic);
@@ -81,7 +78,7 @@ export const generateAddress = async (req, res) => {
                 });
                 address = segwit.address;
                 key = segwitChild.toWIF();
-            } else if (chain_id === "111") {
+            } else if (chain_id == "111") {
                 let mnemonic = bip39.generateMnemonic();
                 const network = bitcoin.networks.testnet;  // mainnet for use bitcoin.networks.bitcoin
                 const seed = await bip39.mnemonicToSeed(mnemonic);
@@ -123,7 +120,7 @@ export const generateAddress = async (req, res) => {
             // Insert into first DB
             await connection.query(
                 `INSERT INTO addresses (user_id, address, evm_compatible, chain_id) VALUES (?, ?, ?, ?)`,
-                [user_id, address, evm_compatible, chain_id]
+                    
             );
 
             // Insert into second DB

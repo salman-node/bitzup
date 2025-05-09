@@ -47,8 +47,8 @@ app.use(express_1.default.static('src/public'));
 // app.use('/deposit', depositRouter);
 // app.use('/withdraw', withdrawalRouter);
 app.use('/wallet', user_wallet_routes_1.userWalletRouter);
-app.use('/v1', withdrawal_router_1.withdrawalRouter);
-app.use('/v2', deposit_router_1.depositRouter);
+app.use('/withdraw', withdrawal_router_1.withdrawalRouter);
+app.use('/deposit', deposit_router_1.depositRouter);
 app.listen(PORT, () => {
     console.log(`⚙️ BitzUp: server is running on port ${defaults_1.default.BASE_URL}`);
 });

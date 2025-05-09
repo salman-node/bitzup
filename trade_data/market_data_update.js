@@ -167,7 +167,7 @@ async function fetchAndUpdatePrices() {
 }
 
 // Run the job every 5 seconds
-cron.schedule('*/5 * * * * *', fetchAndUpdatePrices);
+cron.schedule('*/30 * * * * *', fetchAndUpdatePrices);
 
 // Optional: Initial DB connection test
 pool.getConnection((err, connection) => {

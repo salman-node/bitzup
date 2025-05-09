@@ -54,7 +54,7 @@ const sendOTPEmail = (to, subject, otp, client_info) => __awaiter(void 0, void 0
     };
     try {
         const info = yield transporter.sendMail(mailOptions);
-        console.log(`Message sent: ${info.messageId}`);
+        // console.log(`Message sent: ${info.messageId}`);
         return info;
     }
     catch (error) {

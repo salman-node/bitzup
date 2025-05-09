@@ -11,7 +11,10 @@ const user_controller_1 = require("../controller/user.controller");
 const authentication_1 = require("../middleware/authentication");
 const otp_controller_1 = require("../controller/otp.controller");
 router.post('/signup', user_controller_1.signUp);
-router.post('/login', user_controller_1.logIn); // add new paramateres to doc
+router.post('/login', user_controller_1.logIn);
+router.get('/getUserProfile', authentication_1.verifyUser, user_controller_1.getuserProfile);
+router.get('/getUserActivity', authentication_1.verifyUser, user_controller_1.getUserActivity);
+router.post('/logout', authentication_1.verifyUser, user_controller_1.logOut);
 router.route('/verify-auth').post([authentication_1.verifyUser], user_controller_1.verifyAuth); // add to doc
 router.route('/verify-otp-auth').post([authentication_1.verifyUser], user_controller_1.verifyOtpAuth); // add to doc
 router.route('/get-2fa').post([authentication_1.verifyUser], user_controller_1.get2FaAuth); // add to doc

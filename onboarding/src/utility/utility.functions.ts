@@ -34,7 +34,6 @@ export const getToken = async (user_id: string) => {
       user_id: user_id,
     },
     select: {
-      token_string: true,
       email: true
     }
   })

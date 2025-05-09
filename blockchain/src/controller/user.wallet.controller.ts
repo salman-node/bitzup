@@ -600,7 +600,7 @@ export function formatDate(timestamp: BigInt | number): string {
   const min = String(istDate.getMinutes()).padStart(2, "0");
   const ss = String(istDate.getSeconds()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
-}
+};
 
 
 /*----- Get Buy Sell Order -------*/
@@ -1199,6 +1199,9 @@ export const getDepositWithdrawList = async (req: Request, res: Response) => {
   const { user_id: user_id }: { user_id: string } = req.body.user;
   const { type : type } = req.query;
 
+  const ip = req.headers
+  console.log('ip', ip);
+
   try {
     if(type !== 'deposit' && type !== 'withdraw') {
       return res.status(400).send({
@@ -1278,7 +1281,7 @@ export const getAllNetwork = async (req: Request, res: Response) => {
         message: "You are not authorized or user not present",
       });
     }
-
+    console.log('currency_id', currency_id);
     const networkData = type === "deposit" ? await prisma.$queryRaw`SELECT 
                c.id,
                cn.network_id,
@@ -1291,9 +1294,9 @@ export const getAllNetwork = async (req: Request, res: Response) => {
                FROM 
                  currencies c
                JOIN 
-                 currency_network cn ON c.id = cn.currency_id
+                 currency_network cn ON c.currency_id = cn.currency_id
                JOIN 
-                 chains ch ON cn.network_id = ch.id 
+                 chains ch ON cn.network_id = ch.chain_id 
                WHERE 
                 c.currency_id = ${currency_id} and ch.deposit_status = 'Active'` :
                 await prisma.$queryRaw`SELECT 
@@ -1308,13 +1311,13 @@ export const getAllNetwork = async (req: Request, res: Response) => {
                 FROM 
                   currencies c
                 JOIN 
-                  currency_network cn ON c.id = cn.currency_id
+                  currency_network cn ON c.currency_id = cn.currency_id
                 JOIN 
-                  chains ch ON cn.network_id = ch.id
+                  chains ch ON cn.network_id = ch.chain_id
                 WHERE 
                  c.currency_id = ${currency_id} and ch.withdrawal_status = 'Active'` ;
 
-
+console.log('is array khali?: ', networkData);
     res.status(200).json({
       status: "1",
       data: networkData,
@@ -1572,6 +1575,7 @@ export const getSymbolFunds = async (req: Request, res: Response) => {
       select: {
         main_balance: true,
         locked_balance: true,
+        current_balance: true,
       },
       where: {
         user_id: user_id,
@@ -1580,7 +1584,7 @@ export const getSymbolFunds = async (req: Request, res: Response) => {
     });
 
     const data = {
-      available: currencyData[0]?.main_balance ?? 0.0,
+      available: currencyData[0]?.current_balance ?? 0.0,
       unavailable: currencyData[0]?.locked_balance ?? 0.0,
     };
 
