@@ -35,7 +35,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAllCountries = exports.forgotPass = exports.changePassword = exports.generate2FaKey = exports.delete2FaAuth = exports.get2FaAuth = exports.verifyOtpAuth = exports.verifyAuth = exports.logOut = exports.getUserActivity = exports.getuserProfile = exports.logIn = exports.signUp = void 0;
+exports.getAllCountries = exports.VerifyForgetPassword = exports.forgotPass = exports.changePassword = exports.generate2FaKey = exports.delete2FaAuth = exports.get2FaAuth = exports.verifyOtpAuth = exports.verifyAuth = exports.logOut = exports.getUserActivity = exports.getuserProfile = exports.logIn = exports.signUp = void 0;
 const bcrypt = __importStar(require("bcrypt"));
 const activity_log_1 = require("../utility/activity.log");
 const activity_log_2 = require("../utility/activity.log");
@@ -52,16 +52,13 @@ function generate9DigitUID() {
 /*----- SignUp -----*/
 const signUp = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const { name, email, phone, country_code, password, otp_verify, // if no send otp , if yes already verified
-        otp, device_type, ip_address, device_info } = req.body;
+        const { name, email, phone, country_code, password, otp, device_type, device_info } = req.body;
         if (!name ||
             !email ||
             !phone ||
             !country_code ||
             !password ||
-            !otp_verify ||
             !device_type ||
-            !ip_address ||
             !device_info) {
             // throw new Error('Please provide all field');
             return res
@@ -109,11 +106,11 @@ const signUp = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
                 .status(200)
                 .send({ status: "0", message: "User already exist" });
         }
+        const ip_address = req.headers['x-real-ip'] || req.headers['x-forwarded-for'].split(',')[0];
         // get client information
-        const result = yield (0, utility_functions_2.getClientInfo)(req);
-        if (otp_verify === "No") {
+        const result = yield (0, utility_functions_2.getClientInfo)(ip_address, device_type, device_info);
+        if (!otp) {
             const user_id = yield (0, utility_functions_1.generateUniqueId)("U", 12);
-            yield prisma_client_1.prisma.otp.deleteMany({ where: { user_id: user_id } });
             // send OTP email verification
             yield (0, utility_functions_2.sendOTPVerificationEmail)(email, result, user_id);
             return res.status(200).send({
@@ -124,20 +121,11 @@ const signUp = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
                 },
             });
         }
-        if (!otp) {
-            // throw new Error('Please provide otp first');
-            return res
-                .status(200)
-                .send({ status: "0", message: "Please provide otp first" });
-        }
         var user_id;
-        if (otp_verify == "Yes") {
-            user_id = req.body.user_id;
+        user_id = req.body.user_id;
+        if (!user_id) {
+            return res.status(500).send({ status: "0", message: "internal server error" });
         }
-        else {
-            user_id = "";
-        }
-        // verify otp
         const verifyOTP = yield (0, utility_functions_2.verifyOtp)(user_id, otp);
         // if not verified
         if (!(verifyOTP === null || verifyOTP === void 0 ? void 0 : verifyOTP.verified)) {
@@ -190,24 +178,22 @@ const signUp = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
 exports.signUp = signUp;
 /*----- LogIn -----*/
 const logIn = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
     try {
-        const { email, password, otp_verify, otp, authenticator_code, fcm_token, source, device_type, ip_address, device_info, } = req.body;
-        if (!email || !password || !otp_verify || !device_info || !device_type || !ip_address) {
-            // throw new Error('Please provide all field');
+        const { email, password, otp, authenticator_code, fcm_token, source, device_type, device_info, } = req.body;
+        if (!email || !password || !device_info || !device_type) {
             return res
                 .status(200)
                 .send({ status: "0", message: "Please provide all field" });
         }
         // Check Email
         if (!/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/.test(email)) {
-            // throw new Error('Please provide valid email address');
             return res
                 .status(200)
                 .send({ status: "0", message: "Please provide valid email address" });
         }
         // check password
         if (password.length < 6) {
-            // throw new Error('Password is too short!')
             return res
                 .status(200)
                 .send({ status: "0", message: "Password is too short!" });
@@ -224,15 +210,21 @@ const logIn = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
                 secret_key: true,
                 login_count: true,
                 lockout_time: true,
-                otp_count: true
+                otp_count: true,
+                status: true,
             },
         });
         // user not present
         if (!user) {
-            // throw new Error('User not found');
             return res
                 .status(200)
                 .send({ status: "0", message: "Invalid email address." });
+        }
+        if ((user === null || user === void 0 ? void 0 : user.status) == false) {
+            return res.status(200).send({
+                status: "0",
+                message: "Login Disable.",
+            });
         }
         var login_count = user === null || user === void 0 ? void 0 : user.login_count;
         var otp_count = user === null || user === void 0 ? void 0 : user.otp_count;
@@ -290,17 +282,17 @@ const logIn = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
                     .send({ status: "0", message: "Please provide correct password" });
             }
         }
+        const ip_address = req.headers["x-real-ip"] || req.headers["x-forwarded-for"].split(",")[0];
         // get client information
-        const result = yield (0, utility_functions_2.getClientInfo)(req);
+        const result = yield (0, utility_functions_2.getClientInfo)(ip_address, device_type, device_info);
         // check verified
-        if (otp_verify === "No") {
-            yield prisma_client_1.prisma.otp.deleteMany({ where: { user_id: user.user_id } });
-            // send OTP email verification
+        if (!otp) {
             yield (0, utility_functions_2.sendOTPVerificationEmail)(email, result, user.user_id);
             return res.status(200).send({
                 status: "1",
                 message: "OTP has been sent to your email.",
                 showAuth: user.isAuth === "Active" ? true : false,
+                login: 'no'
             });
         }
         if (user.isAuth === "Active") {
@@ -323,12 +315,6 @@ const logIn = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
                     message: "Please provide correct authenticator code",
                 });
             }
-        }
-        if (!otp) {
-            // throw new Error('Please provide otp');
-            return res
-                .status(200)
-                .send({ status: "0", message: "Please provide otp" });
         }
         // verify otp
         const verifyOTP = yield (0, utility_functions_2.verifyOtp)(user.user_id, otp);
@@ -366,9 +352,6 @@ const logIn = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
             }
             return res.status(200).send({ status: "0", message: verifyOTP === null || verifyOTP === void 0 ? void 0 : verifyOTP.msg });
         }
-        // if(!fcm_token){
-        //   throw new Error('FCM token is null');
-        // }
         if (source.toUpperCase() === "APP") {
             yield prisma_client_1.prisma.$queryRaw `
       UPDATE user SET fcm_token = ${fcm_token}
@@ -387,14 +370,13 @@ const logIn = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     lockout_time = NULL
     WHERE user_id=${user.user_id};
   `;
-        const location = yield (0, activity_log_2.getIplocation)(ip_address);
         yield (0, activity_log_1.createActivityLog)({
             user_id: user.user_id,
             ip_address: ip_address !== null && ip_address !== void 0 ? ip_address : "",
             activity_type: "Login",
             device_type: device_type !== null && device_type !== void 0 ? device_type : "",
             device_info: device_info !== null && device_info !== void 0 ? device_info : "",
-            location: location
+            location: (_a = result === null || result === void 0 ? void 0 : result.location) !== null && _a !== void 0 ? _a : "",
         });
         res.status(200).send({
             status: "1",
@@ -890,9 +872,10 @@ const changePassword = (req, res) => __awaiter(void 0, void 0, void 0, function*
 exports.changePassword = changePassword;
 /*----- Forgot password -----*/
 const forgotPass = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _b;
     try {
-        const { email, otp, ip_address, device_type, device_info } = req.body;
-        if (!email || !otp || !ip_address || !device_type || !device_info) {
+        const { email, device_type, device_info } = req.body;
+        if (!email || !device_type || !device_info) {
             // throw new Error('Please provide all field');
             return res.status(400).send({
                 status: "3",
@@ -918,22 +901,15 @@ const forgotPass = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
         // user not present
         if (!user) {
             // throw new Error('User not found');
-            return res.status(400).send({
-                status: "3",
+            return res.status(200).send({
+                status: "0",
                 message: "User not found",
             });
         }
-        // verify otp
-        const verifyOTP = yield (0, utility_functions_2.verifyOtp)(user.user_id, otp);
-        // if not verified
-        if (!(verifyOTP === null || verifyOTP === void 0 ? void 0 : verifyOTP.verified)) {
-            // throw new Error(verifyOTP?.msg);
-            return res.status(200).send({
-                status: "0",
-                message: verifyOTP === null || verifyOTP === void 0 ? void 0 : verifyOTP.msg,
-            });
-        }
-        const location = yield (0, activity_log_2.getIplocation)(ip_address);
+        const ip_address = req.headers['x-real-ip'] || req.headers['x-forwarded-for'];
+        const clientInfo = yield (0, utility_functions_2.getClientInfo)(ip_address, device_type, device_info);
+        // sending mail
+        yield (0, utility_functions_2.sendOTPVerificationEmail)(user.email, clientInfo, user.user_id);
         // activity logs
         yield prisma_client_1.prisma.activity_logs.create({
             data: {
@@ -942,30 +918,13 @@ const forgotPass = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
                 activity_type: "Forgot Password",
                 device_type: device_type !== null && device_type !== void 0 ? device_type : "",
                 device_info: device_info !== null && device_info !== void 0 ? device_info : "",
-                location: location
-            },
+                location: (_b = clientInfo === null || clientInfo === void 0 ? void 0 : clientInfo.location) !== null && _b !== void 0 ? _b : ""
+            }
         });
-        if (verifyOTP === null || verifyOTP === void 0 ? void 0 : verifyOTP.verified) {
-            return res.status(200).json({
-                status: "1",
-                message: "Otp Verified Successfully",
-            });
-        }
-        return res.status(400).json({
-            status: "0",
-            message: "Something went wrong",
+        return res.status(200).json({
+            status: "1",
+            message: "otp sent successfully",
         });
-        // // Password hashed
-        // const hash = await bcrypt.hash(randomGenPass, config.saltworkFactor);
-        // // Update user password
-        // const result = await prisma.user.update({
-        //   where: { email: user.email },
-        //   data: { password: hash },
-        // });
-        // get client information
-        // const client_info: IClientInfo | undefined = await getClientInfo(req);
-        // send user a mail
-        // await sendEmail(user.email, randomGenPass, "", client_info);
     }
     catch (err) {
         console.log(err);
@@ -973,6 +932,85 @@ const forgotPass = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
     }
 });
 exports.forgotPass = forgotPass;
+const VerifyForgetPassword = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { new_password, confirm_new_password, otp, email, device_type, device_info } = req.body;
+        if (!new_password || !confirm_new_password || !otp || !email || !device_type || !device_info) {
+            return res.status(200).send({
+                status: "0",
+                message: "Please provide all field",
+            });
+        }
+        // check password
+        if (new_password.length < 6) {
+            return res.status(200).send({
+                status: "0",
+                message: "Old Password is too short! password must be of 6 length",
+            });
+        }
+        if (otp.length !== 6) {
+            return res.status(200).send({
+                status: "0",
+                message: "OTP is too short! OTP must be 6 char long",
+            });
+        }
+        if (new_password !== confirm_new_password) {
+            return res.status(200).send({
+                status: "0",
+                message: "New Password and Confirm New Password are not same"
+            });
+        }
+        // check user
+        const user = yield prisma_client_1.prisma.user.findFirst({
+            where: { email: email }
+        });
+        // user not present
+        if (!user) {
+            // throw new Error('User not found');
+            return res.status(400).send({
+                status: "3",
+                message: "User not found",
+            });
+        }
+        const otpVerified = yield (0, utility_functions_2.verifyOtp)(user.user_id, otp);
+        if (!(otpVerified === null || otpVerified === void 0 ? void 0 : otpVerified.verified)) {
+            return res.status(200).send({
+                status: "0",
+                message: otpVerified === null || otpVerified === void 0 ? void 0 : otpVerified.msg,
+            });
+        }
+        if (otpVerified === null || otpVerified === void 0 ? void 0 : otpVerified.verified) {
+            // Password hashed
+            const hash = yield bcrypt.hash(new_password, defaults_1.default.saltworkFactor);
+            yield prisma_client_1.prisma.user.updateMany({
+                where: { user_id: user.user_id },
+                data: { password: hash, token: null },
+            });
+            const ip_address = req.headers['x-real-ip'] || req.headers['x-forwarded-for'];
+            const location = yield (0, activity_log_2.getIplocation)(ip_address);
+            // activity log
+            yield prisma_client_1.prisma.activity_logs.create({
+                data: {
+                    user_id: user.user_id,
+                    ip_address: ip_address,
+                    activity_type: "Change Password",
+                    device_type: device_type,
+                    device_info: device_info,
+                    location: location
+                },
+            });
+            res.status(200).json({
+                status: "1",
+                message: "password changed successfully",
+            });
+        }
+    }
+    catch (err) {
+        console.log(err);
+        res.status(500).json({ status: "0", message: err.message });
+    }
+});
+exports.VerifyForgetPassword = VerifyForgetPassword;
 /*----- Get Country List  -----*/
 const getAllCountries = (_req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {

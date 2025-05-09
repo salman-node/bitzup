@@ -13,7 +13,8 @@ import {
   forgotPass,
   getAllCountries,
   getuserProfile,
-  getUserActivity
+  getUserActivity,
+  VerifyForgetPassword
 } from '../controller/user.controller';
 import { verifyUser } from '../middleware/authentication';
 import { sendEmailOtp, sendOTP } from '../controller/otp.controller';
@@ -30,6 +31,7 @@ router.route('/delete-2fa').post([verifyUser], delete2FaAuth);                  
 router.route('/generate-2fa-key').post([verifyUser], generate2FaKey);           // add to doc
 router.route('/change-password').post([verifyUser],changePassword);             // add to doc
 router.post('/forgot-password', forgotPass);
+router.post('/forget-password/verfiy', VerifyForgetPassword);
 router.get('/get-all-countries', getAllCountries);
 router.route('/send-otp').post(sendOTP);
 router.route('/send-email-otp').post([verifyUser],sendEmailOtp);

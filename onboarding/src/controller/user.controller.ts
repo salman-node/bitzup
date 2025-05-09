@@ -33,10 +33,8 @@ export const signUp = async (req: Request, res: Response) => {
       phone,
       country_code,
       password,
-      otp_verify, // if no send otp , if yes already verified
       otp,
       device_type,
-      ip_address,
       device_info
     }: IUser = req.body;
 
@@ -46,17 +44,14 @@ export const signUp = async (req: Request, res: Response) => {
       !phone ||
       !country_code ||
       !password ||
-      !otp_verify ||
       !device_type ||
-      !ip_address ||
       !device_info
-    ) {
+    ){
       // throw new Error('Please provide all field');
       return res
         .status(400)
         .send({ status: "3", message: "Please provide all field" });
     }
-
 
     // Check country
     const country = await prisma.countries.findFirst({
@@ -103,12 +98,13 @@ export const signUp = async (req: Request, res: Response) => {
         .send({ status: "0", message: "User already exist" });
     }
 
-    // get client information
-    const result: IClientInfo | undefined = await getClientInfo(req);
+    const ip_address = req.headers['x-real-ip'] as string || (req.headers['x-forwarded-for'] as string).split(',')[0];
 
-    if (otp_verify === "No") {
+    // get client information
+    const result: IClientInfo | undefined = await getClientInfo(ip_address, device_type, device_info);
+
+    if (!otp) {
       const user_id = await generateUniqueId("U", 12);
-      await prisma.otp.deleteMany({ where: { user_id: user_id } });
       // send OTP email verification
       await sendOTPVerificationEmail(email, result, user_id);
       return res.status(200).send({
@@ -120,21 +116,13 @@ export const signUp = async (req: Request, res: Response) => {
       });
     }
 
-    if (!otp) {
-      // throw new Error('Please provide otp first');
-      return res
-        .status(200)
-        .send({ status: "0", message: "Please provide otp first" });
-    }
-
     var user_id: string;
 
-    if (otp_verify == "Yes") {
-      user_id = req.body.user_id;
-    } else {
-      user_id = "";
+    user_id = req.body.user_id;
+
+    if(!user_id){
+      return res.status(500).send({ status: "0", message: "internal server error" });
     }
-    // verify otp
 
     const verifyOTP = await verifyOtp(user_id, otp);
 
@@ -196,20 +184,15 @@ export const logIn = async (req: Request, res: Response) => {
     const {
       email,
       password,
-      otp_verify,
       otp,
       authenticator_code,
       fcm_token,
       source,
-      ip_address,
       device_type,
       device_info,
     }: IUser = req.body;
 
-    // const ip_address = req.headers[]
-
-    if (!email || !password || !otp_verify || !device_info || !device_type || !ip_address) {
-      // throw new Error('Please provide all field');
+    if (!email || !password || !device_info || !device_type) {
       return res
         .status(200)
         .send({ status: "0", message: "Please provide all field" });
@@ -217,7 +200,6 @@ export const logIn = async (req: Request, res: Response) => {
 
     // Check Email
     if (!/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/.test(email)) {
-      // throw new Error('Please provide valid email address');
       return res
         .status(200)
         .send({ status: "0", message: "Please provide valid email address" });
@@ -225,7 +207,6 @@ export const logIn = async (req: Request, res: Response) => {
 
     // check password
     if (password.length < 6) {
-      // throw new Error('Password is too short!')
       return res
         .status(200)
         .send({ status: "0", message: "Password is too short!" });
@@ -243,16 +224,22 @@ export const logIn = async (req: Request, res: Response) => {
         secret_key: true,
         login_count: true,
         lockout_time: true,
-        otp_count: true
+        otp_count: true,
+        status: true,
       },
     });
 
     // user not present
     if (!user) {
-      // throw new Error('User not found');
       return res
         .status(200)
         .send({ status: "0", message: "Invalid email address." });
+    }
+    if(user?.status == false) {
+      return res.status(200).send({
+        status: "0",
+        message: "Login Disable.",
+      });
     }
     var login_count = user?.login_count
     var otp_count = user?.otp_count
@@ -311,19 +298,21 @@ export const logIn = async (req: Request, res: Response) => {
           .send({ status: "0", message: "Please provide correct password" });
       }
     }
+    
+    const ip_address = req.headers["x-real-ip"] as string || (req.headers["x-forwarded-for"] as string).split(",")[0];
     // get client information
-    const result: IClientInfo | undefined = await getClientInfo(req);
+    const result: IClientInfo | undefined = await getClientInfo(ip_address,device_type,device_info);
 
     // check verified
-    if (otp_verify === "No") {
-      await prisma.otp.deleteMany({ where: { user_id: user.user_id } });
-      // send OTP email verification
+    if (!otp) {
       await sendOTPVerificationEmail(email, result, user.user_id);
+
       return res.status(200).send({
         status: "1",
         message:
           "OTP has been sent to your email.",
         showAuth: user.isAuth === "Active" ? true : false,
+        login:'no'
       });
     }
 
@@ -349,13 +338,6 @@ export const logIn = async (req: Request, res: Response) => {
           message: "Please provide correct authenticator code",
         });
       }
-    }
-
-    if (!otp) {
-      // throw new Error('Please provide otp');
-      return res
-        .status(200)
-        .send({ status: "0", message: "Please provide otp" });
     }
 
     // verify otp
@@ -394,9 +376,7 @@ export const logIn = async (req: Request, res: Response) => {
       }
       return res.status(200).send({ status: "0", message: verifyOTP?.msg });
     }
-    // if(!fcm_token){
-    //   throw new Error('FCM token is null');
-    // }
+
 
     if (source.toUpperCase() === "APP") {
       await prisma.$queryRaw`
@@ -417,9 +397,7 @@ export const logIn = async (req: Request, res: Response) => {
     otp_count = 0,
     lockout_time = NULL
     WHERE user_id=${user.user_id};
-  `;
-
-    const location:string = await getIplocation(ip_address);
+  `;  
 
     await createActivityLog({
       user_id: user.user_id,
@@ -427,7 +405,7 @@ export const logIn = async (req: Request, res: Response) => {
       activity_type: "Login",
       device_type: device_type ?? "",
       device_info: device_info ?? "",
-      location: location
+      location: result?.location ?? "",
     });
 
     res.status(200).send({
@@ -973,9 +951,9 @@ export const changePassword = async (req: Request, res: Response) => {
 /*----- Forgot password -----*/
 export const forgotPass = async (req: Request, res: Response) => {
   try {
-    const { email, otp, ip_address, device_type, device_info }: IUser = req.body;
+    const { email, device_type, device_info }: IUser = req.body;
 
-    if (!email || !otp || !ip_address || !device_type || !device_info) {
+    if (!email || !device_type || !device_info) {
       // throw new Error('Please provide all field');
       return res.status(400).send({
         status: "3",
@@ -1004,25 +982,19 @@ export const forgotPass = async (req: Request, res: Response) => {
     // user not present
     if (!user) {
       // throw new Error('User not found');
-      return res.status(400).send({
-        status: "3",
+      return res.status(200).send({
+        status: "0",
         message: "User not found",
       });
     }
 
-    // verify otp
-    const verifyOTP = await verifyOtp(user.user_id, otp);
+    const ip_address =  req.headers['x-real-ip'] as string || req.headers['x-forwarded-for'] as string;
 
-    // if not verified
-    if (!verifyOTP?.verified) {
-      // throw new Error(verifyOTP?.msg);
-      return res.status(200).send({
-        status: "0",
-        message: verifyOTP?.msg,
-      });
-    }
+    const clientInfo = await getClientInfo(ip_address, device_type, device_info);
+    // sending mail
 
-    const location:string = await getIplocation(ip_address);  
+    await sendOTPVerificationEmail(user.email, clientInfo, user.user_id);
+  
     // activity logs
     await prisma.activity_logs.create({
       data: {
@@ -1031,41 +1003,111 @@ export const forgotPass = async (req: Request, res: Response) => {
         activity_type: "Forgot Password",
         device_type: device_type ?? "",
         device_info: device_info ?? "",
-        location: location
-      },
+        location: clientInfo?.location ?? ""
+      }
+    });
+
+    return res.status(200).json({
+      status: "1",
+      message: "otp sent successfully",
     })
-    if (verifyOTP?.verified) {
-      return res.status(200).json({
-        status: "1",
-        message: "Otp Verified Successfully",
-      });
-    }
-
-    return res.status(400).json({
-      status: "0",
-      message: "Something went wrong",
-    })
-
-    // // Password hashed
-    // const hash = await bcrypt.hash(randomGenPass, config.saltworkFactor);
-
-    // // Update user password
-    // const result = await prisma.user.update({
-    //   where: { email: user.email },
-    //   data: { password: hash },
-    // });
-
-    // get client information
-    // const client_info: IClientInfo | undefined = await getClientInfo(req);
-
-    // send user a mail
-    // await sendEmail(user.email, randomGenPass, "", client_info);
 
   } catch (err) {
     console.log(err);
     res.status(500).json({ status: "0", message: (err as Error).message });
   }
 };
+
+export const VerifyForgetPassword = async (req: Request, res: Response) => {
+  try {
+    const { new_password, confirm_new_password, otp, email, device_type, device_info } = req.body;
+    if (!new_password || !confirm_new_password || !otp || !email  || !device_type || !device_info) {
+      return res.status(200).send({
+        status: "0",
+        message: "Please provide all field",
+      });
+    }
+    // check password
+    if (new_password.length < 6) {
+      return res.status(200).send({
+        status: "0",
+        message: "Old Password is too short! password must be of 6 length",
+      });
+    }
+    if (otp.length !== 6) {
+      return res.status(200).send({
+        status: "0",
+        message: "OTP is too short! OTP must be 6 char long",
+      });
+    }
+
+    if (new_password !== confirm_new_password) {
+      return res.status(200).send({
+        status: "0",
+        message: "New Password and Confirm New Password are not same"
+      });
+    }
+
+    // check user
+    const user = await prisma.user.findFirst({
+      where: { email: email }
+    });
+   
+
+    // user not present
+    if (!user) {
+      // throw new Error('User not found');
+      return res.status(400).send({
+        status: "3",
+        message: "User not found",
+      });
+    }
+
+    const otpVerified = await verifyOtp(user.user_id, otp);
+
+    if (!otpVerified?.verified) {
+      return res.status(200).send({
+        status: "0",
+        message: otpVerified?.msg,
+      });
+    }
+    if (otpVerified?.verified) {
+      // Password hashed
+      const hash = await bcrypt.hash(new_password, config.saltworkFactor);
+
+      await prisma.user.updateMany({
+        where: { user_id: user.user_id },
+        data: { password: hash, token: null },
+      });
+
+      const ip_address =  req.headers['x-real-ip'] as string || req.headers['x-forwarded-for'] as string;
+      const location:string = await getIplocation(ip_address);
+      // activity log
+      await prisma.activity_logs.create({
+        data: {
+          user_id: user.user_id,
+          ip_address: ip_address,
+          activity_type: "Change Password",
+          device_type: device_type,
+          device_info: device_info,
+          location: location
+        },
+      });
+
+      res.status(200).json({
+        status: "1",
+        message: "password changed successfully",
+      });
+    }
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ status: "0", message: (err as Error).message });
+  }
+};
+
+
+
+
 
 /*----- Get Country List  -----*/
 export const getAllCountries = async (_req: Request, res: Response) => {

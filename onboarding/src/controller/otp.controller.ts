@@ -8,16 +8,15 @@ import { getIplocation } from '../utility/activity.log';
 /*----- send OTP handler -----*/
 export const sendOTP = async (req: Request, res: Response) => {
   try {
-    const { email, subject,ip_address,device_type,device_info }: 
+    const { email, subject,device_type,device_info }: 
     { 
        email: string;
        subject: string;
-       ip_address:string;
        device_type:string;
        device_info:string
     } = req.body;
 
-    if (!email || !subject || !ip_address || !device_type || !device_info) {
+    if (!email || !subject  || !device_type || !device_info) {
       // throw new Error('Please provide all field');
       return res.status(400).send({
           status:'3',
@@ -49,14 +48,15 @@ export const sendOTP = async (req: Request, res: Response) => {
       })
     }
 
-    // get client information
-    const result: IClientInfo | undefined = await getClientInfo(req);
+    const ip_address = req.headers['x-real-ip'] as string;
 
+    // get client information
+    const result: IClientInfo | undefined = await getClientInfo(ip_address,device_type,device_info);
     // send OTP email
     await prisma.otp.deleteMany({ where: { user_id: exist.user_id } });
     await sendGeneralOTP(email, subject, result,exist.user_id);
     
-    const location: string = await getIplocation(ip_address);
+
     await prisma.activity_logs.create({
       data: {
         user_id: exist.user_id,
@@ -64,7 +64,7 @@ export const sendOTP = async (req: Request, res: Response) => {
         device_type,
         device_info,
         activity_type: 'Send OTP',
-        location: location,
+        location: result?.location ?? '',
       },
     });
 
@@ -80,9 +80,9 @@ export const sendOTP = async (req: Request, res: Response) => {
 
 export const sendEmailOtp = async (req: Request, res: Response) => {
   try {
-    const { user_id, subject, ip_address, device_type, device_info }: { user_id: string; subject: string; ip_address:string; device_type:string; device_info:string } = req.body;
+    const { user_id, subject, device_type, device_info }: { user_id: string; subject: string; device_type:string; device_info:string } = req.body;
 
-    if (!user_id || !subject || !ip_address || !device_type || !device_info) {
+    if (!user_id || !subject  || !device_type || !device_info) {
       // throw new Error('Please provide all field');
       return res.status(400).send({
           status:'3',
@@ -106,8 +106,10 @@ export const sendEmailOtp = async (req: Request, res: Response) => {
       })
     }
 
+    const ip_address = req.headers['x-real-ip'] as string;
+
     // get client information
-    const result: IClientInfo | undefined = await getClientInfo(req);
+    const result: IClientInfo | undefined = await getClientInfo(ip_address,device_type,device_info);
 
     // send OTP email
     await prisma.otp.deleteMany({ where: { user_id: user_id } });

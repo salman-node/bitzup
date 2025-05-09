@@ -262,6 +262,7 @@ dotenv.config();
 // </body>
 // </html>`;
 const otpTemplate = (otp, client_info) => {
+    console.log(client_info);
     const otpTemplate = `<html lang='en'>
   <head>
     <meta charset='UTF-8' />
@@ -337,9 +338,8 @@ const otpTemplate = (otp, client_info) => {
             margin-bottom: 30px;
           '
         >
-          <img src='${process.env.ICON_URL}/images/lock.png alt='lock'' width='40' />
           Recent OTP Alert Details
-          <img src='${process.env.ICON_URL}/images/lock.png' width='40' />
+          <img src='${process.env.ICON_URL}/images/lock.png' width='20' height='20' />
         </p>
         <div
           style='
@@ -362,7 +362,7 @@ const otpTemplate = (otp, client_info) => {
             '
           >
             IP Address:
-            <b> [${client_info === null || client_info === void 0 ? void 0 : client_info.ip}]</b>
+            <b> ${client_info === null || client_info === void 0 ? void 0 : client_info.ip}</b>
           </p>
           <p
             style='
@@ -377,7 +377,7 @@ const otpTemplate = (otp, client_info) => {
             '
           >
             Location:
-            <b> [${client_info === null || client_info === void 0 ? void 0 : client_info.city}, ${client_info === null || client_info === void 0 ? void 0 : client_info.region}, ${client_info === null || client_info === void 0 ? void 0 : client_info.country_name}]</b>
+            <b> ${client_info === null || client_info === void 0 ? void 0 : client_info.location}</b>
           </p>
           <p
             style='
@@ -392,7 +392,7 @@ const otpTemplate = (otp, client_info) => {
             '
           >
             Device:
-            <b> [${client_info === null || client_info === void 0 ? void 0 : client_info.client_name}, ${client_info === null || client_info === void 0 ? void 0 : client_info.os_name}, ${client_info === null || client_info === void 0 ? void 0 : client_info.device_type}]</b>
+            <b> ${client_info === null || client_info === void 0 ? void 0 : client_info.device_type}, ${JSON.parse(client_info === null || client_info === void 0 ? void 0 : client_info.device_info).device_model}</b>
           </p>
         </div>
         <p

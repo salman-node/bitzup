@@ -22,8 +22,8 @@ router.route('/delete-2fa').post([authentication_1.verifyUser], user_controller_
 router.route('/generate-2fa-key').post([authentication_1.verifyUser], user_controller_1.generate2FaKey); // add to doc
 router.route('/change-password').post([authentication_1.verifyUser], user_controller_1.changePassword); // add to doc
 router.post('/forgot-password', user_controller_1.forgotPass);
+router.post('/forget-password/verfiy', user_controller_1.VerifyForgetPassword);
 router.get('/get-all-countries', user_controller_1.getAllCountries);
 router.route('/send-otp').post(otp_controller_1.sendOTP);
 router.route('/send-email-otp').post([authentication_1.verifyUser], otp_controller_1.sendEmailOtp);
-router.route('/verify-otp').post([authentication_1.verifyUser], otp_controller_1.verifyOTP);
 //# sourceMappingURL=onboarding.routes.js.map

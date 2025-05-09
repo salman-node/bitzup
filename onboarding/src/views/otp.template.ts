@@ -263,7 +263,7 @@ dotenv.config();
 // </html>`;
 
 export const otpTemplate=(otp:any,client_info:any)=>{
-
+   console.log(client_info)
   const otpTemplate= `<html lang='en'>
   <head>
     <meta charset='UTF-8' />
@@ -339,9 +339,8 @@ export const otpTemplate=(otp:any,client_info:any)=>{
             margin-bottom: 30px;
           '
         >
-          <img src='${process.env.ICON_URL}/images/lock.png alt='lock'' width='40' />
           Recent OTP Alert Details
-          <img src='${process.env.ICON_URL}/images/lock.png' width='40' />
+          <img src='${process.env.ICON_URL}/images/lock.png' width='20' height='20' />
         </p>
         <div
           style='
@@ -364,7 +363,7 @@ export const otpTemplate=(otp:any,client_info:any)=>{
             '
           >
             IP Address:
-            <b> [${client_info?.ip}]</b>
+            <b> ${client_info?.ip}</b>
           </p>
           <p
             style='
@@ -379,7 +378,7 @@ export const otpTemplate=(otp:any,client_info:any)=>{
             '
           >
             Location:
-            <b> [${client_info?.city}, ${client_info?.region}, ${client_info?.country_name}]</b>
+            <b> ${client_info?.location}</b>
           </p>
           <p
             style='
@@ -394,7 +393,7 @@ export const otpTemplate=(otp:any,client_info:any)=>{
             '
           >
             Device:
-            <b> [${client_info?.client_name}, ${client_info?.os_name}, ${client_info?.device_type}]</b>
+            <b> ${client_info?.device_type}, ${JSON.parse(client_info?.device_info).device_model}</b>
           </p>
         </div>
         <p

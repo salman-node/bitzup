@@ -43,18 +43,10 @@ const defaults_1 = __importDefault(require("../config/defaults"));
 const prisma_client_1 = require("../config/prisma.client");
 const mail_function_1 = __importStar(require("./mail.function"));
 const admin = __importStar(require("firebase-admin"));
+const activity_log_1 = require("./activity.log");
 const dotenv = require('dotenv');
-;
-const node_device_detector_1 = __importDefault(require("node-device-detector"));
-const geoip = __importStar(require("geoip-lite"));
 const uuid_1 = require("uuid");
 dotenv.config();
-// created new detector object
-const detector = new node_device_detector_1.default({
-    clientIndexes: true,
-    deviceIndexes: true,
-    deviceAliasCode: false,
-});
 /*----- Generate token -----*/
 const getToken = (user_id) => __awaiter(void 0, void 0, void 0, function* () {
     if (!defaults_1.default.jwtsecret) {
@@ -157,6 +149,7 @@ const sendGeneralOTP = (email, subject, client_info, user_id) => __awaiter(void 
                 expiresAt: `${Date.now() + 300000}`,
             },
         });
+        console.log('in send general otp', client_info);
         // sending OTP mail
         yield (0, mail_function_1.sendOTPEmail)(email, subject, randomOTP, client_info);
     }
@@ -181,7 +174,7 @@ const sendOTPVerificationEmail = (email, client_info, user_id) => __awaiter(void
             },
         });
         // sending mail
-        yield (0, mail_function_1.default)(email, '', randomOTP, client_info);
+        yield (0, mail_function_1.default)(email, randomOTP, client_info);
     }
     catch (err) {
         console.log(err.message);
@@ -237,26 +230,15 @@ const verifyOtp = (user_id, otp) => __awaiter(void 0, void 0, void 0, function* 
 });
 exports.verifyOtp = verifyOtp;
 /*------ Get Client Information ------*/
-const getClientInfo = (req) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b;
+const getClientInfo = (ip, device_type, device_info) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        // const ip = req.ip.split(':');
-        const ip = '237.84.2.178';
-        const ipv4 = ip[ip.length - 1];
-        const userAgent = req.get('user-agent');
-        // destructure information from user-agent
-        const result = detector.detect(userAgent);
-        const location = geoip.lookup(ipv4);
+        const location = yield (0, activity_log_1.getIplocation)(ip);
         // client object
         const client_obj = {
-            ip: ipv4,
-            city: location === null || location === void 0 ? void 0 : location.city,
-            region: location === null || location === void 0 ? void 0 : location.region,
-            country_name: location === null || location === void 0 ? void 0 : location.country,
-            os_name: result === null || result === void 0 ? void 0 : result.os.name,
-            client_name: (_a = result === null || result === void 0 ? void 0 : result.client) === null || _a === void 0 ? void 0 : _a.name,
-            client_type: (_b = result === null || result === void 0 ? void 0 : result.client) === null || _b === void 0 ? void 0 : _b.type,
-            device_type: result === null || result === void 0 ? void 0 : result.device.type,
+            ip: ip,
+            location: location,
+            device_type: device_type,
+            device_info: device_info,
         };
         return client_obj;
     }

@@ -1,5 +1,5 @@
+"use strict";
 // import { createClient } from 'redis';
-
 // export const redisClient = createClient({
 //     username: process.env.REDIS_USER,
 //     password: process.env.REDIS_AUTH,
@@ -8,7 +8,6 @@
 //         port: process.env.REDIS_PORT
 //     }
 //   });
-  
 // export const connectRedis = async () => {
 //     try {
 //         await redisClient.connect();
@@ -28,4 +27,4 @@
 // export const getRedisClient = () => {
 //     return redisClient;
 // }
-
+//# sourceMappingURL=redisConnection.js.map

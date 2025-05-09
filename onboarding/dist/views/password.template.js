@@ -81,9 +81,8 @@ const passwordTemplate = (to_email, password, client_info) => {
           margin-bottom: 30px;
         '
       >
-        <img src='${process.env.ICON_URL}/images/lock.png' width='40' />
         Recent Activity Alert Details
-        <img src='${process.env.ICON_URL}/images/lock.png' width='40' />
+        <img src='${process.env.ICON_URL}/images/lock.png' width='20' height='20' />
       </p>
       <div
         style='
@@ -106,7 +105,7 @@ const passwordTemplate = (to_email, password, client_info) => {
           '
         >
           IP Address:
-          <b> [${client_info.ip}]</b>
+          <b> ${client_info.ip}</b>
         </p>
         <p
           style='
@@ -121,7 +120,7 @@ const passwordTemplate = (to_email, password, client_info) => {
           '
         >
           Location:
-          <b> [${client_info.city},${client_info.region},${client_info.country_name}]</b>
+          <b> ${client_info.location}</b>
         </p>
         <p
           style='
@@ -136,7 +135,7 @@ const passwordTemplate = (to_email, password, client_info) => {
           '
         >
           Device:
-          <b> [${client_info.client_name},${client_info.os_name},${client_info.device_type}]</b>
+          <b> ${client_info.device_type}, ${JSON.parse(client_info === null || client_info === void 0 ? void 0 : client_info.device_info).device_model}</b>
         </p>
       </div>
       <p

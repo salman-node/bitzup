@@ -1,6 +1,5 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { Request } from 'express';
 import { randomBytes } from 'crypto';
 import config from '../config/defaults';
 import { prisma } from '../config/prisma.client';
@@ -8,19 +7,12 @@ import sendEmail, { sendOTPEmail } from './mail.function';
 import { IClientInfo } from '../types/models.types';
 import { JwtPayload } from 'jsonwebtoken';
 import * as admin from 'firebase-admin';
-const dotenv = require('dotenv');;
-import DeviceDetector, { DetectResult } from 'node-device-detector';
-import * as geoip from 'geoip-lite';
+import { getIplocation } from './activity.log';
+const dotenv = require('dotenv');
 import  { v4 as uuidv4 } from 'uuid';
 
 dotenv.config();
 
-// created new detector object
-const detector = new DeviceDetector({
-  clientIndexes: true,
-  deviceIndexes: true,
-  deviceAliasCode: false,
-});
 
 /*----- Generate token -----*/
 export const getToken = async (user_id: string) => {
@@ -135,6 +127,8 @@ export const sendGeneralOTP = async (
       },
     });
 
+ 
+console.log('in send general otp', client_info);
     // sending OTP mail
     await sendOTPEmail(email, subject, randomOTP, client_info);
   } catch (err) {
@@ -164,7 +158,7 @@ export const sendOTPVerificationEmail = async (
     });
 
     // sending mail
-    await sendEmail(email, '', randomOTP, client_info);
+    await sendEmail(email, randomOTP, client_info);
   } catch (err) {
     console.log((err as Error).message);
   }
@@ -178,7 +172,7 @@ export const verifyOtp = async (user_id: string, otp: string) => {
       where: { user_id: user_id },
     })
 
-    if (!userOtpRecord) {
+    if (!userOtpRecord){
       return {
         verified: false,
         msg: `Invalid OTP.`,
@@ -219,28 +213,21 @@ export const verifyOtp = async (user_id: string, otp: string) => {
 };
 
 /*------ Get Client Information ------*/
-export const getClientInfo = async (req: Request) => {
+export const getClientInfo = async (
+  ip: string,
+  device_type: string,
+  device_info: string
+) => {
   try {
-    // const ip = req.ip.split(':');
-    const ip = '237.84.2.178';
-    const ipv4 = ip[ip.length - 1];
-    const userAgent = req.get('user-agent');
 
-    // destructure information from user-agent
-    const result: DetectResult = detector.detect(userAgent as string);
-
-    const location = geoip.lookup(ipv4);
+    const location = await getIplocation(ip);
 
     // client object
     const client_obj: IClientInfo = {
-      ip: ipv4,
-      city: location?.city,
-      region: location?.region,
-      country_name: location?.country,
-      os_name: result?.os.name,
-      client_name: result?.client?.name,
-      client_type: result?.client?.type,
-      device_type: result?.device.type,
+      ip: ip,
+      location: location,
+      device_type: device_type,
+      device_info: device_info,
     };
 
     return client_obj;

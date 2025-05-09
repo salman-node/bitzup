@@ -15,7 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.sendOTPEmail = void 0;
 const nodemailer_1 = __importDefault(require("nodemailer"));
 const otp_template_1 = require("../views/otp.template");
-const password_template_1 = require("../views/password.template");
+// import { passwordTemplate } from '../views/password.template';
 // Create a Nodemailer transporter object using SMTP
 const transporter = nodemailer_1.default.createTransport({
     host: "smtp.zeptomail.in",
@@ -26,14 +26,12 @@ const transporter = nodemailer_1.default.createTransport({
     }
 });
 /*----- Send Email with Nodemailer -----*/
-const sendEmail = (to, randomGenPass = '', otp, client_info) => __awaiter(void 0, void 0, void 0, function* () {
+const sendEmail = (to, otp, client_info) => __awaiter(void 0, void 0, void 0, function* () {
     const mailOptions = {
         from: 'noreply@bitzup.com',
         to: to,
-        subject: randomGenPass
-            ? 'Password Successfully Updated'
-            : 'Verify Your Email',
-        html: randomGenPass ? (0, password_template_1.passwordTemplate)(to, randomGenPass, client_info) : (0, otp_template_1.otpTemplate)(otp, client_info),
+        subject: 'Verify Your Email',
+        html: (0, otp_template_1.otpTemplate)(otp, client_info),
     };
     try {
         const info = yield transporter.sendMail(mailOptions);
@@ -52,6 +50,7 @@ const sendOTPEmail = (to, subject, otp, client_info) => __awaiter(void 0, void 0
         subject: subject,
         html: (0, otp_template_1.otpTemplate)(otp, client_info)
     };
+    console.log('otp sent');
     try {
         const info = yield transporter.sendMail(mailOptions);
         // console.log(`Message sent: ${info.messageId}`);

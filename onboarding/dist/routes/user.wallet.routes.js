@@ -24,19 +24,19 @@ const userLastCall = {};
 //       }
 //   };
 // }
-router.route('/get-buy-sell-balance').post([authentication_1.verifyUser], user_wallet_controller_1.getBuySellBalance);
-router
-    .route('/get-all-currencies-balance')
-    .post([authentication_1.verifyUser], user_wallet_controller_1.getAllCurrenciesBalance);
-router.route('/get-avg-price-order').post([authentication_1.verifyUser], user_wallet_controller_1.getAvgPriceOrder);
+// router.route('/get-buy-sell-balance').post([verifyUser], getBuySellBalance);
+// router
+//   .route('/get-all-currencies-balance')
+//   .post([verifyUser], getAllCurrenciesBalance);
+// router.route('/get-avg-price-order').post([verifyUser], getAvgPriceOrder);
 router.route('/get-all-buy-sell-order').post([authentication_1.verifyUser], user_wallet_controller_1.getAllBuySellOrder); //web
-router.route('/get-wallet-funds').post([authentication_1.verifyUser], user_wallet_controller_1.getWalletFunds); //web
+// router.route('/get-wallet-funds').post([verifyUser], getWalletFunds); //web
 router.route('/get-symbol-funds').post([authentication_1.verifyUser], user_wallet_controller_1.getSymbolFunds);
-router.route('/get-trades').post([authentication_1.verifyUser], user_wallet_controller_1.getTrades); //web
-router.route('/get-trade-history').post([authentication_1.verifyUser], user_wallet_controller_1.getTradeHistory);
-router.route('/get-buy-sell-fees').post([authentication_1.verifyUser], user_wallet_controller_1.getBuySellFees);
-router
-    .route('/cancel-all-buy-sell-order');
+// router.route('/get-trades').post([verifyUser], getTrades); //web
+// router.route('/get-trade-history').post([verifyUser], getTradeHistory);
+// router.route('/get-buy-sell-fees').post([verifyUser], getBuySellFees);
+// router
+//   .route('/cancel-all-buy-sell-order')
 // router.route('/get-wallet-history').post([verifyUser], getwalletHistory);
 // Throttle middleware function
 function throttleMiddleware(req, res, next) {

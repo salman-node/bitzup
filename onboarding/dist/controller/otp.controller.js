@@ -16,9 +16,10 @@ const utility_functions_2 = require("../utility/utility.functions");
 const activity_log_1 = require("../utility/activity.log");
 /*----- send OTP handler -----*/
 const sendOTP = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
     try {
-        const { email, subject, ip_address, device_type, device_info } = req.body;
-        if (!email || !subject || !ip_address || !device_type || !device_info) {
+        const { email, subject, device_type, device_info } = req.body;
+        if (!email || !subject || !device_type || !device_info) {
             // throw new Error('Please provide all field');
             return res.status(400).send({
                 status: '3',
@@ -46,12 +47,12 @@ const sendOTP = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
                 message: "Invalid email address"
             });
         }
+        const ip_address = req.headers['x-real-ip'];
         // get client information
-        const result = yield (0, utility_functions_1.getClientInfo)(req);
+        const result = yield (0, utility_functions_1.getClientInfo)(ip_address, device_type, device_info);
         // send OTP email
         yield prisma_client_1.prisma.otp.deleteMany({ where: { user_id: exist.user_id } });
         yield (0, utility_functions_1.sendGeneralOTP)(email, subject, result, exist.user_id);
-        const location = yield (0, activity_log_1.getIplocation)(ip_address);
         yield prisma_client_1.prisma.activity_logs.create({
             data: {
                 user_id: exist.user_id,
@@ -59,7 +60,7 @@ const sendOTP = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
                 device_type,
                 device_info,
                 activity_type: 'Send OTP',
-                location: location,
+                location: (_a = result === null || result === void 0 ? void 0 : result.location) !== null && _a !== void 0 ? _a : '',
             },
         });
         return res.status(200).send({
@@ -75,8 +76,8 @@ const sendOTP = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
 exports.sendOTP = sendOTP;
 const sendEmailOtp = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const { user_id, subject, ip_address, device_type, device_info } = req.body;
-        if (!user_id || !subject || !ip_address || !device_type || !device_info) {
+        const { user_id, subject, device_type, device_info } = req.body;
+        if (!user_id || !subject || !device_type || !device_info) {
             // throw new Error('Please provide all field');
             return res.status(400).send({
                 status: '3',
@@ -98,8 +99,9 @@ const sendEmailOtp = (req, res) => __awaiter(void 0, void 0, void 0, function* (
                 message: 'Invalid email address',
             });
         }
+        const ip_address = req.headers['x-real-ip'];
         // get client information
-        const result = yield (0, utility_functions_1.getClientInfo)(req);
+        const result = yield (0, utility_functions_1.getClientInfo)(ip_address, device_type, device_info);
         // send OTP email
         yield prisma_client_1.prisma.otp.deleteMany({ where: { user_id: user_id } });
         yield (0, utility_functions_1.sendGeneralOTP)(userEmail.email, subject, result, user_id);
