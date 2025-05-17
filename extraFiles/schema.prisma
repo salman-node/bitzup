@@ -1,0 +1,519 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model countries {
+  id        Int    @id @default(autoincrement())
+  name      String
+  phonecode String
+}
+
+model currencies {
+  id              Int                     @id @default(autoincrement())
+  currency_id     String                  @unique(map: "currency_id_UNIQUE") @db.VarChar(20)
+  coin            String                  @db.VarChar(50)
+  decimal         Int                     @default(6)
+  coin_decimal    Int                     @default(0)
+  qty_decimal     Int                     @default(0)
+  price_decimal   Int                     @default(0)
+  symbol          String                  @db.VarChar(10)
+  icon            String                  @db.VarChar(15)
+  chart_id        String?                 @db.VarChar(50)
+  status          currencies_status
+  pro_api_id      Int                     @default(1)
+  trade_status    Int                     @default(1)
+  limit_order     Int                     @default(0)
+  pro_trade       Int                     @default(0)
+  usdtprice       Decimal                 @db.Decimal(30, 8)
+  change_in_price Float                   @db.Float
+  chain           String                  @default("") @db.VarChar(25)
+  column_name     String                  @default("") @db.VarChar(50)
+  table_column    String                  @default("") @db.VarChar(50)
+  coin_name       String                  @default("") @db.VarChar(50)
+  popular         Int                     @default(0)
+  hot             Int                     @default(0)
+  withdrawl_fees  Decimal                 @db.Decimal(30, 12)
+  withdraw        currencies_withdraw     @default(Inactive)
+  deposit         currencies_deposit      @default(Inactive)
+  ext_withdraw    currencies_ext_withdraw @default(Inactive)
+  bnbchain        String                  @default("") @db.VarChar(30)
+
+  @@index([symbol], map: "symbol")
+}
+
+model favoritecurrency {
+  id      Int    @id @default(autoincrement())
+  pair_id String @db.VarChar(30)
+  user_id String @db.VarChar(20)
+}
+
+model balances {
+  id              Int       @id @default(autoincrement())
+  user_id         String    @db.VarChar(20)
+  currency_id     String    @db.VarChar(20)
+  main_balance    Decimal   @default(0.000000000000000000) @db.Decimal(30, 18)
+  locked_balance  Decimal   @default(0.000000000000000000) @db.Decimal(30, 18)
+  current_balance Decimal   @default(0.000000000000000000) @db.Decimal(30, 18)
+  created_at      DateTime  @default(now()) @db.Timestamp(0)
+  updated_at      DateTime? @db.Timestamp(0)
+
+  @@unique([user_id, currency_id], map: "user_id")
+}
+
+model balances_inorder {
+  id       Int     @id @default(autoincrement())
+  user_id  Int
+  coin_id  Int
+  balances Decimal @db.Decimal(30, 8)
+
+  @@unique([user_id, coin_id], map: "user_id")
+}
+
+model chains {
+  id                Int                      @id @default(autoincrement())
+  chain_id          Int
+  chain_name        String                   @unique(map: "coin_id") @db.VarChar(50)
+  evm_compatible    Boolean
+  withdrawal_status chains_withdrawal_status
+  deposit_status    chains_deposit_status
+  status            chain_status             @default(Active)
+  min_with          Decimal                  @default(0.00000000) @db.Decimal(15, 8)
+  min_dep           Decimal                  @default(0.00000000) @db.Decimal(15, 8)
+  netw_fee          Decimal                  @default(0.00000000) @db.Decimal(15, 8)
+}
+
+model wallet_history {
+  id                Int              @id @default(autoincrement())
+  user_id           Int
+  coin_id           Int
+  type              transaction_type
+  opening_balance   Decimal          @db.Decimal(30, 8)
+  remaining_balance Decimal          @db.Decimal(30, 8)
+  balance           Decimal          @db.Decimal(30, 8)
+  remark            remark_type
+  order_id          String           @db.VarChar(20)
+  date_time         DateTime         @default(now()) @db.Timestamp(0)
+}
+
+model fees {
+  id        Int     @id @default(autoincrement())
+  buy_fees  Decimal @db.Decimal(30, 8)
+  sell_fees Decimal @db.Decimal(30, 8)
+  tds       Decimal @db.Decimal(30, 8)
+}
+
+model deposit_history {
+  id             Int                     @id @default(autoincrement())
+  date           DateTime                @db.DateTime(0)
+  user_id        String                  @db.VarChar(35)
+  coin_id        String                  @db.VarChar(35)
+  chain_id       Int
+  memo           String                  @db.VarChar(50)
+  address        String                  @db.VarChar(50)
+  amount         Decimal                 @db.Decimal(20, 8)
+  final_amount   Decimal                 @db.Decimal(30, 8)
+  transaction_id String                  @db.VarChar(100)
+  status         deposit_history_status? @default(PENDING)
+}
+
+model withdrawl_history {
+  id              Int                       @unique(map: "id") @default(autoincrement())
+  date            DateTime                  @db.DateTime(0)
+  user_id         String                    @db.VarChar(35)
+  coin_id         String                    @db.VarChar(35)
+  chain_id        Int
+  memo            String                    @db.VarChar(50)
+  address         String                    @db.VarChar(50)
+  destination_tag String                    @db.VarChar(50)
+  amount          Decimal                   @db.Decimal(20, 3)
+  fiat_amount     Decimal                   @db.Decimal(30, 8)
+  fees            Decimal                   @db.Decimal(30, 8)
+  final_amount    Decimal                   @db.Decimal(30, 8)
+  transaction_id  String                    @db.VarChar(100)
+  status          withdrawl_history_status? @default(PENDING)
+
+  @@unique([coin_id, chain_id, date, user_id], map: "coin_id")
+}
+
+model buy_sell_pro_limit_open {
+  id                      Int                 @id @default(autoincrement())
+  user_id                 String              @db.VarChar(20)
+  pair_id                 String              @db.VarChar(20)
+  type                    buy_sell_type
+  base_quantity           Decimal             @db.Decimal(30, 12)
+  quote_quantity          Decimal             @db.Decimal(30, 12)
+  order_price             Decimal             @db.Decimal(30, 12)
+  executed_base_quantity  Decimal             @db.Decimal(30, 12)
+  executed_quote_quantity Decimal             @db.Decimal(30, 12)
+  stop_limit_price        Decimal             @default(0.00000000) @db.Decimal(30, 8)
+  oco_stop_limit_price    Decimal?            @db.Decimal(30, 8)
+  tds                     Decimal             @default(0.00000000) @db.Decimal(30, 8)
+  fees                    Decimal             @default(0.00000000) @db.Decimal(30, 8)
+  final_amount            Decimal             @default(0.000000000000) @db.Decimal(30, 12)
+  order_id                String              @unique(map: "order_id") @db.VarChar(100)
+  api_order_id            String              @default("") @db.VarChar(100)
+  order_type              buy_sell_order_type
+  buy_sell_fees           Decimal             @default(0.00000000) @db.Decimal(30, 8)
+  status                  String              @default("OPEN") @db.VarChar(20)
+  api_id                  Int                 @default(0)
+  response                String?             @db.Text
+  trade_id                Int                 @default(-1)
+  account_id              String              @db.VarChar(50)
+  date_time               BigInt?
+  cancelled_date_time     BigInt?
+  response_time           String              @default("") @db.VarChar(50)
+  profit                  Decimal             @default(0.00000) @db.Decimal(10, 5)
+  api                     Int                 @default(0)
+  device                  String?             @db.VarChar(30)
+  created_at              DateTime            @default(now()) @db.Timestamp(0)
+  updated_at              DateTime?           @db.Timestamp(0)
+
+  @@index([pair_id], map: "coin_id")
+  @@index([user_id], map: "user_id")
+  @@index([user_id, pair_id, order_id], map: "user_id_2")
+}
+
+model buy_sell_pro_in_order {
+  id                        Int                 @id @default(autoincrement())
+  user_id                   String              @db.VarChar(35)
+  pair_id                   String              @db.VarChar(20)
+  type                      buy_sell_type
+  base_quantity             Decimal             @db.Decimal(30, 12)
+  quote_quantity            Decimal             @db.Decimal(30, 12)
+  executed_base_quantity    Decimal             @default(0.000000000000) @db.Decimal(30, 12)
+  executed_quote_quantity   Decimal             @default(0.000000000000) @db.Decimal(30, 12)
+  order_price               Decimal             @default(0.00000000) @db.Decimal(30, 8)
+  executed_base_after_fees  Decimal             @default(0.000000000000) @db.Decimal(30, 12)
+  executed_quote_after_fees Decimal             @default(0.000000000000) @db.Decimal(30, 12)
+  order_id                  String              @db.VarChar(100)
+  api_order_id              String              @default("") @db.VarChar(100)
+  order_type                buy_sell_order_type
+  status                    String              @default("NEW") @db.VarChar(25)
+  trade_id                  Int
+  api_id                    Int                 @default(0)
+  date_time                 BigInt?
+  buy_sell_fees             Decimal             @db.Decimal(30, 0)
+  stop_limit_price          Decimal             @default(0.000000000000) @db.Decimal(30, 12)
+  api                       String              @default("0") @db.VarChar(35)
+  device                    String              @default("") @db.VarChar(30)
+}
+
+model buy_sell_order_response {
+  id           Int     @id @default(autoincrement())
+  order_id     String  @db.VarChar(50)
+  api_order_id String  @default("") @db.VarChar(50)
+  response     String? @db.LongText
+}
+
+model crypto_tds {
+  id        Int      @id @default(autoincrement())
+  user_id   Int
+  coin_id   Int
+  order_id  String   @db.VarChar(30)
+  tds       Decimal  @db.Decimal(10, 2)
+  rate      Decimal  @default(0.00000000) @db.Decimal(30, 8)
+  tds_perc  Decimal  @db.Decimal(10, 2)
+  date_time DateTime @default(now()) @db.Timestamp(0)
+}
+
+model otp {
+  id        Int    @id @default(autoincrement())
+  user_id   String @db.VarChar(20)
+  otp       String
+  createdAt BigInt
+  expiresAt BigInt
+}
+
+model banner_image {
+  id     Int                 @id @default(autoincrement())
+  status banner_image_status
+  name   String              @db.VarChar(20)
+}
+
+model user {
+  id                       Int       @id @default(autoincrement())
+  user_id                  String    @unique(map: "user_id_2") @db.VarChar(20)
+  uid                      Int       @unique(map: "uid")
+  created_at               DateTime  @default(now()) @db.Timestamp(0)
+  name                     String
+  email                    String    @unique(map: "User_email_key")
+  phone                    String
+  country                  String
+  password                 String
+  withdrawal_password      String?
+  withdrawal_pass_locktime DateTime? @db.DateTime(0)
+  token                    String?   @db.VarChar(300)
+  token_string             String    @db.VarChar(100)
+  login_count              Int       @default(0)
+  otp_count                Int       @default(0)
+  lockout_time             DateTime? @db.Timestamp(0)
+  status                   Boolean   @default(true)
+  fcm_token                String?
+  secret_key               String?   @db.LongText
+  isAuth                   fa_auth   @default(Inactive)
+  device_id                String?
+
+  @@index([user_id], map: "user_id")
+}
+
+model admins {
+  id        Int     @id @default(autoincrement())
+  email     String  @db.VarChar(50)
+  username  String  @db.VarChar(20)
+  password  String  @db.VarChar(255)
+  secretKey String? @db.VarChar(255)
+}
+
+model apis {
+  id     Int         @id @default(autoincrement())
+  name   String      @db.VarChar(50)
+  status apis_status @default(ONE)
+}
+
+model networks {
+  id             Int    @id @default(autoincrement())
+  network_id     String @db.VarChar(20)
+  chain_id       Int
+  symbol         Int
+  name           Int
+  icon_url       Int
+  quicknode_url  Int
+  explorer_url   Int
+  min_deposit    Float
+  min_withdrawal Float
+  max_withdrawal Float
+  created_at     Int
+  updated_at     Int
+  status         Int
+
+  @@index([network_id], map: "network_id")
+}
+
+model user_wallet {
+  id              Int    @id @default(autoincrement())
+  user_id         String @db.VarChar(20)
+  currency_id     String @db.VarChar(35)
+  chain_id        Int
+  memo            String @db.VarChar(50)
+  address         String @db.VarChar(50)
+  destination_tag String @db.VarChar(50)
+
+  @@unique([user_id, currency_id, chain_id], map: "user_id_2")
+}
+
+model crypto_pair {
+  id               Int                @id @default(autoincrement())
+  base_asset_id    String             @db.VarChar(20)
+  quote_asset_id   String             @db.VarChar(20)
+  pair_symbol      String             @db.VarChar(10)
+  current_price    Float
+  min_base_qty     Float
+  max_base_qty     Float
+  min_quote_qty    Float
+  max_quote_qty    Float
+  trade_fee        Float
+  chart_id         String             @db.VarChar(50)
+  icon             String             @db.VarChar(100)
+  trade_status     Int
+  pro_trade        Float
+  change_in_price  Float
+  quantity_decimal Int
+  price_decimal    Int
+  popular          Int                @default(0)
+  status           crypto_pair_status @default(ONE)
+  created_at       DateTime           @default(now()) @db.Timestamp(0)
+  updated_at       DateTime?          @db.Timestamp(0)
+
+  @@unique([base_asset_id, quote_asset_id], map: "unique_pair")
+}
+
+model activity_logs {
+  id            Int      @id @default(autoincrement())
+  user_id       String   @db.VarChar(35)
+  ip_address    String   @db.VarChar(35)
+  activity_type String   @db.VarChar(100)
+  device_type   String   @db.VarChar(50)
+  device_info   String   @db.VarChar(100)
+  location      String   @db.VarChar(250)
+  timestamp     DateTime @default(now()) @db.Timestamp(0)
+}
+
+model buy_open_orders {
+  id                Int                    @id @default(autoincrement())
+  order_id          String                 @db.VarChar(35)
+  pair_id           String                 @db.VarChar(20)
+  side              Int
+  price             Decimal                @db.Decimal(11, 0)
+  quantity          Float
+  executed_quantity Float
+  timestamp         String?                @db.VarChar(50)
+  status            buy_open_orders_status @default(open)
+  updated_at        DateTime?              @db.Timestamp(0)
+  uid               String                 @db.VarChar(35)
+  user_id           String                 @db.VarChar(35)
+}
+
+model matched_orders {
+  id                Int       @id @default(autoincrement())
+  order_id          String    @db.VarChar(35)
+  user_id           String    @db.VarChar(35)
+  pair_id           String    @db.VarChar(35)
+  price             Float
+  quantity          Float
+  executed_quantity Float
+  uid               String    @db.VarChar(100)
+  timestamp         DateTime  @default(now()) @db.Timestamp(0)
+  side              Int
+  updated_at        DateTime? @db.Timestamp(0)
+}
+
+model sell_open_orders {
+  id                Int                     @id @default(autoincrement())
+  order_id          String                  @db.VarChar(35)
+  pair_id           String                  @db.VarChar(20)
+  price             Float
+  side              Int
+  quantity          Float
+  executed_quantity Float
+  uid               String                  @db.VarChar(35)
+  hash              String                  @db.VarChar(100)
+  timestamp         DateTime                @default(now()) @db.Timestamp(0)
+  status            sell_open_orders_status @default(open)
+  updated_at        DateTime?               @db.Timestamp(0)
+  user_id           String                  @db.VarChar(35)
+}
+
+model currency_network {
+  id               Int                     @id @default(autoincrement())
+  currency_id      String                  @db.VarChar(35)
+  network_id       Int
+  contract_address String                  @db.VarChar(200)
+  status           currency_network_status
+}
+
+model execution_reports {
+  execution_id    BigInt   @id
+  order_id        BigInt?
+  status          String?  @db.VarChar(50)
+  filled_quantity Decimal? @db.Decimal(20, 8)
+  price           Decimal? @db.Decimal(20, 8)
+  event_time      BigInt?
+}
+
+enum fa_auth {
+  Inactive
+  Active
+}
+
+enum currencies_status {
+  Active
+  Inactive
+}
+
+enum currencies_withdraw {
+  Active
+  Inactive
+}
+
+enum currencies_deposit {
+  Active
+  Inactive
+}
+
+enum currencies_ext_withdraw {
+  Active
+  Inactive
+}
+
+enum chain_status {
+  Active
+  Inactive
+}
+
+enum buy_sell_type {
+  BUY
+  SELL
+}
+
+enum deposit_history_status {
+  SUCCESS
+  PENDING
+  CANCELLED
+}
+
+enum withdrawl_history_status {
+  SUCCESS
+  PENDING
+  CANCELLED
+}
+
+enum buy_sell_order_type {
+  LIMIT
+  MARKET
+  STOP_LOSS_LIMIT
+  TAKE_PROFIT_LIMIT
+  OCO
+  STOP_LIMIT
+}
+
+enum banner_image_status {
+  Active
+  Inactive
+}
+
+enum transaction_type {
+  cr
+  dr
+}
+
+enum remark_type {
+  BUY
+  SELL
+  DEPOSIT
+  WITHDRAW
+  CANCELLED
+}
+
+enum apis_status {
+  ZERO
+  ONE
+}
+
+enum crypto_pair_status {
+  ZERO
+  ONE
+}
+
+enum buy_open_orders_status {
+  open
+  filled
+  partially_filled
+  canceled
+}
+
+enum sell_open_orders_status {
+  open
+  filled
+  partially_filled
+  canceled
+}
+
+enum chains_withdrawal_status {
+  active
+  inactive
+}
+
+enum currency_network_status {
+  Active
+  Inactive
+}
+
+enum chains_deposit_status {
+  active
+  inactive
+}

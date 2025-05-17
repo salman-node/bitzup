@@ -592,7 +592,7 @@ const getAllBuySellOrder = (req, res) => __awaiter(void 0, void 0, void 0, funct
         const result = yield prisma.$queryRaw `
     SELECT bs.id,cc.pair_symbol,bs.type,bs.stop_limit_price,bs.order_price,bs.base_quantity,bs.final_amount,bs.executed_base_quantity,bs.status,bs.order_type,bs.fees,bs.date_time,bs.cancelled_date_time,bs.order_id 
     FROM buy_sell_pro_limit_open AS bs    
-    JOIN crypto_pair AS cc ON bs.pair_id=cc.pair_id
+    JOIN crypto_pair AS cc ON bs.pair_id=cc.id
     WHERE bs.user_id=${user_id} and bs.status IN ("FILLED", "CANCELLED")  Order by bs.id DESC;`;
         // Convert each date_time in the buy sell order array
         const convertedTrades = result.map((trade) => (Object.assign(Object.assign({}, trade), { date_time: formatDate(parseInt(trade.date_time)), cancelled_date_time: trade.cancelled_date_time === null ? null : formatDate(parseInt(trade.cancelled_date_time)), total: Number(trade.executed_quantity) * Number(trade.order_price), average: Number(trade.executed_quantity) != 0 ? trade.order_price : 0 })));
@@ -1165,7 +1165,6 @@ const getAllNetwork = (req, res) => __awaiter(void 0, void 0, void 0, function* 
                   chains ch ON cn.network_id = ch.chain_id
                 WHERE 
                  c.currency_id = ${currency_id} and ch.withdrawal_status = 'Active'`;
-        console.log('is array khali?: ', networkData);
         res.status(200).json({
             status: "1",
             data: networkData,
@@ -1182,6 +1181,7 @@ const getUserWalletAddress = (req, res) => __awaiter(void 0, void 0, void 0, fun
     try {
         const { user_id } = req.body.user || {};
         const { currency_id, evm_compatible, chain_id } = req.body;
+        console.log(currency_id, evm_compatible, chain_id, user_id);
         // Validation
         if (!user_id) {
             return res.status(401).json({ status: "0", message: "Unauthorized or user not present" });
@@ -1192,7 +1192,7 @@ const getUserWalletAddress = (req, res) => __awaiter(void 0, void 0, void 0, fun
         if (chain_id === undefined || chain_id === null || chain_id === "") {
             return res.status(400).json({ status: "0", message: "chain_id is required" });
         }
-        if (evm_compatible !== 0 && evm_compatible !== 1) {
+        if (evm_compatible != 1 && evm_compatible != 0) {
             return res.status(400).json({ status: "0", message: "evm_compatible must be 0 or 1" });
         }
         // Check if address exists in DB
@@ -1206,6 +1206,7 @@ const getUserWalletAddress = (req, res) => __awaiter(void 0, void 0, void 0, fun
                 address: true,
             },
         });
+        console.log('existingWallet', existingWallet);
         if (existingWallet) {
             return res.status(200).json({ status: "1", data: existingWallet });
         }

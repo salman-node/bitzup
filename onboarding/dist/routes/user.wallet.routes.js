@@ -11,19 +11,6 @@ const authentication_1 = require("../middleware/authentication");
 const user_wallet_controller_1 = require("../controller/user.wallet.controller");
 // Object to store the last timestamp of each user's API call
 const userLastCall = {};
-// function throttle(func: Function, limit: number) {
-//   let inThrottle = false;
-//   return function(this: any, ...args: any[]) { // Specify the type of 'this' as 'any'
-//       const context = this;
-//       if (!inThrottle) {
-//           // Call the API function
-//           func.apply(context, args);
-//           inThrottle = true;
-//           // Reset the throttle flag after the specified limit
-//           setTimeout(() => (inThrottle = false), limit);
-//       }
-//   };
-// }
 // router.route('/get-buy-sell-balance').post([verifyUser], getBuySellBalance);
 // router
 //   .route('/get-all-currencies-balance')

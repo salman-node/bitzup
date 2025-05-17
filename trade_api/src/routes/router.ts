@@ -1,6 +1,6 @@
 import express from 'express';
 const router = express.Router();
-import { get_open_orders, placeBuyOrder, placeSellOrder,placeSellStopLimit, placeBuyStopLimit, cancelOrder} from '../controller/controller';
+import { get_open_orders,coinTradingPairs, placeBuyOrder, placeSellOrder,placeSellStopLimit, placeBuyStopLimit, cancelOrder} from '../controller/controller';
 import {verifyUser} from '../middleware/token_authentication';
 import { validate_buy_asset_pro , validate_sell_asset_pro,validate_buy_stop_limit,validate_sell_stop_limit, validate_cancel_order} from '../middleware/req_validator';
 import { OpenOrderCount } from '../middleware/OpenOrderCount';
@@ -30,6 +30,8 @@ router.post('/place-sell-stop-limit',verifyUser,validate_sell_stop_limit,OpenOrd
 router.post('/cancel-order',verifyUser,validate_cancel_order,cancelOrder)  
 
 router.get('/get-open-orders', verifyUser,get_open_orders)
+
+router.get('/get-coin-trading-pairs',verifyUser,coinTradingPairs)
 
 // router.post('/quick_sell', 
 //   // middleware.Authentication, 

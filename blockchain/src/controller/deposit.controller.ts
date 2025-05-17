@@ -148,37 +148,41 @@ export const depositWebhook = async (req: Request, res: Response) => {
 
 export const depositHistory = async (req: Request, res: Response) => {
     const {user_id} = req.body.user;  
+    if(!user_id) {
+        return res.status(config.HTTP_SUCCESS).send({
+          status_code: config.HTTP_SUCCESS,
+          status: 0,
+          message: 'User not found',
+        });
+    }
  
-    const depositHistory = await prisma.deposit_history.findMany({
-        where: {
-            user_id: user_id,
-        },
-        orderBy: {
-            date: 'desc',
-        },
-    });
+    const depositHistory:any = await prisma.$queryRaw`
+    SELECT w.*, c.symbol, n.chain_name as network_name, n.id,n.netw_fee as network_fee FROM deposit_history w 
+    JOIN currencies c ON w.coin_id = c.currency_id 
+    JOIN chains n ON w.chain_id = n.chain_id
+    WHERE w.user_id =${user_id} ORDER BY w.date DESC;`;
 
     if(depositHistory.length === 0) {
         return res.status(config.HTTP_SUCCESS).send({
           status_code: config.HTTP_SUCCESS,
           status: 0,
           message: 'No deposit history found',
-          });
+        });
     }    
-    const depositData = depositHistory.map((item) => {
-        return {
-            date: item.date,
-            transaction_id: item.transaction_id,
-            amount: item.amount,
-            final_amount: item.final_amount,
-            status: item.status,
-        }
-    });  
+    // const depositData = depositHistory.map((item:any) => {
+    //     return {
+    //         date: item.date,
+    //         transaction_id: item.transaction_id,
+    //         amount: item.amount,
+    //         final_amount: item.final_amount,
+    //         status: item.status,
+    //     }
+    // });  
      return res.status(config.HTTP_SUCCESS).send({ 
             status_code: config.HTTP_SUCCESS,
             status: '1', 
             message: 'Deposit history fetched successfully' ,
-            data: depositData
+            data: depositHistory
         }   
     );        
 };  

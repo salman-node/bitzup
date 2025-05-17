@@ -11,4 +11,5 @@ const authentication_1 = require("../middleware/authentication");
 const withdrawal_controller_1 = require("../controller/withdrawal.controller");
 router.post('/request-withdraw', [authentication_1.verifyUser], withdrawal_controller_1.withdrawFunds);
 router.get('/withdrawal-history', [authentication_1.verifyUser], withdrawal_controller_1.withdrawalHistory);
+router.route('/generate-withdrawal-password').post([authentication_1.verifyUser], withdrawal_controller_1.generateWithdrawalPassword);
 //# sourceMappingURL=withdrawal.router.js.map

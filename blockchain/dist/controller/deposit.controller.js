@@ -145,14 +145,18 @@ const depositWebhook = (req, res) => __awaiter(void 0, void 0, void 0, function*
 exports.depositWebhook = depositWebhook;
 const depositHistory = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { user_id } = req.body.user;
-    const depositHistory = yield prisma.deposit_history.findMany({
-        where: {
-            user_id: user_id,
-        },
-        orderBy: {
-            date: 'desc',
-        },
-    });
+    if (!user_id) {
+        return res.status(defaults_1.default.HTTP_SUCCESS).send({
+            status_code: defaults_1.default.HTTP_SUCCESS,
+            status: 0,
+            message: 'User not found',
+        });
+    }
+    const depositHistory = yield prisma.$queryRaw `
+    SELECT w.*, c.symbol, n.chain_name as network_name, n.id,n.netw_fee as network_fee FROM deposit_history w 
+    JOIN currencies c ON w.coin_id = c.currency_id 
+    JOIN chains n ON w.chain_id = n.chain_id
+    WHERE w.user_id =${user_id} ORDER BY w.date DESC;`;
     if (depositHistory.length === 0) {
         return res.status(defaults_1.default.HTTP_SUCCESS).send({
             status_code: defaults_1.default.HTTP_SUCCESS,
@@ -160,20 +164,20 @@ const depositHistory = (req, res) => __awaiter(void 0, void 0, void 0, function*
             message: 'No deposit history found',
         });
     }
-    const depositData = depositHistory.map((item) => {
-        return {
-            date: item.date,
-            transaction_id: item.transaction_id,
-            amount: item.amount,
-            final_amount: item.final_amount,
-            status: item.status,
-        };
-    });
+    // const depositData = depositHistory.map((item:any) => {
+    //     return {
+    //         date: item.date,
+    //         transaction_id: item.transaction_id,
+    //         amount: item.amount,
+    //         final_amount: item.final_amount,
+    //         status: item.status,
+    //     }
+    // });  
     return res.status(defaults_1.default.HTTP_SUCCESS).send({
         status_code: defaults_1.default.HTTP_SUCCESS,
         status: '1',
         message: 'Deposit history fetched successfully',
-        data: depositData
+        data: depositHistory
     });
 });
 exports.depositHistory = depositHistory;

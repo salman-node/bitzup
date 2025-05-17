@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.rawQuery = exports.get_pair_data = exports.get_open_orders = exports.formatDate = exports.cancelOrder = exports.placeSellStopLimit = exports.placeBuyStopLimit = exports.placeSellOrder = exports.placeBuyOrder = void 0;
+exports.coinTradingPairs = exports.rawQuery = exports.get_pair_data = exports.get_open_orders = exports.formatDate = exports.cancelOrder = exports.placeSellStopLimit = exports.placeBuyStopLimit = exports.placeSellOrder = exports.placeBuyOrder = void 0;
 require("dotenv").config();
 // import { Request, Response } from "express";
 const joi_1 = __importDefault(require("joi"));
@@ -1171,7 +1171,6 @@ const rawQuery = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         console.log("user_id", user_id);
         const OrderId = (0, generator_1.GenerateUniqueID)(16, (0, crypto_1.randomUUID)(), "");
         let query = `INSERT INTO crypto_pair (
-      pair_id,
       base_asset_id,
       quote_asset_id,
       pair_symbol,
@@ -1220,6 +1219,52 @@ const rawQuery = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     }
 });
 exports.rawQuery = rawQuery;
+const coinTradingPairs = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { currency_id } = req.query;
+        console.log("currency_id", currency_id);
+        if (!currency_id) {
+            return res.status(200).send({
+                status_code: 200,
+                status: "0",
+                msg: "provide currency_id",
+            });
+        }
+        const data = yield prisma_client_1.prisma.$queryRaw `
+      SELECT 
+        cp.id as pair_id,
+        cp.base_asset_id,
+        cp.quote_asset_id,
+        cp.pair_symbol,
+        cp.current_price,
+        cp.change_in_price,
+        cp.quantity_decimal,
+        cp.price_decimal,
+        base.symbol AS base_asset_symbol,
+        quote.symbol AS quote_asset_symbol
+      FROM crypto_pair cp
+      JOIN currencies base ON cp.base_asset_id = base.currency_id
+      JOIN currencies quote ON cp.quote_asset_id = quote.currency_id
+      WHERE 
+        cp.base_asset_id = ${currency_id} AND cp.trade_status=1
+        OR (cp.quote_asset_id = ${currency_id} AND cp.popular = 1 AND cp.trade_status=1);`;
+        return res.status(200).send({
+            status_code: 200,
+            status: "1",
+            data: data,
+        });
+    }
+    catch (e) {
+        console.log(e);
+        return res.status(500).send({
+            status_code: 500,
+            status: false,
+            msg: e,
+            Data: [],
+        });
+    }
+});
+exports.coinTradingPairs = coinTradingPairs;
 // export const placeSellOrder = async (req: any, res: any) => {
 //   try {
 //     const reqBody = req.body;

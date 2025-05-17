@@ -36,7 +36,7 @@ export const sendOTP = async (req: Request, res: Response) => {
     // check user
     const exist = await prisma.user.findUnique({
       where: { email },
-      select: { user_id: true },
+      select: { user_id: true,anti_phishing_code:true },
     });
 
     // user not present
@@ -54,7 +54,7 @@ export const sendOTP = async (req: Request, res: Response) => {
     const result: IClientInfo | undefined = await getClientInfo(ip_address,device_type,device_info);
     // send OTP email
     await prisma.otp.deleteMany({ where: { user_id: exist.user_id } });
-    await sendGeneralOTP(email, subject, result,exist.user_id);
+    await sendGeneralOTP(email, subject, result,exist.user_id,exist?.anti_phishing_code as string);
     
 
     await prisma.activity_logs.create({
@@ -94,6 +94,7 @@ export const sendEmailOtp = async (req: Request, res: Response) => {
      where: { user_id },
      select: {
        email: true,
+       anti_phishing_code:true,
      },
    });
 
@@ -113,7 +114,7 @@ export const sendEmailOtp = async (req: Request, res: Response) => {
 
     // send OTP email
     await prisma.otp.deleteMany({ where: { user_id: user_id } });
-    await sendGeneralOTP(userEmail.email, subject, result,user_id);
+    await sendGeneralOTP(userEmail.email, subject, result,user_id,userEmail?.anti_phishing_code as string);
 
     const location: string = await getIplocation(ip_address);
 

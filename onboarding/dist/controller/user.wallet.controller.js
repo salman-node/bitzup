@@ -800,6 +800,110 @@ const getSymbolFunds = (req, res) => __awaiter(void 0, void 0, void 0, function*
     }
 });
 exports.getSymbolFunds = getSymbolFunds;
+// export const generateWithdrawalPassword = async (req: Request, res: Response) => {
+//   console.log('in genera')
+//   const {password, otp ,authenticator_code, device_info,device_type} = req.body
+//   const { user_id: user_id } = req.body.user;
+//   try {
+//     if (!user_id) {
+//       return res.status(400).send({
+//         status: "3",
+//         message: "You are not authorized or user not present",
+//       });
+//     }
+//     if(!password){
+//       return res.status(400).send({
+//         status: "3",
+//         message: "provide password",
+//       });
+//     }
+//     //passwrod regex Capital letter + small letter + number + special character
+//     const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/;
+//     if(!passwordRegex.test(password)){
+//       return res.status(400).send({
+//         status: "3",
+//         message: "Password should be minimum 8 characters, at least one uppercase letter, one lowercase letter, one number and one special character",
+//       });
+//     }
+//     const user = await prisma.user.findUnique({
+//       where: { user_id: user_id },
+//       select: {
+//         email: true,
+//         user_id: true,
+//         isAuth: true,
+//         secret_key: true
+//       },
+//     });
+//     const ip_address = req.headers["x-real-ip"] as string || (req.headers["x-forwarded-for"] as string).split(",")[0];
+//     // get client information
+//     const result: IClientInfo | undefined = await getClientInfo(ip_address,device_type,device_info);
+//     if(!otp){
+//       await sendOTPVerificationEmail(user_id, result,user?.user_id as string)
+//       return res.status(200).send({
+//         status: "1",
+//         message:
+//           "OTP has been sent to your email.",
+//         showAuth: user?.isAuth === "Active" ? true : false,
+//         verify:'no'
+//       });
+//     }
+//     if (user?.isAuth === "Active") {
+//           if (!authenticator_code) {
+//             // throw new Error('Please provide authenticator code');
+//             return res
+//               .status(200)
+//               .send({ status: "0", message: "Please provide authenticator code" });
+//           }
+//           const verified = speakeasy.totp.verify({
+//             secret: JSON.parse(user.secret_key || "").base32,
+//             encoding: "base32",
+//             token: authenticator_code,
+//             window: 1, // Number of 30-second intervals to check before and after the current time
+//           });
+//           if (!verified) {
+//             // throw new Error('Please provide correct authenticator code');
+//             return res.status(200).send({
+//               status: "0",
+//               message: "Please provide correct authenticator code",
+//             });
+//           }
+//     }
+//     // verify otp
+//     const verifyOTP = await verifyOtp(user?.user_id as string, otp);
+//     // if not verified
+//     if (!verifyOTP?.verified) {
+//       return res.status(200).send({ status: "0", message: verifyOTP?.msg });
+//     }
+//     const passwordHash = await bcrypt.hash(password, 10);
+//     await prisma.user.update({
+//       where: {
+//         user_id: user_id,
+//       },
+//       data: {
+//         withdrawal_password: passwordHash,
+//         withdrawal_pass_locktime: new Date(Date.now() + 24 * 60 * 60 * 1000),
+//       },
+//     });
+//       await createActivityLog({
+//       user_id: user?.user_id as string,
+//       ip_address: ip_address ?? "",
+//       activity_type: "Login",
+//       device_type: device_type ?? "",
+//       device_info: device_info ?? "",
+//       location: result?.location ?? "",
+//     });
+//     return res.status(200).json({
+//       status: "1",
+//       message: "Withdrawal password updated successfully, you can withdraw after 24 hours once password updated",
+//     });
+//   } catch (error) {
+//     console.error("Error fetching data:", (error as Error).message);
+//     res.status(500).send({
+//       status: "0",
+//       message: "Unable to fetch data from Binance API",
+//     });
+//   }
+// }
 // const cancelOrderFunc = async (order_id: any, user_id: any, timestamp: any) => {
 //   const buySellData = await prisma.buy_sell_pro_limit_open.findMany({
 //     where: {

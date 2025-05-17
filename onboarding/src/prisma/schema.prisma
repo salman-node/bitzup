@@ -59,8 +59,8 @@ model balances {
   main_balance    Decimal   @default(0.000000000000000000) @db.Decimal(30, 18)
   locked_balance  Decimal   @default(0.000000000000000000) @db.Decimal(30, 18)
   current_balance Decimal   @default(0.000000000000000000) @db.Decimal(30, 18)
-  created_at      DateTime  @default(now()) @db.Timestamp(0)
   updated_at      DateTime? @db.Timestamp(0)
+  created_at      DateTime  @default(now()) @db.Timestamp(0)
 
   @@unique([user_id, currency_id], map: "user_id")
 }
@@ -77,7 +77,7 @@ model balances_inorder {
 model chains {
   id                Int                      @id @default(autoincrement())
   chain_id          Int
-  chain_name        String                   @unique(map: "coin_id") @db.VarChar(50)
+  chain_name        String                   @db.VarChar(50)
   evm_compatible    Boolean
   withdrawal_status chains_withdrawal_status
   deposit_status    chains_deposit_status
@@ -163,13 +163,14 @@ model buy_sell_pro_limit_open {
   api_id                  Int                 @default(0)
   response                String?             @db.Text
   trade_id                Int                 @default(-1)
+  account_id              String              @db.VarChar(50)
   date_time               BigInt?
   cancelled_date_time     BigInt?
   response_time           String              @default("") @db.VarChar(50)
   profit                  Decimal             @default(0.00000) @db.Decimal(10, 5)
   api                     Int                 @default(0)
   device                  String?             @db.VarChar(30)
-  created_at              DateTime            @default(now()) @db.Timestamp(0)
+  created_at              Int
   updated_at              DateTime?           @db.Timestamp(0)
 
   @@index([pair_id], map: "coin_id")
@@ -224,8 +225,8 @@ model otp {
   id        Int    @id @default(autoincrement())
   user_id   String @db.VarChar(20)
   otp       String
-  createdAt String
-  expiresAt String
+  createdAt BigInt
+  expiresAt BigInt
 }
 
 model banner_image {
@@ -235,25 +236,29 @@ model banner_image {
 }
 
 model user {
-  id           Int       @id @default(autoincrement())
-  user_id      String    @unique(map: "user_id_2") @db.VarChar(20)
-  uid          Int       @unique(map: "uid")
-  created_at   DateTime  @default(now()) @db.Timestamp(0)
-  name         String
-  email        String    @unique(map: "User_email_key")
-  phone        String
-  country      String
-  password     String
-  token        String?   @db.VarChar(300)
-  token_string String    @db.VarChar(100)
-  login_count  Int       @default(0)
-  otp_count    Int       @default(0)
-  lockout_time DateTime? @db.Timestamp(0)
-  status       Boolean   @default(true)
-  fcm_token    String?
-  secret_key   String?   @db.LongText
-  isAuth       fa_auth   @default(Inactive)
-  device_id    String?
+  id                       Int       @id @default(autoincrement())
+  user_id                  String    @unique(map: "user_id_2") @db.VarChar(20)
+  uid                      Int       @unique(map: "uid")
+  name                     String
+  email                    String    @unique(map: "User_email_key")
+  phone                    String
+  country                  String
+  password                 String
+  withdrawal_password      String?
+  withdrawal_pass_locktime DateTime? @db.DateTime(0)
+  token                    String?   @db.VarChar(300)
+  token_string             String    @db.VarChar(100)
+  login_count              Int       @default(0)
+  otp_count                Int       @default(0)
+  lockout_time             DateTime? @db.Timestamp(0)
+  referral_url             String?   @db.VarChar(150)
+  anti_phishing_code       String?   @db.VarChar(32)
+  status                   Boolean   @default(true)
+  fcm_token                String?
+  secret_key               String?   @db.LongText
+  isAuth                   fa_auth   @default(Inactive)
+  device_id                String?
+  created_at               DateTime  @default(now()) @db.Timestamp(0)
 
   @@index([user_id], map: "user_id")
 }
@@ -272,25 +277,6 @@ model apis {
   status apis_status @default(ONE)
 }
 
-model networks {
-  id             Int    @id @default(autoincrement())
-  network_id     String @db.VarChar(20)
-  chain_id       Int
-  symbol         Int
-  name           Int
-  icon_url       Int
-  quicknode_url  Int
-  explorer_url   Int
-  min_deposit    Float
-  min_withdrawal Float
-  max_withdrawal Float
-  created_at     Int
-  updated_at     Int
-  status         Int
-
-  @@index([network_id], map: "network_id")
-}
-
 model user_wallet {
   id              Int    @id @default(autoincrement())
   user_id         String @db.VarChar(20)
@@ -305,7 +291,6 @@ model user_wallet {
 
 model crypto_pair {
   id               Int                @id @default(autoincrement())
-  pair_id          String             @unique(map: "pair_id") @db.VarChar(20)
   base_asset_id    String             @db.VarChar(20)
   quote_asset_id   String             @db.VarChar(20)
   pair_symbol      String             @db.VarChar(10)
@@ -324,7 +309,7 @@ model crypto_pair {
   price_decimal    Int
   popular          Int                @default(0)
   status           crypto_pair_status @default(ONE)
-  created_at       DateTime           @default(now()) @db.Timestamp(0)
+  created_at       Int
   updated_at       DateTime?          @db.Timestamp(0)
 
   @@unique([base_asset_id, quote_asset_id], map: "unique_pair")
@@ -401,6 +386,25 @@ model execution_reports {
   filled_quantity Decimal? @db.Decimal(20, 8)
   price           Decimal? @db.Decimal(20, 8)
   event_time      BigInt?
+}
+
+model networks {
+  id             Int    @id @default(autoincrement())
+  network_id     String @db.VarChar(20)
+  chain_id       Int
+  symbol         Int
+  name           Int
+  icon_url       Int
+  quicknode_url  Int
+  explorer_url   Int
+  min_deposit    Float
+  min_withdrawal Float
+  max_withdrawal Float
+  created_at     Int
+  updated_at     Int
+  status         Int
+
+  @@index([network_id], map: "network_id")
 }
 
 enum fa_auth {
@@ -501,14 +505,14 @@ enum sell_open_orders_status {
   canceled
 }
 
-enum chains_withdrawal_status {
-  active
-  inactive
-}
-
 enum currency_network_status {
   Active
   Inactive
+}
+
+enum chains_withdrawal_status {
+  active
+  inactive
 }
 
 enum chains_deposit_status {

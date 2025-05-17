@@ -26,15 +26,17 @@ const transporter = nodemailer_1.default.createTransport({
     }
 });
 /*----- Send Email with Nodemailer -----*/
-const sendEmail = (to, otp, client_info) => __awaiter(void 0, void 0, void 0, function* () {
+const sendEmail = (to, otp, client_info, anti_phishing_code = 'Null') => __awaiter(void 0, void 0, void 0, function* () {
     const mailOptions = {
         from: 'noreply@bitzup.com',
         to: to,
         subject: 'Verify Your Email',
-        html: (0, otp_template_1.otpTemplate)(otp, client_info),
+        html: (0, otp_template_1.otpTemplate)(otp, client_info, anti_phishing_code),
     };
     try {
+        console.log('otp sent');
         const info = yield transporter.sendMail(mailOptions);
+        console.log(`Message sent: ${info.messageId}`);
         return info;
     }
     catch (error) {
@@ -43,12 +45,12 @@ const sendEmail = (to, otp, client_info) => __awaiter(void 0, void 0, void 0, fu
     }
 });
 /*----- Send OTP Email with Nodemailer -----*/
-const sendOTPEmail = (to, subject, otp, client_info) => __awaiter(void 0, void 0, void 0, function* () {
+const sendOTPEmail = (to, subject, otp, client_info, anti_phishing_code = 'Null') => __awaiter(void 0, void 0, void 0, function* () {
     const mailOptions = {
         from: 'noreply@bitzup.com',
         to: to,
         subject: subject,
-        html: (0, otp_template_1.otpTemplate)(otp, client_info)
+        html: (0, otp_template_1.otpTemplate)(otp, client_info, anti_phishing_code),
     };
     console.log('otp sent');
     try {

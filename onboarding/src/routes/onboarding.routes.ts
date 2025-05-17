@@ -14,7 +14,9 @@ import {
   getAllCountries,
   getuserProfile,
   getUserActivity,
-  VerifyForgetPassword
+  VerifyForgetPassword,
+  setAntiPhisingCode,
+  getReferralCodeURl
 } from '../controller/user.controller';
 import { verifyUser } from '../middleware/authentication';
 import { sendEmailOtp, sendOTP } from '../controller/otp.controller';
@@ -22,7 +24,9 @@ import { sendEmailOtp, sendOTP } from '../controller/otp.controller';
 router.post('/signup', signUp);
 router.post('/login', logIn);  
 router.get('/getUserProfile', verifyUser , getuserProfile); 
+router.get('/getReferralCodeURl', verifyUser , getReferralCodeURl);
 router.get('/getUserActivity', verifyUser , getUserActivity);
+router.post('/set-anti-phishing-code', verifyUser , setAntiPhisingCode);
 router.post('/logout',verifyUser, logOut);
 router.route('/verify-auth').post([verifyUser], verifyAuth);                    // add to doc
 router.route('/verify-otp-auth').post([verifyUser], verifyOtpAuth);             // add to doc

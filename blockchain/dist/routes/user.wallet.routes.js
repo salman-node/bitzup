@@ -33,14 +33,14 @@ router
     .get([authentication_1.checkLogin], user_wallet_controller_1.getDepositWithdrawList);
 router.get('/get-all-networks', authentication_1.verifyUser, user_wallet_controller_1.getAllNetwork);
 router.post('/get-user-walletAddress', authentication_1.verifyUser, user_wallet_controller_1.getUserWalletAddress);
-router.route('/get-avg-price-order').post([authentication_1.verifyUser], user_wallet_controller_1.getAvgPriceOrder);
+// router.route('/get-avg-price-order').post([verifyUser], getAvgPriceOrder);
 router.route('/get-all-buy-sell-order').post([authentication_1.verifyUser], user_wallet_controller_1.getAllBuySellOrder); //web
 // router.route('/get-all-funds').post([verifyUser], getAllFunds); //apk
-router.route('/get-wallet-funds').post([authentication_1.verifyUser], user_wallet_controller_1.getWalletFunds); //web
+// router.route('/get-wallet-funds').post([verifyUser], getWalletFunds); //web
 router.route('/get-symbol-funds').post([authentication_1.verifyUser], user_wallet_controller_1.getSymbolFunds);
-router.route('/get-trades').post([authentication_1.verifyUser], user_wallet_controller_1.getTrades); //web
-router.route('/get-trade-history').post([authentication_1.verifyUser], user_wallet_controller_1.getTradeHistory);
-router.route('/get-buy-sell-fees').post([authentication_1.verifyUser], user_wallet_controller_1.getBuySellFees);
+// router.route('/get-trades').post([verifyUser], getTrades); //web
+// router.route('/get-trade-history').post([verifyUser], getTradeHistory);
+// router.route('/get-buy-sell-fees').post([verifyUser], getBuySellFees);
 // Temporary Executed Amount Callback
 // router.post('/executed-buy-sell-order', executedBuySellOrder);
 // router.route('/get-wallet-history').post([verifyUser], getwalletHistory);

@@ -284,7 +284,7 @@ const getFavorites = (req, res) => __awaiter(void 0, void 0, void 0, function* (
     FROM
       favoritecurrency fc
     LEFT JOIN
-      crypto_pair c ON fc.pair_id = c.pair_id
+      crypto_pair c ON fc.pair_id = c.id
     WHERE
       fc.user_id = ${user_id}`;
         // Currency not present
@@ -479,7 +479,7 @@ const getValidateCurrencies = (_req, res) => __awaiter(void 0, void 0, void 0, f
         // get All Currencies list
         const allCurrencies = yield prisma_client_1.prisma.$queryRaw `
     SELECT
-      cp.pair_id,
+      cp.id,
       cp.pair_symbol,
       cp.change_in_price,
       c1.usdtprice,

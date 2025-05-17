@@ -1,13 +1,13 @@
 const { Spot, WebsocketStream } = require("@binance/connector");
 const { Kafka } = require('kafkajs');
-const {config} = require('../config/config')
+const {accounts} = require('../config/config')
 require("dotenv").config();
 
-const apiKey = 'l6SlJipQWrLRSAPCezEJcM8yrjVzhrDQU2QQSh4AnuKq4sRJao87jEgmFsLeyWEq';
-const apiSecret = 'JW85c09ek8e0c7PnBkig03TSwN3ENH4KremdNekgRx16twhK7YN0HMU2J5IbhuJW';
-
-const client = new Spot(apiKey, apiSecret, {
-  baseURL: "https://testnet.binance.vision",
+// const apiKey ='TjnvJCOXHB54SjgvrOSqRaFK2rTUApJGfM30UPOFbsAZprFRtSDLf203phlHej8g';
+// const apiSecret ='AkkfmZtrszpLQttGwes4r5mX03M79Da6TYr0vYgyoL13K0LxF0n4dMCDi33SN7yz';
+const connectBinanceAccounts = async (account) => {
+const client = new Spot(account.apiKey, account.apiSecret, {
+  baseURL: account.binance_url,
   timeout: 5000,
 });
 
@@ -17,14 +17,14 @@ const kafka = new Kafka({
   brokers: ['localhost:9092'], // Adjust your Kafka broker address
 });
 
-const producer = kafka.producer();
+// const producer = kafka.producer();
 
 // Connect the Kafka producer
-const connectKafka = async () => {
-  await producer.connect();
-};
+// const connectKafka = async () => {
+//   await producer.connect();
+// };
 
-connectKafka();
+// connectKafka();
 
 // Function to send execution report to Kafka
 const sendExecutionReportToKafka = async (topic, message) => {
@@ -48,22 +48,26 @@ const callbacks = {
    console.log(`Received message: ${JSON.stringify(data)}`);
     if (data.e === "executionReport") {
         // Send to Kafka
-        await sendExecutionReportToKafka('execution-report', data);
+        console.log(`Sending execution report to Kafka: ${JSON.stringify(data)}`);
+        // await sendExecutionReportToKafka('execution-report', data);
     }
   },
+  Error: (error) => console.error('titu error',error),
 };
 
-const connectExecutionReport = async () => {
+const connectExecutionReport = async (account) => {
   try {
     const websocketStreamClient = new WebsocketStream({
       callbacks,
-      wsURL: "wss://testnet.binance.vision",
+      wsURL: account.binance_ws_url,
     });
+
+    
 
     const updateListenKey = async () => {
       try {
         const ListenKey = await client.createListenKey();
-        console.log(ListenKey.data.listenKey);
+        console.log('listenKey: ',ListenKey.data.listenKey);
         websocketStreamClient.userData(ListenKey.data.listenKey);
       } catch (error) {
         console.error(error);
@@ -78,4 +82,13 @@ const connectExecutionReport = async () => {
   }
 };
 
-connectExecutionReport();
+connectExecutionReport(account);
+}
+
+function main(accounts) {
+  for (const account of accounts) {
+    connectBinanceAccounts(account);
+  }
+};
+
+main(accounts);

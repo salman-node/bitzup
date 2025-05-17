@@ -3,7 +3,7 @@ require("dotenv").config();
 import Joi from "joi";
 import { prisma } from "../config/prisma_client";// import { v4 as uuid } from "uuid";
 // import GenerateID from "../utility/generator";
-import { config,AdminTradeAccounts } from "../config/config";
+import { config, AdminTradeAccounts } from "../config/config";
 import {  getOrderType, getSide } from "../utility/constants";
 import { GenerateUniqueID } from "../utility/generator";
 import { getIplocation } from "../utility/utility.functions";
@@ -18,7 +18,7 @@ import { randomUUID } from "crypto";
 const getAccountConfig = (accountName: string) => {
   let apiKey, apiSecret, binance_url;
 
-  for(const account of AdminTradeAccounts) {
+  for (const account of AdminTradeAccounts) {
     if (account.name === accountName) {
       apiKey = account.apiKey;
       apiSecret = account.apiSecret;
@@ -50,8 +50,8 @@ export const placeBuyOrder = async (req: any, res: any) => {
 
     //get ip from header
     const ip_address = req.headers['x-real-ip'];
-    const ip = req.ip 
-    console.log("ip_address",ip_address , "ip", ip);
+    const ip = req.ip
+    console.log("ip_address", ip_address, "ip", ip);
 
     const accountName = req.body.TradeAccount;
     const client = getAccountConfig(accountName); // Get the client for the selected account
@@ -85,7 +85,7 @@ export const placeBuyOrder = async (req: any, res: any) => {
     }
 
     const side = "BUY";
-   
+
     const pairDecimal = getPairData[0].quantity_decimal;
     const pairSymbol = getPairData[0].pair_symbol;
 
@@ -104,7 +104,7 @@ export const placeBuyOrder = async (req: any, res: any) => {
         current_balance: true,
       }
     });
-  
+
     if (!userAssetBalance.length) {
       return res.status(config.HTTP_SUCCESS).send({
         status_code: config.HTTP_SUCCESS,
@@ -124,7 +124,7 @@ export const placeBuyOrder = async (req: any, res: any) => {
 
     const validateQuoteVolume = Joi.object({
       quote_volume: Joi.number()
-      
+
         .precision(pairDecimal)
         .min(minQuoteVolume)
         .max(maxQuoteVolume)
@@ -142,7 +142,7 @@ export const placeBuyOrder = async (req: any, res: any) => {
     const OrderId = GenerateUniqueID(10, randomUUID(), `${user_id}-`);
 
     //calculate base_volume for limit order
-    var baseVolume: number=0;
+    var baseVolume: number = 0;
     if (orderType == "LIMIT") {
       baseVolume = Number((quote_volume / limit_price).toFixed(pairDecimal));
     }
@@ -164,7 +164,7 @@ export const placeBuyOrder = async (req: any, res: any) => {
         order_id: OrderId,
         order_type: orderType,
         device: null,
-        account_id:accountName
+        account_id: accountName
       },
     });
     let options;
@@ -185,44 +185,44 @@ export const placeBuyOrder = async (req: any, res: any) => {
         recvWindow: 5000
       };
     }
- 
+
     //Place new order to Binance.
     let orderData;
-    try{
-     orderData = await client.newOrder(
-      pairSymbol,
-      getSide(side),
-      getOrderType(orderType),
-      options
-    );
+    try {
+      orderData = await client.newOrder(
+        pairSymbol,
+        getSide(side),
+        getOrderType(orderType),
+        options
+      );
 
-    } catch (binanceError:any) {
-    console.error("Binance Order Placement Error:", binanceError );
+    } catch (binanceError: any) {
+      console.error("Binance Order Placement Error:", binanceError);
 
-    // Update the database to mark the order as failed
-    await prisma.buy_sell_pro_limit_open.update({
-      data: {
-        status: "FAILED",
-        response: JSON.stringify(binanceError) ,
-      },
-      where: {
-        order_id: OrderId,
-      },
-    });
+      // Update the database to mark the order as failed
+      await prisma.buy_sell_pro_limit_open.update({
+        data: {
+          status: "FAILED",
+          response: JSON.stringify(binanceError),
+        },
+        where: {
+          order_id: OrderId,
+        },
+      });
 
-    return res.status(config.HTTP_SUCCESS).send({
-      status_code: config.HTTP_SUCCESS,
-      status: 0,
-      message: "Order failed to place.",
-    });
+      return res.status(config.HTTP_SUCCESS).send({
+        status_code: config.HTTP_SUCCESS,
+        status: 0,
+        message: "Order failed to place.",
+      });
     }
-  
-     // const headers = orderData.headers;
-     // const countFromBinance = headers['x-mbx-order-count-10s']; 
-     //  await redisClient.set(redisKey, countFromBinance, { EX: 10 });
+
+    // const headers = orderData.headers;
+    // const countFromBinance = headers['x-mbx-order-count-10s']; 
+    //  await redisClient.set(redisKey, countFromBinance, { EX: 10 });
     const status = orderData.status;
     const OrderResponse = orderData;
-  
+
     await prisma.$transaction([
       prisma.buy_sell_pro_limit_open.update({
         data: {
@@ -247,7 +247,7 @@ export const placeBuyOrder = async (req: any, res: any) => {
       }),
     ]);
 
-     const responseData:any = {
+    const responseData: any = {
       order_id: orderData.clientOrderId, // Order ID
       base_quantity: orderData.origQty, // Order quantity
       quote_quantity: orderData.cummulativeQuoteQty, // Cumulative quote asset transacted quantity
@@ -259,7 +259,7 @@ export const placeBuyOrder = async (req: any, res: any) => {
       status: orderData.status, // Current order status
       created_at: orderData.transactTime, // Order creation time
     }
-    
+
     const location = await getIplocation(ip_address);
     await prisma.activity_logs.create({
       data: {
@@ -410,7 +410,7 @@ export const placeSellOrder = async (req: any, res: any) => {
         order_id: OrderId,
         order_type: orderType,
         device: null,
-        account_id:accountName
+        account_id: accountName
       },
     });
 
@@ -431,33 +431,33 @@ export const placeSellOrder = async (req: any, res: any) => {
     }
     //Place new order to Binance.
     let orderData;
-    try{
-    orderData = await client.newOrder(
-      pairSymbol,
-      getSide(side),
-      getOrderType(orderType),
-      options
-    );
-  } catch (binanceError:any) {
-    console.error("Binance Order Placement Error:", binanceError);
+    try {
+      orderData = await client.newOrder(
+        pairSymbol,
+        getSide(side),
+        getOrderType(orderType),
+        options
+      );
+    } catch (binanceError: any) {
+      console.error("Binance Order Placement Error:", binanceError);
 
-    // Update the database to mark the order as failed
-    await prisma.buy_sell_pro_limit_open.update({
-      data: {
-        status: "FAILED",
-        response: JSON.stringify(binanceError) ,
-      },
-      where: {
-        order_id: OrderId,
-      },
-    });
+      // Update the database to mark the order as failed
+      await prisma.buy_sell_pro_limit_open.update({
+        data: {
+          status: "FAILED",
+          response: JSON.stringify(binanceError),
+        },
+        where: {
+          order_id: OrderId,
+        },
+      });
 
-    return res.status(config.HTTP_SERVER_ERROR).send({
-      status_code: config.HTTP_SERVER_ERROR,
-      status: false,
-      message: "Order failed to place.",
-    });
-  }
+      return res.status(config.HTTP_SERVER_ERROR).send({
+        status_code: config.HTTP_SERVER_ERROR,
+        status: false,
+        message: "Order failed to place.",
+      });
+    }
 
     const status = orderData.status;
     if (orderData.status === undefined) {
@@ -489,7 +489,7 @@ export const placeSellOrder = async (req: any, res: any) => {
       }),
     ]);
 
-    const responseData:any = {
+    const responseData: any = {
       order_id: orderData.clientOrderId, // Order ID
       base_quantity: orderData.origQty, // Order quantity
       quote_quantity: orderData.cummulativeQuoteQty, // Cumulative quote asset transacted quantity
@@ -501,8 +501,8 @@ export const placeSellOrder = async (req: any, res: any) => {
       status: orderData.status, // Current order status
       created_at: orderData.transactTime, // Order creation time
     }
-     const location = await getIplocation(ip_address);
-     
+    const location = await getIplocation(ip_address);
+
     await prisma.activity_logs.create({
       data: {
         user_id: user_id,
@@ -550,7 +550,7 @@ export const placeBuyStopLimit = async (req: any, res: any) => {
     const client = getAccountConfig(accountName);
 
     const side = "BUY";
-    
+
     const getPairData = await prisma.crypto_pair.findMany({
       where: {
         id: pair_id,
@@ -583,13 +583,13 @@ export const placeBuyStopLimit = async (req: any, res: any) => {
     const pairDecimal = getPairData[0].quantity_decimal;
     const pairSymbol = getPairData[0].pair_symbol;
 
-    const currentMarketPrice:any = await client.symbolPriceTicker({symbol:pairSymbol});
-   
-    let ordertype:any ;
-    if(stop_price < currentMarketPrice.price){
-       ordertype = "TAKE_PROFIT_LIMIT";
-    }else{  
-       ordertype = 'STOP_LOSS_LIMIT';
+    const currentMarketPrice: any = await client.symbolPriceTicker({ symbol: pairSymbol });
+
+    let ordertype: any;
+    if (stop_price < currentMarketPrice.price) {
+      ordertype = "TAKE_PROFIT_LIMIT";
+    } else {
+      ordertype = 'STOP_LOSS_LIMIT';
     }
 
     const minQuoteVolume = getPairData[0].min_quote_qty;
@@ -644,8 +644,8 @@ export const placeBuyStopLimit = async (req: any, res: any) => {
     const OrderId = GenerateUniqueID(10, randomUUID(), `${user_id}-`);
 
     //calculate base_volume for limit order
-    
-     const baseVolume = Number((quote_volume / limit_price).toFixed(pairDecimal));
+
+    const baseVolume = Number((quote_volume / limit_price).toFixed(pairDecimal));
 
     // client.setTimestampOffset()
 
@@ -664,11 +664,11 @@ export const placeBuyStopLimit = async (req: any, res: any) => {
         order_type: ordertype,
         order_id: OrderId,
         device: null,
-        account_id:accountName
+        account_id: accountName
       },
     });
 
-     const  options = { 
+    const options = {
       quantity: baseVolume,
       price: limit_price,
       stopPrice: stop_price,
@@ -680,42 +680,42 @@ export const placeBuyStopLimit = async (req: any, res: any) => {
 
     //Place new order to Binance.
     let orderResponse;
-    try{
-    orderResponse = await client.newOrder(
-      pairSymbol,
-      getSide(side),
-      getOrderType(ordertype),
-      options
-    );
+    try {
+      orderResponse = await client.newOrder(
+        pairSymbol,
+        getSide(side),
+        getOrderType(ordertype),
+        options
+      );
 
-  } catch (binanceError:any) {
-    console.error("Binance Order Placement Error:", binanceError);
+    } catch (binanceError: any) {
+      console.error("Binance Order Placement Error:", binanceError);
 
-    // Update the database to mark the order as failed
-    await prisma.buy_sell_pro_limit_open.update({
-      data: {
-        status: "FAILED",
-        response:  JSON.stringify(binanceError) ,
-      },
-      where: {
-        order_id: OrderId,
-      },
-    });
+      // Update the database to mark the order as failed
+      await prisma.buy_sell_pro_limit_open.update({
+        data: {
+          status: "FAILED",
+          response: JSON.stringify(binanceError),
+        },
+        where: {
+          order_id: OrderId,
+        },
+      });
 
-    return res.status(config.HTTP_SERVER_ERROR).send({
-      status_code: config.HTTP_SERVER_ERROR,
-      status: false,
-      message: "Order failed to place.",
-    });
-  }
+      return res.status(config.HTTP_SERVER_ERROR).send({
+        status_code: config.HTTP_SERVER_ERROR,
+        status: false,
+        message: "Order failed to place.",
+      });
+    }
 
-  // sleep for 1 second
-  await new Promise((resolve) => setTimeout(resolve, 1000));
+    // sleep for 1 second
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     const orderData = await client.getOrder(orderResponse.symbol, {
-      orderId:orderResponse.orderId
+      orderId: orderResponse.orderId
     });
-  
-    
+
+
     // await prisma.$transaction([
     //   prisma.buy_sell_pro_limit_open.update({
     //     data: {
@@ -739,7 +739,7 @@ export const placeBuyStopLimit = async (req: any, res: any) => {
     //   }),
     // ]);
 
-     const responseData:any = {
+    const responseData: any = {
       order_id: orderData.clientOrderId, // Order ID
       base_quantity: orderData.origQty, // Order quantity
       quote_quantity: orderData.cummulativeQuoteQty, // Cumulative quote asset transacted quantity
@@ -771,7 +771,7 @@ export const placeBuyStopLimit = async (req: any, res: any) => {
     });
   } catch (e) {
     console.log(e);
-    if(e === "Stop price would trigger immediately.") {
+    if (e === "Stop price would trigger immediately.") {
       return res.status(config.HTTP_SUCCESS).send({
         status_code: config.HTTP_SUCCESS,
         status: "0",
@@ -846,13 +846,13 @@ export const placeSellStopLimit = async (req: any, res: any) => {
     const base_asset_id = getPairData[0].base_asset_id;
 
 
-    const currentMarketPrice:any = await client.symbolPriceTicker({symbol:pairSymbol});
+    const currentMarketPrice: any = await client.symbolPriceTicker({ symbol: pairSymbol });
 
-    let ordertype:any ;
-    if(stop_price > currentMarketPrice.price){
-       ordertype = "TAKE_PROFIT_LIMIT";
-    }else{  
-       ordertype = 'STOP_LOSS_LIMIT';
+    let ordertype: any;
+    if (stop_price > currentMarketPrice.price) {
+      ordertype = "TAKE_PROFIT_LIMIT";
+    } else {
+      ordertype = 'STOP_LOSS_LIMIT';
     }
 
     //get user balance from balances table
@@ -918,11 +918,11 @@ export const placeSellStopLimit = async (req: any, res: any) => {
         order_id: OrderId,
         order_type: ordertype,
         device: null,
-        account_id:accountName
+        account_id: accountName
       }
     });
 
-    const  options = { 
+    const options = {
       quantity: base_quantity,
       price: limit_price,
       stopPrice: stop_price,
@@ -931,41 +931,41 @@ export const placeSellStopLimit = async (req: any, res: any) => {
       recvWindow: 5000,
       timestamp: Date.now()
     }
-    
+
     //Place new order to Binance.
     let orderResponse;
-    try{
-    orderResponse = await client.newOrder(
-      pairSymbol,
-      getSide(side),
-      getOrderType(ordertype),
-      options
-    );
+    try {
+      orderResponse = await client.newOrder(
+        pairSymbol,
+        getSide(side),
+        getOrderType(ordertype),
+        options
+      );
 
-  } catch (binanceError : any) {
-    console.error("Binance Order Placement Error:", binanceError);
+    } catch (binanceError: any) {
+      console.error("Binance Order Placement Error:", binanceError);
 
-    // Update the database to mark the order as failed
-    await prisma.buy_sell_pro_limit_open.update({
-      data: {
-        status: "FAILED",
-        response: JSON.stringify(binanceError) ,
-      },
-      where: {
-        order_id: OrderId,
-      },
-    });
+      // Update the database to mark the order as failed
+      await prisma.buy_sell_pro_limit_open.update({
+        data: {
+          status: "FAILED",
+          response: JSON.stringify(binanceError),
+        },
+        where: {
+          order_id: OrderId,
+        },
+      });
 
-    return res.status(config.HTTP_SERVER_ERROR).send({
-      status_code: config.HTTP_SERVER_ERROR,
-      status: false,
-      message: "Order failed to place.",
-    });
-  }
-   //sleep for 5 seconds
+      return res.status(config.HTTP_SERVER_ERROR).send({
+        status_code: config.HTTP_SERVER_ERROR,
+        status: false,
+        message: "Order failed to place.",
+      });
+    }
+    //sleep for 5 seconds
     await new Promise((resolve) => setTimeout(resolve, 1000));
     const orderData = await client.getOrder(pairSymbol, {
-      orderId:orderResponse.orderId
+      orderId: orderResponse.orderId
     })
 
     await prisma.$transaction([
@@ -991,7 +991,7 @@ export const placeSellStopLimit = async (req: any, res: any) => {
       }),
     ]);
 
-    const responseData:any = {
+    const responseData: any = {
       order_id: orderData.clientOrderId, // Order ID
       base_quantity: orderData.origQty, // Order quantity
       quote_quantity: orderData.cummulativeQuoteQty, // Cumulative quote asset transacted quantity
@@ -1023,7 +1023,7 @@ export const placeSellStopLimit = async (req: any, res: any) => {
     });
   } catch (e) {
     console.log(e);
-    if(e === "Stop price would trigger immediately.") {
+    if (e === "Stop price would trigger immediately.") {
       return res.status(config.HTTP_SUCCESS).send({
         status_code: config.HTTP_SUCCESS,
         status: "0",
@@ -1042,9 +1042,9 @@ export const placeSellStopLimit = async (req: any, res: any) => {
 export const cancelOrder = async (req: any, res: any) => {
   try {
     const reqBody = req.body;
-    const { user_id, order_id, pair_id , device_type, device_info} = reqBody;
+    const { user_id, order_id, pair_id, device_type, device_info } = reqBody;
 
-    if (!user_id || !pair_id || !order_id ||  !device_type || ! device_info) {
+    if (!user_id || !pair_id || !order_id || !device_type || !device_info) {
       return res.status(400).send({
         status_code: 400,
         status: "0",
@@ -1081,7 +1081,7 @@ export const cancelOrder = async (req: any, res: any) => {
     const order_type = getPairData.type;
     const AccountName = getPairData.account_id;
 
-    const client= getAccountConfig(AccountName);
+    const client = getAccountConfig(AccountName);
 
     const pair_data = await prisma.crypto_pair.findFirst({
       where: {
@@ -1109,7 +1109,7 @@ export const cancelOrder = async (req: any, res: any) => {
     const orderData = await client.cancelOrder(symbol, {
       origClientOrderId: order_id,
     });
- 
+
     if (orderData.status === "CANCELED") {
       const origQty = orderData.origQty;
       const executedQty = orderData.executedQty;
@@ -1175,7 +1175,7 @@ export const cancelOrder = async (req: any, res: any) => {
         }),
       ]);
 
-      const responseData:any = {
+      const responseData: any = {
         order_id: orderData.origClientOrderId, // Order ID
         base_quantity: orderData.origQty, // Order quantity
         quote_quantity: orderData.cummulativeQuoteQty, // Cumulative quote asset transacted quantity
@@ -1198,7 +1198,7 @@ export const cancelOrder = async (req: any, res: any) => {
           location: location
         },
       });
-  
+
       return res.status(config.HTTP_SUCCESS).send({
         status_code: config.HTTP_SUCCESS,
         status: "1",
@@ -1244,7 +1244,7 @@ export const get_open_orders = async (req: any, res: any) => {
         .status(400)
         .send({ status_code: 400, status: "3", msg: "provide pair id" });
     }
- 
+
     const data = await prisma.buy_sell_pro_limit_open.findMany({
       where: {
         user_id: user_id,
@@ -1337,7 +1337,6 @@ export const rawQuery = async (req: any, res: any) => {
     const OrderId = GenerateUniqueID(16, randomUUID(), "");
 
     let query = `INSERT INTO crypto_pair (
-      pair_id,
       base_asset_id,
       quote_asset_id,
       pair_symbol,
@@ -1386,6 +1385,55 @@ export const rawQuery = async (req: any, res: any) => {
       .send({ status_code: 500, status: false, msg: e, Data: [] });
   }
 };
+
+export const coinTradingPairs = async (req: any, res: any) => {
+  try {
+    const { currency_id } = req.query;
+    console.log("currency_id", currency_id);
+    
+    if (!currency_id) {
+      return res.status(200).send({
+        status_code: 200,
+        status: "0",
+        msg: "provide currency_id",
+      });
+    }
+
+    const data = await prisma.$queryRaw`
+      SELECT 
+        cp.id as pair_id,
+        cp.base_asset_id,
+        cp.quote_asset_id,
+        cp.pair_symbol,
+        cp.current_price,
+        cp.change_in_price,
+        cp.quantity_decimal,
+        cp.price_decimal,
+        base.symbol AS base_asset_symbol,
+        quote.symbol AS quote_asset_symbol
+      FROM crypto_pair cp
+      JOIN currencies base ON cp.base_asset_id = base.currency_id
+      JOIN currencies quote ON cp.quote_asset_id = quote.currency_id
+      WHERE 
+        cp.base_asset_id = ${currency_id} AND cp.trade_status=1
+        OR (cp.quote_asset_id = ${currency_id} AND cp.popular = 1 AND cp.trade_status=1);`
+
+  return res.status(200).send({
+    status_code: 200,
+    status: "1",
+    data: data,
+  })
+
+  } catch (e) {
+    console.log(e);
+     return res.status(500).send({
+       status_code: 500,
+       status: false,
+       msg: e,
+       Data: [],
+     })
+  }
+}
 
 // export const placeSellOrder = async (req: any, res: any) => {
 //   try {

@@ -7,6 +7,7 @@ import config from "../config/defaults";
 import speakeasy from "speakeasy";
 import { prisma } from "../config/prisma.client";
 import { IClientInfo, IUser, IUserPartial } from "../types/models.types";
+import axios from "axios";
 import {
   checkPassword,
   getToken,
@@ -46,7 +47,7 @@ export const signUp = async (req: Request, res: Response) => {
       !password ||
       !device_type ||
       !device_info
-    ){
+    ){        
       // throw new Error('Please provide all field');
       return res
         .status(400)
@@ -80,14 +81,12 @@ export const signUp = async (req: Request, res: Response) => {
         .send({ status: "0", message: "Please provide valid phone number" });
     }
 
-    // check password
-    if (password.length < 6) {
-      // throw new Error(
-      //   'Password is too short! password must be min 6 char long',
-      // );
+    //passwrod regex Capital letter + small letter + number + special character
+    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/;
+    if(!passwordRegex.test(password)){
       return res.status(200).send({
         status: "0",
-        message: "Password is too short! password must be min 6 char long",
+        message: "Password should be minimum 8 characters, at least one uppercase letter, one lowercase letter, one number and one special character",
       });
     }
     // Check user
@@ -178,6 +177,55 @@ export const signUp = async (req: Request, res: Response) => {
   }
 };
 
+export const getReferralCodeURl = async (req: Request, res: Response) => {
+  try {
+    const { user_id: user_id } = req.body.user;
+    if (!user_id) {
+      return res.status(200).send({ status: "0", message: "User not found" });
+    }
+    // const user = await prisma.user.findUnique({
+    //   where: { user_id: user_id },
+    //   select: {
+    //     user_id: true,
+    //     referral_url: true,
+    //   },
+    // });
+    // if (user?.referral_url == null) {
+        const response = await axios.post(config.BRANCH_URL, {
+          branch_key: config.BRANCH_API_KEY,
+          data: {
+            '$canonical_identifier': `user/referral/user1234`,
+            'referralCode': "user1234",
+            '$og_title': 'Sign Up and get a reward',
+            '$og_description': 'Use this referral and get a reward!',
+            '$ios_url': `bitzup://referral/user1234`,
+            '$fallback_url': `https://i.diawi.com/sZXPEr`,
+          },
+        });
+        console.log('Branch link:', response.data.url);
+        return res.status(200).send({ 
+          status: "1",
+          data: {
+            referral_code : user_id,
+            referral_url: response.data.url,
+          },
+        });
+    // }
+      // return res.status(200).send({ 
+      //     status: "1",
+      //     data: {
+      //       referral_code : user?.user_id,
+      //       referral_url: user?.referral_url,
+      //     },
+      //   });
+  } catch (err) {
+    console.log(err);
+    return res
+      .status(500)
+      .json({ status: "0", message: (err as Error).message });
+  }
+};
+
 /*----- LogIn -----*/
 export const logIn = async (req: Request, res: Response) => {
   try {
@@ -205,11 +253,13 @@ export const logIn = async (req: Request, res: Response) => {
         .send({ status: "0", message: "Please provide valid email address" });
     }
 
-    // check password
-    if (password.length < 6) {
-      return res
-        .status(200)
-        .send({ status: "0", message: "Password is too short!" });
+    //passwrod regex Capital letter + small letter + number + special character
+    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/;
+    if(!passwordRegex.test(password)){
+      return res.status(200).send({
+        status: "0",
+        message: "Password should be minimum 8 characters, at least one uppercase letter, one lowercase letter, one number and one special character",
+      });
     }
 
     // check user
@@ -226,6 +276,7 @@ export const logIn = async (req: Request, res: Response) => {
         lockout_time: true,
         otp_count: true,
         status: true,
+        anti_phishing_code: true,
       },
     });
 
@@ -250,7 +301,7 @@ export const logIn = async (req: Request, res: Response) => {
         status: "0",
         message:
           "Your account is locked out until " +
-          user?.lockout_time.toLocaleString(),
+          user?.lockout_time.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' })
       });
     } else if (user?.lockout_time !== null && new Date() > user?.lockout_time) {
       login_count = 0;
@@ -305,7 +356,14 @@ export const logIn = async (req: Request, res: Response) => {
 
     // check verified
     if (!otp) {
-      await sendOTPVerificationEmail(email, result, user.user_id);
+      await sendOTPVerificationEmail(email, result, user?.user_id,user?.anti_phishing_code as string);
+
+      // if(!sentOtp?.verified){
+      //   return res.status(200).send({
+      //     status: "0",
+      //     message: sentOtp?.msg,
+      //   });
+      // }
 
       return res.status(200).send({
         status: "1",
@@ -410,7 +468,7 @@ export const logIn = async (req: Request, res: Response) => {
 
     res.status(200).send({
       status: "1",
-      message: "User loggedIn Successfully",
+      // message: "User loggedIn Successfully",
       showAuth: logUser.isAuth === "Active" ? true : false,
       data: {
         user_id: user.user_id,
@@ -435,12 +493,23 @@ export const getuserProfile = async (req: Request, res: Response) => {
         name: true,
         email: true,
         uid: true,
+        withdrawal_password: true,
       },
     });
     if (!user) {
       return res.status(200).send({ status: "0", message: "User not found" });
     }
-    res.status(200).send({ status: "1", message: "User found", data: user });
+    let withdrawal_password = false;
+    if(user.withdrawal_password) {
+      withdrawal_password = true;
+    }
+    const data = {
+      name: user.name,
+      email: user.email,
+      uid: user.uid,
+      withdrawal_password: withdrawal_password
+    };
+    res.status(200).send({ status: "1", message: "User found", data: data });
   } catch (err) {
     console.log(err);
     res.status(500).json({ status: "3", message: (err as Error).message });
@@ -476,8 +545,40 @@ export const getUserActivity = async (req: Request, res: Response) => {
   }
 };  
 
+
+export const setAntiPhisingCode = async (req: Request, res: Response) => {
+  try {
+    const { user_id } = req.body.user;
+    const { anti_phishing_code } = req.body;
+    if (!user_id) {
+      return res.status(200).send({ status: "0", message: "User not found" });
+    }
+    if (!anti_phishing_code) {
+      return res.status(200).send({ status: "0", message: "Please provide anti phishing code" });
+    }
+
+    // anti phishing code regex numner and letter and length 8 -32
+    const anti_phishing_code_regex = /^[a-zA-Z0-9]{8,32}$/;
+    if (!anti_phishing_code_regex.test(anti_phishing_code)) {
+      return res.status(200).send({ status: "0", message: "Anti phishing code should be number and letter only" });
+    }
+
+    await prisma.user.updateMany({
+      where: { user_id: user_id },
+      data: {
+        anti_phishing_code: anti_phishing_code,
+      },
+    });
+    res.status(200).send({ status: "1", message: "Anti phishing code set successfully" });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ status: "3", message: (err as Error).message });
+}
+};  
+
 export const logOut = async (req: Request, res: Response) => {
   try {
+    console.log('in logout')
     const { user_id } = req.body.user;
     const { ip_address, device_type, device_info } = req.body;
     if (!ip_address || !device_type || !device_info) {
@@ -854,25 +955,30 @@ export const generate2FaKey = async (req: Request, res: Response) => {
 /*----- Change password -----*/
 export const changePassword = async (req: Request, res: Response) => {
   try {
-    const { new_password, confirm_new_password, otp, email, ip_address, device_type, device_info } = req.body;
+    const { old_password,new_password,confirm_new_password, otp,authenticator_code,device_type, device_info } = req.body;
+    const user_id = req.body.user.user_id;
 
-    if (!new_password || !confirm_new_password || !otp || !email || !ip_address || !device_type || !device_info) {
+    if (!old_password || !new_password || !confirm_new_password || !device_type || !device_info) {
       return res.status(200).send({
         status: "0",
         message: "Please provide all field",
       });
     }
+
     // check password
-    if (new_password.length < 6) {
+    //passwrod regex Capital letter + small letter + number + special character
+    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/;
+    if(!passwordRegex.test(old_password)){
       return res.status(200).send({
         status: "0",
-        message: "Old Password is too short! password must be of 6 length",
+        message: "Invalid old password",
       });
     }
-    if (otp.length !== 6) {
+
+    if(!passwordRegex.test(new_password)){
       return res.status(200).send({
         status: "0",
-        message: "OTP is too short! OTP must be 6 char long",
+        message: "Password should be minimum 8 characters, at least one uppercase letter, one lowercase letter, one number and one special character",
       });
     }
 
@@ -885,7 +991,7 @@ export const changePassword = async (req: Request, res: Response) => {
 
     // check user
     const user = await prisma.user.findFirst({
-      where: { email: email },
+      where: { user_id: user_id },
     });
 
     // user not present
@@ -897,34 +1003,74 @@ export const changePassword = async (req: Request, res: Response) => {
       });
     }
 
-    const same_password = await checkPassword(new_password, user.password);
+    const same_password = await checkPassword(old_password, user.password);
 
-    if (same_password) {
+    if (!same_password) {
       return res.status(200).send({
         status: "0",
-        message: "Kuch naya password daal bhai, purana wala nahi chalega bro.",
+        message: "Please provide correct old password",
       });
     }
 
-    const otpVerified = await verifyOtp(user.user_id, otp);
+    const ip_address = req.headers["x-real-ip"] as string || (req.headers["x-forwarded-for"] as string).split(",")[0];
+    // get client information
+    const result: IClientInfo | undefined = await getClientInfo(ip_address,device_type,device_info);
+   console.log('otp',otp);
+        // check verified
+    if (!otp) {
+      await sendOTPVerificationEmail(user.email, result, user.user_id,user?.anti_phishing_code as string);  
 
-    if (!otpVerified?.verified) {
       return res.status(200).send({
-        status: "0",
-        message: otpVerified?.msg,
+        status: "1",
+        message:
+          "OTP has been sent to your email.",
+        showAuth: user.isAuth === "Active" ? true : false,
+        login:'no'
       });
     }
-    if (otpVerified?.verified) {
-      // Password hashed
+
+    if (user.isAuth === "Active") {
+      if (!authenticator_code) {
+        // throw new Error('Please provide authenticator code');
+        return res
+          .status(200)
+          .send({ status: "0", message: "Please provide authenticator code" });
+      }
+
+      const verified = speakeasy.totp.verify({
+        secret: JSON.parse(user.secret_key || "").base32,
+        encoding: "base32",
+        token: authenticator_code,
+        window: 1, // Number of 30-second intervals to check before and after the current time
+      });
+
+      if (!verified) {
+        // throw new Error('Please provide correct authenticator code');
+        return res.status(200).send({
+          status: "0",
+          message: "Please provide correct authenticator code",
+        });
+      }
+    }
+   console.log('userID',user.user_id);
+    // verify otp
+    const verifyOTP = await verifyOtp(user.user_id, otp);
+    console.log('tituu',verifyOTP);
+    // if not verified
+    if (!verifyOTP?.verified) {
+      return res.status(200).send({ status: "0", message: verifyOTP?.msg });
+    }
+
       const hash = await bcrypt.hash(new_password, config.saltworkFactor);
+
+      const token = await getToken(user.user_id);
 
       await prisma.user.updateMany({
         where: { user_id: user.user_id },
-        data: { password: hash, token: null },
+        data: { password: hash, token: token },
       });
 
-
-      const location:string = await getIplocation(ip_address);
+ 
       // activity log
       await prisma.activity_logs.create({
         data: {
@@ -933,15 +1079,16 @@ export const changePassword = async (req: Request, res: Response) => {
           activity_type: "Change Password",
           device_type: device_type,
           device_info: device_info,
-          location: location
+          location: result?.location as string
         },
       });
 
       res.status(200).json({
         status: "1",
         message: "password changed successfully",
+        token: token
       });
-    }
+    
   } catch (err) {
     console.log(err);
     res.status(500).json({ status: "0", message: (err as Error).message });
@@ -975,7 +1122,8 @@ export const forgotPass = async (req: Request, res: Response) => {
       where: { email },
       select: {
         user_id: true,
-        email: true
+        email: true,
+        anti_phishing_code: true,
       }
     });
 
@@ -993,7 +1141,7 @@ export const forgotPass = async (req: Request, res: Response) => {
     const clientInfo = await getClientInfo(ip_address, device_type, device_info);
     // sending mail
 
-    await sendOTPVerificationEmail(user.email, clientInfo, user.user_id);
+    await sendOTPVerificationEmail(user.email, clientInfo, user.user_id,user?.anti_phishing_code as string);
   
     // activity logs
     await prisma.activity_logs.create({
@@ -1082,7 +1230,6 @@ export const VerifyForgetPassword = async (req: Request, res: Response) => {
 
       const ip_address =  req.headers['x-real-ip'] as string || req.headers['x-forwarded-for'] as string;
       const location:string = await getIplocation(ip_address);
-      // activity log
       await prisma.activity_logs.create({
         data: {
           user_id: user.user_id,

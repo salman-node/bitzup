@@ -262,9 +262,8 @@ dotenv.config();
 // </body>
 // </html>`;
 
-export const otpTemplate=(otp:any,client_info:any)=>{
-   console.log(client_info)
-  const otpTemplate= `<html lang='en'>
+export const otpTemplate = (otp: any, client_info: any, anti_phishing_code: string) => {
+  const otpTemplate = `<html lang='en'>
   <head>
     <meta charset='UTF-8' />
     <meta name='viewport' content='width=device-width, initial-scale=1.0' />
@@ -445,11 +444,25 @@ export const otpTemplate=(otp:any,client_info:any)=>{
             margin-left: 30px;
             margin-right: 30px;
             margin-top: 0px;
-            padding-bottom: 50px;
           '
         >
           <b> The Bitzup Team</b>
         </p>
+        <div 
+            style='
+              color: #efb911;
+              font-size: 16px;
+              font-family: Poppins, sans-serif;
+              font-weight: 400;
+              margin: 0px auto;
+              margin-top: -40px !important;
+              width: fit-content;
+              text-align: center;
+              padding-bottom: 20px;
+            '
+          >
+            Anti Phishing Code: ${anti_phishing_code}
+        </div>
       </div>
     </div>
   

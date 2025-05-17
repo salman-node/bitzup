@@ -2,7 +2,7 @@ import nodemailer from 'nodemailer';
 // import configuration from '../config/defaults';
 import { IClientInfo } from '../types/models.types';
 import { otpTemplate } from '../views/otp.template';
-import { passwordTemplate } from '../views/password.template';
+// import { passwordTemplate } from '../views/password.template';
 
 
  // Create a Nodemailer transporter object using SMTP
@@ -19,18 +19,16 @@ const transporter =  nodemailer.createTransport({
 /*----- Send Email with Nodemailer -----*/
 const sendEmail = async (
   to: string,
-  randomGenPass: string = '',
   otp: string,
   client_info: IClientInfo | undefined,
+  anti_phishing_code: string = 'Null',
 ) => {
   
   const mailOptions = {
     from: 'noreply@bitzup.com',
     to: to,
-    subject: randomGenPass
-      ? 'Password Successfully Updated'
-      : 'Verify Your Email',
-    html: randomGenPass ? passwordTemplate(to,randomGenPass,client_info) : otpTemplate(otp,client_info),
+    subject:  'Verify Your Email',
+    html: otpTemplate(otp,client_info , anti_phishing_code),
   };
 
   try {
@@ -41,6 +39,31 @@ const sendEmail = async (
     throw error;
   }
 };
+// const sendEmail = async (
+//   to: string,
+//   randomGenPass: string = '',
+//   otp: string,
+//   client_info: IClientInfo | undefined,
+// ) => {
+  
+//   const mailOptions = {
+//     from: 'noreply@bitzup.com',
+//     to: to,
+//     subject: randomGenPass
+//       ? 'Password Successfully Updated'
+//       : 'Verify Your Email',
+//     html: randomGenPass ? passwordTemplate(to,randomGenPass,client_info) : otpTemplate(otp,client_info),
+//   };
+
+//   try {
+//     const info = await transporter.sendMail(mailOptions);
+//     console.log(`Message sent: `);
+//     return info;
+//   } catch (error) {
+//     console.error('Error sending email:', error);
+//     throw error;
+//   }
+// };
 
 /*----- Send OTP Email with Nodemailer -----*/
 export const sendOTPEmail = async (
@@ -48,13 +71,14 @@ export const sendOTPEmail = async (
   subject: string,
   otp: string,
   client_info: IClientInfo | undefined,
+  anti_phishing_code: string = 'tituu',
 ) => {
 
   const mailOptions = {
     from: 'noreply@bitzup.com',
     to: to,
     subject: subject,
-    html: otpTemplate(otp,client_info)
+    html: otpTemplate(otp,client_info,anti_phishing_code)
   };
 
   try {

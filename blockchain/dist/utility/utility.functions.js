@@ -45,16 +45,9 @@ const mail_function_1 = __importStar(require("./mail.function"));
 const admin = __importStar(require("firebase-admin"));
 const dotenv = require('dotenv');
 ;
-const node_device_detector_1 = __importDefault(require("node-device-detector"));
-const geoip = __importStar(require("geoip-lite"));
+const activity_logs_1 = require("./activity.logs");
 const uuid_1 = require("uuid");
 dotenv.config();
-// created new detector object
-const detector = new node_device_detector_1.default({
-    clientIndexes: true,
-    deviceIndexes: true,
-    deviceAliasCode: false,
-});
 /*----- Generate token -----*/
 const getToken = (user_id) => __awaiter(void 0, void 0, void 0, function* () {
     if (!defaults_1.default.jwtsecret) {
@@ -156,6 +149,7 @@ const checkOtp = (otp, hashedOTP) => {
             if (err) {
                 reject(err);
             }
+            console.log("in check otp: ", validOTP);
             resolve(validOTP);
         });
     });
@@ -184,8 +178,8 @@ const sendGeneralOTP = (email, subject, client_info, user_id) => __awaiter(void 
             data: {
                 user_id,
                 otp: hashedOTP,
-                createdAt: Date.now().toString(),
-                expiresAt: `${Date.now() + 300000}`,
+                createdAt: Date.now(),
+                expiresAt: Date.now() + 300000,
             },
         });
         // sending OTP mail
@@ -197,8 +191,25 @@ const sendGeneralOTP = (email, subject, client_info, user_id) => __awaiter(void 
 });
 exports.sendGeneralOTP = sendGeneralOTP;
 /*----- Send OTP Verification Email -----*/
-const sendOTPVerificationEmail = (email, client_info, user_id) => __awaiter(void 0, void 0, void 0, function* () {
+const sendOTPVerificationEmail = (email, client_info, user_id, anti_phishing_code) => __awaiter(void 0, void 0, void 0, function* () {
     try {
+        // const userOtpRecord = await prisma.otp.findFirst({
+        //   where: { user_id: user_id },
+        // })
+        // if (userOtpRecord) {
+        //   // user otp record exist
+        //   const expiresAt = userOtpRecord.expiresAt;
+        //   if (Number(expiresAt) > Date.now()) {
+        //     // user otp has not expired
+        //     return {
+        //       verified: false,
+        //       msg: 'OTP already sent. Please check your email.',
+        //     };
+        //   } else {
+        //     // user otp has expired
+        //     await prisma.otp.deleteMany({ where: { user_id:user_id } });
+        //   }
+        // }
         // const randomOTP = `${Math.floor(100000 + Math.random() * 900000)}`;
         const randomOTP = (0, crypto_1.randomBytes)(3).toString('hex');
         const hashedOTP = yield bcrypt_1.default.hash(randomOTP, defaults_1.default.saltworkFactor);
@@ -207,12 +218,12 @@ const sendOTPVerificationEmail = (email, client_info, user_id) => __awaiter(void
             data: {
                 user_id: user_id,
                 otp: hashedOTP,
-                createdAt: Date.now().toString(),
-                expiresAt: `${Date.now() + 300000}`,
+                createdAt: Date.now(),
+                expiresAt: Date.now() + 300000,
             },
         });
         // sending mail
-        yield (0, mail_function_1.default)(email, '', randomOTP, client_info);
+        yield (0, mail_function_1.default)(email, randomOTP, client_info, anti_phishing_code);
     }
     catch (err) {
         console.log(err.message);
@@ -225,17 +236,19 @@ const verifyOtp = (user_id, otp) => __awaiter(void 0, void 0, void 0, function* 
         // Check OTP
         const userOtpRecord = yield prisma_client_1.prisma.otp.findFirst({
             where: { user_id: user_id },
+            orderBy: { id: 'desc' }
         });
         if (!userOtpRecord) {
             return {
                 verified: false,
-                msg: `Invalid email or password.`,
+                msg: `Invalid otp.`,
             };
         }
         // user otp record exist
         const expiresAt = userOtpRecord.expiresAt;
         const hashedOTP = userOtpRecord.otp;
-        if (parseInt(expiresAt) < Date.now()) {
+        console.log('expiresAt', Number(expiresAt), 'now', Date.now());
+        if (Number(expiresAt) < Date.now()) {
             // user otp has expired
             yield prisma_client_1.prisma.otp.deleteMany({ where: { user_id: user_id } });
             return {
@@ -245,6 +258,7 @@ const verifyOtp = (user_id, otp) => __awaiter(void 0, void 0, void 0, function* 
         }
         else {
             const validOTP = yield (0, exports.checkOtp)(otp, hashedOTP);
+            console.log('in verify otp', validOTP);
             if (!validOTP) {
                 // supplied otp is wrong
                 return {
@@ -268,26 +282,15 @@ const verifyOtp = (user_id, otp) => __awaiter(void 0, void 0, void 0, function* 
 });
 exports.verifyOtp = verifyOtp;
 /*------ Get Client Information ------*/
-const getClientInfo = (req) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b;
+const getClientInfo = (ip, device_type, device_info) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        // const ip = req.ip.split(':');
-        const ip = '237.84.2.178';
-        const ipv4 = ip[ip.length - 1];
-        const userAgent = req.get('user-agent');
-        // destructure information from user-agent
-        const result = detector.detect(userAgent);
-        const location = geoip.lookup(ipv4);
+        const location = yield (0, activity_logs_1.getIplocation)(ip);
         // client object
         const client_obj = {
-            ip: ipv4,
-            city: location === null || location === void 0 ? void 0 : location.city,
-            region: location === null || location === void 0 ? void 0 : location.region,
-            country_name: location === null || location === void 0 ? void 0 : location.country,
-            os_name: result === null || result === void 0 ? void 0 : result.os.name,
-            client_name: (_a = result === null || result === void 0 ? void 0 : result.client) === null || _a === void 0 ? void 0 : _a.name,
-            client_type: (_b = result === null || result === void 0 ? void 0 : result.client) === null || _b === void 0 ? void 0 : _b.type,
-            device_type: result === null || result === void 0 ? void 0 : result.device.type,
+            ip: ip,
+            location: location,
+            device_type: device_type,
+            device_info: device_info,
         };
         return client_obj;
     }

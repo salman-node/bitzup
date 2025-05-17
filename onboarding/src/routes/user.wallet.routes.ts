@@ -23,22 +23,6 @@ import {
 // Object to store the last timestamp of each user's API call
 const userLastCall: { [key: string]: number } = {};
 
-// function throttle(func: Function, limit: number) {
-//   let inThrottle = false;
-
-//   return function(this: any, ...args: any[]) { // Specify the type of 'this' as 'any'
-//       const context = this;
-
-//       if (!inThrottle) {
-//           // Call the API function
-//           func.apply(context, args);
-//           inThrottle = true;
-
-//           // Reset the throttle flag after the specified limit
-//           setTimeout(() => (inThrottle = false), limit);
-//       }
-//   };
-// }
 
 // router.route('/get-buy-sell-balance').post([verifyUser], getBuySellBalance);
 // router

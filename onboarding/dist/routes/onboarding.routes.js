@@ -13,7 +13,9 @@ const otp_controller_1 = require("../controller/otp.controller");
 router.post('/signup', user_controller_1.signUp);
 router.post('/login', user_controller_1.logIn);
 router.get('/getUserProfile', authentication_1.verifyUser, user_controller_1.getuserProfile);
+router.get('/getReferralCodeURl', authentication_1.verifyUser, user_controller_1.getReferralCodeURl);
 router.get('/getUserActivity', authentication_1.verifyUser, user_controller_1.getUserActivity);
+router.post('/set-anti-phishing-code', authentication_1.verifyUser, user_controller_1.setAntiPhisingCode);
 router.post('/logout', authentication_1.verifyUser, user_controller_1.logOut);
 router.route('/verify-auth').post([authentication_1.verifyUser], user_controller_1.verifyAuth); // add to doc
 router.route('/verify-otp-auth').post([authentication_1.verifyUser], user_controller_1.verifyOtpAuth); // add to doc

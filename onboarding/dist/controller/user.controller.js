@@ -35,7 +35,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAllCountries = exports.VerifyForgetPassword = exports.forgotPass = exports.changePassword = exports.generate2FaKey = exports.delete2FaAuth = exports.get2FaAuth = exports.verifyOtpAuth = exports.verifyAuth = exports.logOut = exports.getUserActivity = exports.getuserProfile = exports.logIn = exports.signUp = void 0;
+exports.getAllCountries = exports.VerifyForgetPassword = exports.forgotPass = exports.changePassword = exports.generate2FaKey = exports.delete2FaAuth = exports.get2FaAuth = exports.verifyOtpAuth = exports.verifyAuth = exports.logOut = exports.setAntiPhisingCode = exports.getUserActivity = exports.getuserProfile = exports.logIn = exports.getReferralCodeURl = exports.signUp = void 0;
 const bcrypt = __importStar(require("bcrypt"));
 const activity_log_1 = require("../utility/activity.log");
 const activity_log_2 = require("../utility/activity.log");
@@ -43,6 +43,7 @@ const crypto_1 = require("crypto");
 const defaults_1 = __importDefault(require("../config/defaults"));
 const speakeasy_1 = __importDefault(require("speakeasy"));
 const prisma_client_1 = require("../config/prisma.client");
+const axios_1 = __importDefault(require("axios"));
 const utility_functions_1 = require("../utility/utility.functions");
 const utility_functions_2 = require("../utility/utility.functions");
 // import { json } from "stream/consumers";
@@ -89,14 +90,12 @@ const signUp = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
                 .status(200)
                 .send({ status: "0", message: "Please provide valid phone number" });
         }
-        // check password
-        if (password.length < 6) {
-            // throw new Error(
-            //   'Password is too short! password must be min 6 char long',
-            // );
+        //passwrod regex Capital letter + small letter + number + special character
+        const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/;
+        if (!passwordRegex.test(password)) {
             return res.status(200).send({
                 status: "0",
-                message: "Password is too short! password must be min 6 char long",
+                message: "Password should be minimum 8 characters, at least one uppercase letter, one lowercase letter, one number and one special character",
             });
         }
         // Check user
@@ -176,6 +175,56 @@ const signUp = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     }
 });
 exports.signUp = signUp;
+const getReferralCodeURl = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { user_id: user_id } = req.body.user;
+        if (!user_id) {
+            return res.status(200).send({ status: "0", message: "User not found" });
+        }
+        // const user = await prisma.user.findUnique({
+        //   where: { user_id: user_id },
+        //   select: {
+        //     user_id: true,
+        //     referral_url: true,
+        //   },
+        // });
+        // if (user?.referral_url == null) {
+        const response = yield axios_1.default.post(defaults_1.default.BRANCH_URL, {
+            branch_key: defaults_1.default.BRANCH_API_KEY,
+            data: {
+                '$canonical_identifier': `user/referral/user1234`,
+                'referralCode': "user1234",
+                '$og_title': 'Sign Up and get a reward',
+                '$og_description': 'Use this referral and get a reward!',
+                '$ios_url': `bitzup://referral/user1234`,
+                '$fallback_url': `https://i.diawi.com/sZXPEr`,
+            },
+        });
+        console.log('Branch link:', response.data.url);
+        return res.status(200).send({
+            status: "1",
+            data: {
+                referral_code: user_id,
+                referral_url: response.data.url,
+            },
+        });
+        // }
+        // return res.status(200).send({ 
+        //     status: "1",
+        //     data: {
+        //       referral_code : user?.user_id,
+        //       referral_url: user?.referral_url,
+        //     },
+        //   });
+    }
+    catch (err) {
+        console.log(err);
+        return res
+            .status(500)
+            .json({ status: "0", message: err.message });
+    }
+});
+exports.getReferralCodeURl = getReferralCodeURl;
 /*----- LogIn -----*/
 const logIn = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
@@ -192,11 +241,13 @@ const logIn = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
                 .status(200)
                 .send({ status: "0", message: "Please provide valid email address" });
         }
-        // check password
-        if (password.length < 6) {
-            return res
-                .status(200)
-                .send({ status: "0", message: "Password is too short!" });
+        //passwrod regex Capital letter + small letter + number + special character
+        const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/;
+        if (!passwordRegex.test(password)) {
+            return res.status(200).send({
+                status: "0",
+                message: "Password should be minimum 8 characters, at least one uppercase letter, one lowercase letter, one number and one special character",
+            });
         }
         // check user
         const user = yield prisma_client_1.prisma.user.findUnique({
@@ -212,6 +263,7 @@ const logIn = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
                 lockout_time: true,
                 otp_count: true,
                 status: true,
+                anti_phishing_code: true,
             },
         });
         // user not present
@@ -233,7 +285,7 @@ const logIn = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
             return res.status(200).send({
                 status: "0",
                 message: "Your account is locked out until " +
-                    (user === null || user === void 0 ? void 0 : user.lockout_time.toLocaleString()),
+                    (user === null || user === void 0 ? void 0 : user.lockout_time.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }))
             });
         }
         else if ((user === null || user === void 0 ? void 0 : user.lockout_time) !== null && new Date() > (user === null || user === void 0 ? void 0 : user.lockout_time)) {
@@ -287,7 +339,13 @@ const logIn = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         const result = yield (0, utility_functions_2.getClientInfo)(ip_address, device_type, device_info);
         // check verified
         if (!otp) {
-            yield (0, utility_functions_2.sendOTPVerificationEmail)(email, result, user.user_id);
+            yield (0, utility_functions_2.sendOTPVerificationEmail)(email, result, user === null || user === void 0 ? void 0 : user.user_id, user === null || user === void 0 ? void 0 : user.anti_phishing_code);
+            // if(!sentOtp?.verified){
+            //   return res.status(200).send({
+            //     status: "0",
+            //     message: sentOtp?.msg,
+            //   });
+            // }
             return res.status(200).send({
                 status: "1",
                 message: "OTP has been sent to your email.",
@@ -380,7 +438,7 @@ const logIn = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         });
         res.status(200).send({
             status: "1",
-            message: "User loggedIn Successfully",
+            // message: "User loggedIn Successfully",
             showAuth: logUser.isAuth === "Active" ? true : false,
             data: {
                 user_id: user.user_id,
@@ -406,12 +464,23 @@ const getuserProfile = (req, res) => __awaiter(void 0, void 0, void 0, function*
                 name: true,
                 email: true,
                 uid: true,
+                withdrawal_password: true,
             },
         });
         if (!user) {
             return res.status(200).send({ status: "0", message: "User not found" });
         }
-        res.status(200).send({ status: "1", message: "User found", data: user });
+        let withdrawal_password = false;
+        if (user.withdrawal_password) {
+            withdrawal_password = true;
+        }
+        const data = {
+            name: user.name,
+            email: user.email,
+            uid: user.uid,
+            withdrawal_password: withdrawal_password
+        };
+        res.status(200).send({ status: "1", message: "User found", data: data });
     }
     catch (err) {
         console.log(err);
@@ -449,8 +518,38 @@ const getUserActivity = (req, res) => __awaiter(void 0, void 0, void 0, function
     }
 });
 exports.getUserActivity = getUserActivity;
+const setAntiPhisingCode = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { user_id } = req.body.user;
+        const { anti_phishing_code } = req.body;
+        if (!user_id) {
+            return res.status(200).send({ status: "0", message: "User not found" });
+        }
+        if (!anti_phishing_code) {
+            return res.status(200).send({ status: "0", message: "Please provide anti phishing code" });
+        }
+        // anti phishing code regex numner and letter and length 8 -32
+        const anti_phishing_code_regex = /^[a-zA-Z0-9]{8,32}$/;
+        if (!anti_phishing_code_regex.test(anti_phishing_code)) {
+            return res.status(200).send({ status: "0", message: "Anti phishing code should be number and letter only" });
+        }
+        yield prisma_client_1.prisma.user.updateMany({
+            where: { user_id: user_id },
+            data: {
+                anti_phishing_code: anti_phishing_code,
+            },
+        });
+        res.status(200).send({ status: "1", message: "Anti phishing code set successfully" });
+    }
+    catch (err) {
+        console.log(err);
+        res.status(500).json({ status: "3", message: err.message });
+    }
+});
+exports.setAntiPhisingCode = setAntiPhisingCode;
 const logOut = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
+        console.log('in logout');
         const { user_id } = req.body.user;
         const { ip_address, device_type, device_info } = req.body;
         if (!ip_address || !device_type || !device_info) {
@@ -787,24 +886,27 @@ exports.generate2FaKey = generate2FaKey;
 /*----- Change password -----*/
 const changePassword = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const { new_password, confirm_new_password, otp, email, ip_address, device_type, device_info } = req.body;
-        if (!new_password || !confirm_new_password || !otp || !email || !ip_address || !device_type || !device_info) {
+        const { old_password, new_password, confirm_new_password, otp, authenticator_code, device_type, device_info } = req.body;
+        const user_id = req.body.user.user_id;
+        if (!old_password || !new_password || !confirm_new_password || !device_type || !device_info) {
             return res.status(200).send({
                 status: "0",
                 message: "Please provide all field",
             });
         }
         // check password
-        if (new_password.length < 6) {
+        //passwrod regex Capital letter + small letter + number + special character
+        const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/;
+        if (!passwordRegex.test(old_password)) {
             return res.status(200).send({
                 status: "0",
-                message: "Old Password is too short! password must be of 6 length",
+                message: "Invalid old password",
             });
         }
-        if (otp.length !== 6) {
+        if (!passwordRegex.test(new_password)) {
             return res.status(200).send({
                 status: "0",
-                message: "OTP is too short! OTP must be 6 char long",
+                message: "Password should be minimum 8 characters, at least one uppercase letter, one lowercase letter, one number and one special character",
             });
         }
         if (new_password !== confirm_new_password) {
@@ -815,7 +917,7 @@ const changePassword = (req, res) => __awaiter(void 0, void 0, void 0, function*
         }
         // check user
         const user = yield prisma_client_1.prisma.user.findFirst({
-            where: { email: email },
+            where: { user_id: user_id },
         });
         // user not present
         if (!user) {
@@ -825,44 +927,78 @@ const changePassword = (req, res) => __awaiter(void 0, void 0, void 0, function*
                 message: "User not found",
             });
         }
-        const same_password = yield (0, utility_functions_1.checkPassword)(new_password, user.password);
-        if (same_password) {
+        const same_password = yield (0, utility_functions_1.checkPassword)(old_password, user.password);
+        if (!same_password) {
             return res.status(200).send({
                 status: "0",
-                message: "Kuch naya password daal bhai, purana wala nahi chalega bro.",
+                message: "Please provide correct old password",
             });
         }
-        const otpVerified = yield (0, utility_functions_2.verifyOtp)(user.user_id, otp);
-        if (!(otpVerified === null || otpVerified === void 0 ? void 0 : otpVerified.verified)) {
+        const ip_address = req.headers["x-real-ip"] || req.headers["x-forwarded-for"].split(",")[0];
+        // get client information
+        const result = yield (0, utility_functions_2.getClientInfo)(ip_address, device_type, device_info);
+        console.log('otp', otp);
+        // check verified
+        if (!otp) {
+            yield (0, utility_functions_2.sendOTPVerificationEmail)(user.email, result, user.user_id, user === null || user === void 0 ? void 0 : user.anti_phishing_code);
             return res.status(200).send({
-                status: "0",
-                message: otpVerified === null || otpVerified === void 0 ? void 0 : otpVerified.msg,
-            });
-        }
-        if (otpVerified === null || otpVerified === void 0 ? void 0 : otpVerified.verified) {
-            // Password hashed
-            const hash = yield bcrypt.hash(new_password, defaults_1.default.saltworkFactor);
-            yield prisma_client_1.prisma.user.updateMany({
-                where: { user_id: user.user_id },
-                data: { password: hash, token: null },
-            });
-            const location = yield (0, activity_log_2.getIplocation)(ip_address);
-            // activity log
-            yield prisma_client_1.prisma.activity_logs.create({
-                data: {
-                    user_id: user.user_id,
-                    ip_address: ip_address,
-                    activity_type: "Change Password",
-                    device_type: device_type,
-                    device_info: device_info,
-                    location: location
-                },
-            });
-            res.status(200).json({
                 status: "1",
-                message: "password changed successfully",
+                message: "OTP has been sent to your email.",
+                showAuth: user.isAuth === "Active" ? true : false,
+                login: 'no'
             });
         }
+        if (user.isAuth === "Active") {
+            if (!authenticator_code) {
+                // throw new Error('Please provide authenticator code');
+                return res
+                    .status(200)
+                    .send({ status: "0", message: "Please provide authenticator code" });
+            }
+            const verified = speakeasy_1.default.totp.verify({
+                secret: JSON.parse(user.secret_key || "").base32,
+                encoding: "base32",
+                token: authenticator_code,
+                window: 1, // Number of 30-second intervals to check before and after the current time
+            });
+            if (!verified) {
+                // throw new Error('Please provide correct authenticator code');
+                return res.status(200).send({
+                    status: "0",
+                    message: "Please provide correct authenticator code",
+                });
+            }
+        }
+        console.log('userID', user.user_id);
+        // verify otp
+        const verifyOTP = yield (0, utility_functions_2.verifyOtp)(user.user_id, otp);
+        console.log('tituu', verifyOTP);
+        // if not verified
+        if (!(verifyOTP === null || verifyOTP === void 0 ? void 0 : verifyOTP.verified)) {
+            return res.status(200).send({ status: "0", message: verifyOTP === null || verifyOTP === void 0 ? void 0 : verifyOTP.msg });
+        }
+        const hash = yield bcrypt.hash(new_password, defaults_1.default.saltworkFactor);
+        const token = yield (0, utility_functions_1.getToken)(user.user_id);
+        yield prisma_client_1.prisma.user.updateMany({
+            where: { user_id: user.user_id },
+            data: { password: hash, token: token },
+        });
+        // activity log
+        yield prisma_client_1.prisma.activity_logs.create({
+            data: {
+                user_id: user.user_id,
+                ip_address: ip_address,
+                activity_type: "Change Password",
+                device_type: device_type,
+                device_info: device_info,
+                location: result === null || result === void 0 ? void 0 : result.location
+            },
+        });
+        res.status(200).json({
+            status: "1",
+            message: "password changed successfully",
+            token: token
+        });
     }
     catch (err) {
         console.log(err);
@@ -895,7 +1031,8 @@ const forgotPass = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
             where: { email },
             select: {
                 user_id: true,
-                email: true
+                email: true,
+                anti_phishing_code: true,
             }
         });
         // user not present
@@ -909,7 +1046,7 @@ const forgotPass = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
         const ip_address = req.headers['x-real-ip'] || req.headers['x-forwarded-for'];
         const clientInfo = yield (0, utility_functions_2.getClientInfo)(ip_address, device_type, device_info);
         // sending mail
-        yield (0, utility_functions_2.sendOTPVerificationEmail)(user.email, clientInfo, user.user_id);
+        yield (0, utility_functions_2.sendOTPVerificationEmail)(user.email, clientInfo, user.user_id, user === null || user === void 0 ? void 0 : user.anti_phishing_code);
         // activity logs
         yield prisma_client_1.prisma.activity_logs.create({
             data: {
@@ -988,7 +1125,6 @@ const VerifyForgetPassword = (req, res) => __awaiter(void 0, void 0, void 0, fun
             });
             const ip_address = req.headers['x-real-ip'] || req.headers['x-forwarded-for'];
             const location = yield (0, activity_log_2.getIplocation)(ip_address);
-            // activity log
             yield prisma_client_1.prisma.activity_logs.create({
                 data: {
                     user_id: user.user_id,

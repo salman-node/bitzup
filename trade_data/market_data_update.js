@@ -76,7 +76,7 @@ const pool = mysql.createPool({
 async function fetchAndUpdatePrices() {
     try {
         // Fetch trading pairs
-        pool.query('SELECT pair_symbol FROM crypto_pair WHERE status = "ZERO"', (error, results) => {
+        pool.query('SELECT pair_symbol FROM crypto_pair WHERE status = "ONE"', (error, results) => {
             if (error) {
                 console.error('Error fetching pairs from database:', error);
                 return;

@@ -37,7 +37,7 @@ const sendOTP = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         // check user
         const exist = yield prisma_client_1.prisma.user.findUnique({
             where: { email },
-            select: { user_id: true },
+            select: { user_id: true, anti_phishing_code: true },
         });
         // user not present
         if (!exist) {
@@ -52,7 +52,7 @@ const sendOTP = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         const result = yield (0, utility_functions_1.getClientInfo)(ip_address, device_type, device_info);
         // send OTP email
         yield prisma_client_1.prisma.otp.deleteMany({ where: { user_id: exist.user_id } });
-        yield (0, utility_functions_1.sendGeneralOTP)(email, subject, result, exist.user_id);
+        yield (0, utility_functions_1.sendGeneralOTP)(email, subject, result, exist.user_id, exist === null || exist === void 0 ? void 0 : exist.anti_phishing_code);
         yield prisma_client_1.prisma.activity_logs.create({
             data: {
                 user_id: exist.user_id,
@@ -89,6 +89,7 @@ const sendEmailOtp = (req, res) => __awaiter(void 0, void 0, void 0, function* (
             where: { user_id },
             select: {
                 email: true,
+                anti_phishing_code: true,
             },
         });
         // user not present
@@ -104,7 +105,7 @@ const sendEmailOtp = (req, res) => __awaiter(void 0, void 0, void 0, function* (
         const result = yield (0, utility_functions_1.getClientInfo)(ip_address, device_type, device_info);
         // send OTP email
         yield prisma_client_1.prisma.otp.deleteMany({ where: { user_id: user_id } });
-        yield (0, utility_functions_1.sendGeneralOTP)(userEmail.email, subject, result, user_id);
+        yield (0, utility_functions_1.sendGeneralOTP)(userEmail.email, subject, result, user_id, userEmail === null || userEmail === void 0 ? void 0 : userEmail.anti_phishing_code);
         const location = yield (0, activity_log_1.getIplocation)(ip_address);
         yield prisma_client_1.prisma.activity_logs.create({
             data: {

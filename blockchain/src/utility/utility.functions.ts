@@ -1,6 +1,5 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { Request } from 'express';
 import { randomBytes } from 'crypto';
 import config from '../config/defaults';
 import { prisma } from '../config/prisma.client';
@@ -9,18 +8,12 @@ import { IClientInfo } from '../types/models.types';
 import { JwtPayload } from 'jsonwebtoken';
 import * as admin from 'firebase-admin';
 const dotenv = require('dotenv');;
-import DeviceDetector, { DetectResult } from 'node-device-detector';
-import * as geoip from 'geoip-lite';
+import { getIplocation } from './activity.logs';
 import  { v4 as uuidv4 } from 'uuid';
 
 dotenv.config();
 
-// created new detector object
-const detector = new DeviceDetector({
-  clientIndexes: true,
-  deviceIndexes: true,
-  deviceAliasCode: false,
-});
+
 
 /*----- Generate token -----*/
 export const getToken = async (user_id: string) => {
@@ -125,7 +118,7 @@ export const checkOtp = (otp: string, hashedOTP: string) => {
       if (err) {
         reject(err);
       }
-
+      console.log("in check otp: ",validOTP);
       resolve(validOTP);
     });
   });
@@ -160,8 +153,8 @@ export const sendGeneralOTP = async (
       data: {
         user_id,
         otp: hashedOTP,
-        createdAt: Date.now().toString(),
-        expiresAt: `${Date.now() + 300000}`,
+        createdAt: Date.now(),
+        expiresAt: Date.now() + 300000,
       },
     });
 
@@ -176,9 +169,27 @@ export const sendGeneralOTP = async (
 export const sendOTPVerificationEmail = async (
   email: string,
   client_info: IClientInfo | undefined,
-  user_id:string
+  user_id:string,
+  anti_phishing_code:string
 ) => {
   try {
+    // const userOtpRecord = await prisma.otp.findFirst({
+    //   where: { user_id: user_id },
+    // })
+    // if (userOtpRecord) {
+    //   // user otp record exist
+    //   const expiresAt = userOtpRecord.expiresAt;
+    //   if (Number(expiresAt) > Date.now()) {
+    //     // user otp has not expired
+    //     return {
+    //       verified: false,
+    //       msg: 'OTP already sent. Please check your email.',
+    //     };
+    //   } else {
+    //     // user otp has expired
+    //     await prisma.otp.deleteMany({ where: { user_id:user_id } });
+    //   }
+    // }
     // const randomOTP = `${Math.floor(100000 + Math.random() * 900000)}`;
     const randomOTP = randomBytes(3).toString('hex');
     const hashedOTP = await bcrypt.hash(randomOTP, config.saltworkFactor);
@@ -188,13 +199,12 @@ export const sendOTPVerificationEmail = async (
       data: {
         user_id:user_id,
         otp: hashedOTP,
-        createdAt: Date.now().toString(),
-        expiresAt: `${Date.now() + 300000}`,
+        createdAt: Date.now(),
+        expiresAt: Date.now() + 300000,
       },
     });
-
     // sending mail
-    await sendEmail(email, '', randomOTP, client_info);
+    await sendEmail(email, randomOTP, client_info,anti_phishing_code);
   } catch (err) {
     console.log((err as Error).message);
   }
@@ -206,20 +216,20 @@ export const verifyOtp = async (user_id: string, otp: string) => {
     // Check OTP
     const userOtpRecord = await prisma.otp.findFirst({
       where: { user_id: user_id },
+      orderBy:{id:'desc'}
     })
-
     if (!userOtpRecord) {
       return {
         verified: false,
-        msg: `Invalid email or password.`,
+        msg: `Invalid otp.`,
       };
     }
 
     // user otp record exist
     const expiresAt = userOtpRecord.expiresAt;
     const hashedOTP = userOtpRecord.otp;
-
-    if (parseInt(expiresAt) < Date.now()) {
+    console.log('expiresAt', Number(expiresAt), 'now', Date.now());
+    if (Number(expiresAt) < Date.now()) {
       // user otp has expired
       await prisma.otp.deleteMany({ where: { user_id:user_id } });
       return {
@@ -228,6 +238,7 @@ export const verifyOtp = async (user_id: string, otp: string) => {
       };
     } else {
       const validOTP = await checkOtp(otp, hashedOTP);
+      console.log('in verify otp', validOTP);
       if (!validOTP) {
         // supplied otp is wrong
         return {
@@ -249,28 +260,21 @@ export const verifyOtp = async (user_id: string, otp: string) => {
 };
 
 /*------ Get Client Information ------*/
-export const getClientInfo = async (req: Request) => {
+export const getClientInfo = async (
+  ip: string,
+  device_type: string,
+  device_info: string
+) => {
   try {
-    // const ip = req.ip.split(':');
-    const ip = '237.84.2.178';
-    const ipv4 = ip[ip.length - 1];
-    const userAgent = req.get('user-agent');
 
-    // destructure information from user-agent
-    const result: DetectResult = detector.detect(userAgent as string);
-
-    const location = geoip.lookup(ipv4);
+    const location = await getIplocation(ip);
 
     // client object
     const client_obj: IClientInfo = {
-      ip: ipv4,
-      city: location?.city,
-      region: location?.region,
-      country_name: location?.country,
-      os_name: result?.os.name,
-      client_name: result?.client?.name,
-      client_type: result?.client?.type,
-      device_type: result?.device.type,
+      ip: ip,
+      location: location ,
+      device_type: device_type,
+      device_info: device_info,
     };
 
     return client_obj;

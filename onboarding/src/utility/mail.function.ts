@@ -21,17 +21,20 @@ const sendEmail = async (
   to: string,
   otp: string,
   client_info: IClientInfo | undefined,
+  anti_phishing_code: string = 'Null',
 ) => {
   
   const mailOptions = {
     from: 'noreply@bitzup.com',
     to: to,
     subject:  'Verify Your Email',
-    html: otpTemplate(otp,client_info),
+    html: otpTemplate(otp,client_info,anti_phishing_code),
   };
 
   try {
+    console.log('otp sent')
     const info = await transporter.sendMail(mailOptions);
+    console.log(`Message sent: ${info.messageId}`);
     return info;
   } catch (error) {
     console.error('Error sending email:', error);
@@ -45,13 +48,14 @@ export const sendOTPEmail = async (
   subject: string,
   otp: string,
   client_info: IClientInfo | undefined,
+  anti_phishing_code: string = 'Null',
 ) => {
 
   const mailOptions = {
     from: 'noreply@bitzup.com',
     to: to,
     subject: subject,
-    html: otpTemplate(otp,client_info)
+    html: otpTemplate(otp,client_info,anti_phishing_code),
   };
   console.log('otp sent')
   try {

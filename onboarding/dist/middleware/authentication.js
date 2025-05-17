@@ -16,21 +16,17 @@ const verifyUser = (req, res, next) => __awaiter(void 0, void 0, void 0, functio
     try {
         const { authorization } = req.headers;
         if (!authorization) {
-            // throw new Error('You are not authorized');
             return res.status(400).json({ status: '3', message: 'You are not authorized' });
         }
         else if (!authorization.startsWith('Bearer ')) {
-            // throw new Error('You are not authorized');
             return res.status(400).send({ status: '3', message: 'You are not authorized' });
         }
         const token = authorization.split(' ')[1];
         if (token === 'null' || token === '' || token === 'undefined') {
-            // throw new Error('Something went wrong Please try again!!');
             return res.status(400).json({ status: '3', message: 'You are not authorized' });
         }
         const payload = yield (0, utility_functions_1.verifyToken)(token);
         if (!payload) {
-            // throw new Error('You are not authorized');
             return res.status(400).json({ status: '3', message: 'You are not authorized' });
         }
         const user = yield prisma_client_1.prisma.user.findFirst({

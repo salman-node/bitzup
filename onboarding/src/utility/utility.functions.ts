@@ -110,7 +110,8 @@ export const sendGeneralOTP = async (
   email: string,
   subject: string,
   client_info: IClientInfo | undefined,
-  user_id:string
+  user_id:string,
+  anti_phishing_code:string
 ) => {
   try {
     // const randomOTP = `${Math.floor(100000 + Math.random() * 900000)}`;
@@ -122,15 +123,15 @@ export const sendGeneralOTP = async (
       data: {
         user_id,
         otp: hashedOTP,
-        createdAt: Date.now().toString(),
-        expiresAt: `${Date.now() + 300000}`,
+        createdAt: Date.now(),
+        expiresAt:Date.now() + 300000,
       },
     });
 
  
 console.log('in send general otp', client_info);
     // sending OTP mail
-    await sendOTPEmail(email, subject, randomOTP, client_info);
+    await sendOTPEmail(email, subject, randomOTP, client_info,anti_phishing_code);
   } catch (err) {
     console.log((err as Error).message);
   }
@@ -140,9 +141,29 @@ console.log('in send general otp', client_info);
 export const sendOTPVerificationEmail = async (
   email: string,
   client_info: IClientInfo | undefined,
-  user_id:string
+  user_id:string,
+  anti_phishing_code:string = 'Null'
 ) => {
   try {
+
+    // const userOtpRecord = await prisma.otp.findFirst({
+    //   where: { user_id: user_id },
+    // })
+    // if (userOtpRecord) {
+    //   // user otp record exist
+    //   const expiresAt = userOtpRecord.expiresAt;
+    //   if (Number(expiresAt) > Date.now()) {
+    //     // user otp has not expired
+    //     return {
+    //       verified: false,
+    //       msg: 'OTP already sent. Please check your email.',
+    //     };
+    //   } else {
+    //     // user otp has expired
+    //     await prisma.otp.deleteMany({ where: { user_id:user_id } });
+    //   }
+    // }
+
     // const randomOTP = `${Math.floor(100000 + Math.random() * 900000)}`;
     const randomOTP = randomBytes(3).toString('hex');
     const hashedOTP = await bcrypt.hash(randomOTP, config.saltworkFactor);
@@ -152,13 +173,14 @@ export const sendOTPVerificationEmail = async (
       data: {
         user_id:user_id,
         otp: hashedOTP,
-        createdAt: Date.now().toString(),
-        expiresAt: `${Date.now() + 300000}`,
+        createdAt: Date.now(),
+        expiresAt: Date.now() + 300000,
       },
     });
 
+
     // sending mail
-    await sendEmail(email, randomOTP, client_info);
+    await sendEmail(email, randomOTP, client_info,anti_phishing_code);  
   } catch (err) {
     console.log((err as Error).message);
   }
@@ -170,20 +192,19 @@ export const verifyOtp = async (user_id: string, otp: string) => {
     // Check OTP
     const userOtpRecord = await prisma.otp.findFirst({
       where: { user_id: user_id },
+      orderBy: { id: 'desc' },
     })
-
     if (!userOtpRecord){
       return {
         verified: false,
         msg: `Invalid OTP.`,
       };
     }
-
     // user otp record exist
     const expiresAt = userOtpRecord.expiresAt;
     const hashedOTP = userOtpRecord.otp;
 
-    if (parseInt(expiresAt) < Date.now()) {
+    if (Number(expiresAt) < Date.now()) {
       // user otp has expired
       await prisma.otp.deleteMany({ where: { user_id:user_id } });
       return {

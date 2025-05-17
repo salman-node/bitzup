@@ -80,7 +80,7 @@
 //       },
 //     });
 //   } catch (err: any) {
-    console.log(err);
+    // console.log(err);
 //     res.status(500).json({ status: "0", message: err.message });
 //   }
 // };

@@ -670,7 +670,7 @@ export const getAllBuySellOrder = async (req: Request, res: Response) => {
     const result: IBuySellOrder[] = await prisma.$queryRaw`
     SELECT bs.id,cc.pair_symbol,bs.type,bs.stop_limit_price,bs.order_price,bs.base_quantity,bs.final_amount,bs.executed_base_quantity,bs.status,bs.order_type,bs.fees,bs.date_time,bs.cancelled_date_time,bs.order_id 
     FROM buy_sell_pro_limit_open AS bs    
-    JOIN crypto_pair AS cc ON bs.pair_id=cc.pair_id
+    JOIN crypto_pair AS cc ON bs.pair_id=cc.id
     WHERE bs.user_id=${user_id} and bs.status IN ("FILLED", "CANCELLED")  Order by bs.id DESC;`;
 
     // Convert each date_time in the buy sell order array
@@ -1317,7 +1317,6 @@ export const getAllNetwork = async (req: Request, res: Response) => {
                 WHERE 
                  c.currency_id = ${currency_id} and ch.withdrawal_status = 'Active'` ;
 
-console.log('is array khali?: ', networkData);
     res.status(200).json({
       status: "1",
       data: networkData,
@@ -1333,7 +1332,7 @@ export const getUserWalletAddress = async (req: Request, res: Response) => {
   try {
     const { user_id }: { user_id: string } = req.body.user || {};
     const { currency_id, evm_compatible, chain_id } = req.body;
-
+ console.log(currency_id, evm_compatible, chain_id , user_id);
     // Validation
     if (!user_id) {
       return res.status(401).json({ status: "0", message: "Unauthorized or user not present" });
@@ -1347,10 +1346,10 @@ export const getUserWalletAddress = async (req: Request, res: Response) => {
       return res.status(400).json({ status: "0", message: "chain_id is required" });
     }
 
-    if (evm_compatible !== 0 && evm_compatible !== 1) {
+    if (evm_compatible != 1 && evm_compatible != 0) {
       return res.status(400).json({ status: "0", message: "evm_compatible must be 0 or 1" });
     }
-
+ 
     // Check if address exists in DB
     const existingWallet = await prisma.user_wallet.findFirst({
       where: {
@@ -1362,7 +1361,7 @@ export const getUserWalletAddress = async (req: Request, res: Response) => {
         address: true,
       },
     });
-
+    console.log('existingWallet', existingWallet);
     if (existingWallet) {
       return res.status(200).json({ status: "1", data: existingWallet });
     }

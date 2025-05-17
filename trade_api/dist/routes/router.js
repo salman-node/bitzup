@@ -16,6 +16,7 @@ router.post('/place-buy-stop-limit', token_authentication_1.verifyUser, req_vali
 router.post('/place-sell-stop-limit', token_authentication_1.verifyUser, req_validator_1.validate_sell_stop_limit, OpenOrderCount_1.OpenOrderCount, controller_1.placeSellStopLimit);
 router.post('/cancel-order', token_authentication_1.verifyUser, req_validator_1.validate_cancel_order, controller_1.cancelOrder);
 router.get('/get-open-orders', token_authentication_1.verifyUser, controller_1.get_open_orders);
+router.get('/get-coin-trading-pairs', token_authentication_1.verifyUser, controller_1.coinTradingPairs);
 // router.post('/quick_sell', 
 //   // middleware.Authentication, 
 //   // validator.validate_quick_sr4fgell, 

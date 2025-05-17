@@ -309,7 +309,7 @@ export const getFavorites = async (req: Request, res: Response) => {
     FROM
       favoritecurrency fc
     LEFT JOIN
-      crypto_pair c ON fc.pair_id = c.pair_id
+      crypto_pair c ON fc.pair_id = c.id
     WHERE
       fc.user_id = ${user_id}`;
 
@@ -539,7 +539,7 @@ export const getValidateCurrencies = async (_req: Request, res: Response) => {
     // get All Currencies list
     const allCurrencies:any = await prisma.$queryRaw`
     SELECT
-      cp.pair_id,
+      cp.id,
       cp.pair_symbol,
       cp.change_in_price,
       c1.usdtprice,

@@ -1,12 +1,16 @@
 
 const { Spot } = require("@binance/connector");
 
+// const apiKey =
+//   "l6SlJipQWrLRSAPCezEJcM8yrjVzhrDQU2QQSh4AnuKq4sRJao87jEgmFsLeyWEq";
+// const apiSecret =
+//   "JW85c09ek8e0c7PnBkig03TSwN3ENH4KremdNekgRx16twhK7YN0HMU2J5IbhuJW";
 const apiKey =
-  "l6SlJipQWrLRSAPCezEJcM8yrjVzhrDQU2QQSh4AnuKq4sRJao87jEgmFsLeyWEq";
+  "TjnvJCOXHB54SjgvrOSqRaFK2rTUApJGfM30UPOFbsAZprFRtSDLf203phlHej8g";
 const apiSecret =
-  "JW85c09ek8e0c7PnBkig03TSwN3ENH4KremdNekgRx16twhK7YN0HMU2J5IbhuJW";
+  "AkkfmZtrszpLQttGwes4r5mX03M79Da6TYr0vYgyoL13K0LxF0n4dMCDi33SN7yz";
 const client = new Spot(apiKey, apiSecret, {
-  baseURL: "https://testnet.binance.vision",
+  baseURL: "https://api.binance.com",
   timeout: 10000,
 });
 
@@ -43,10 +47,10 @@ async function main() {
 // }catch(e){
 //   console.log(e)
 // }
-client.newOrder('BNBUSDT', 'BUY', 'MARKET', {
-  quantity: 1,
-}).then(response => {client.logger.log(response.data); client.logger.log(response.headers) })
-  .catch(error => client.logger.error(error))
+// client.newOrder('BNBUSDT', 'BUY', 'MARKET', {
+//   quantity: 1,
+// }).then(response => {client.logger.log(response.data); client.logger.log(response.headers) })
+//   .catch(error => client.logger.error(error))
 
 // const accountInfo = await client.request({
 //   method: 'GET',
@@ -60,16 +64,16 @@ client.newOrder('BNBUSDT', 'BUY', 'MARKET', {
 // console.log('Orders today:', count1d);
 
 
-  //  client.account()
-  // .then((response) => {
-  //   console.log(response.data.balances);
-  //   console.log('BTC balance: ',response.data.balances.find(b => b.asset === 'BTC').free);
-  //   console.log('USDT balance: ',response.data.balances.find(b => b.asset === 'USDT').free);
+   client.account()
+  .then((response) => {
+    console.log(response.data.balances);
+    console.log('BTC balance: ',response.data.balances.find(b => b.asset === 'BTC').free);
+    console.log('USDT balance: ',response.data.balances.find(b => b.asset === 'USDT').free);
 
-  // })
-  // .catch((error) => {
-  //   console.log(error);
-  // });
+  })
+  .catch((error) => {
+    console.log(error);
+  });
 
 
 }
@@ -107,49 +111,49 @@ main();
 
 
 // // Function to fetch active trading pairs and their prices
-// async function fetchAndUpdatePrices() {
-//     try {
-//         const tradingPairs =[
-//             'BTCUSDT', 'SOLUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 
-//             'ADAUSDT', 'AVAXUSDT', 'LTCUSDT', 
-//             'DOTUSDT'
-//         ];
+async function fetchAndUpdatePrices() {
+    try {
+        const tradingPairs =[
+            'BTCUSDT', 'SOLUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 
+            'ADAUSDT', 'AVAXUSDT', 'LTCUSDT', 
+            'DOTUSDT'
+        ];
 
-//         for (const pair of tradingPairs) {
-//             const priceResponse = await axios.get(`https://api.binance.com/api/v3/ticker/24hr?symbol=${pair}`);
-//             const price = priceResponse.data.lastPrice; // Current price
-//             const priceChangePercent = priceResponse.data.priceChangePercent; // Change in price percentage
+        for (const pair of tradingPairs) {
+            const priceResponse = await axios.get(`https://api.binance.com/api/v3/ticker/24hr?symbol=${pair}`);
+            const price = priceResponse.data.lastPrice; // Current price
+            const priceChangePercent = priceResponse.data.priceChangePercent; // Change in price percentage
 
-//             // Update the price and price change in the database
-//             db.query(
-//                 'UPDATE crypto_pair SET current_price = ?, change_in_price = ? WHERE pair_symbol = ? and popular = 1',
-//                 [price, priceChangePercent, pair],
-//                 (error, results) => {
-//                     if (error) {
-//                         console.error(`Error updating price for ${pair}:`, error);
-//                     }  else {
-//                         console.log(`Updated price for ${pair}: ${price} Change Percent: ${priceChangePercent}%`);
-//                     }
-//                 }
-//             );
-//         }
-//     } catch (error) {
-//         console.error('Error fetching trading pairs or prices:', error);
-//     }
-// }
+            // Update the price and price change in the database
+            db.query(
+                'UPDATE crypto_pair SET current_price = ?, change_in_price = ? WHERE pair_symbol = ? and popular = 1',
+                [price, priceChangePercent, pair],
+                (error, results) => {
+                    if (error) {
+                        console.error(`Error updating price for ${pair}:`, error);
+                    }  else {
+                        console.log(`Updated price for ${pair}: ${price} Change Percent: ${priceChangePercent}%`);
+                    }
+                }
+            );
+        }
+    } catch (error) {
+        console.error('Error fetching trading pairs or prices:', error);
+    }
+}
 
-// // Set an interval to fetch and update prices every 5 seconds
-// setInterval(fetchAndUpdatePrices, 5000);
-// // fetchAndUpdatePrices();
+// Set an interval to fetch and update prices every 5 seconds
+setInterval(fetchAndUpdatePrices, 5000);
+// fetchAndUpdatePrices();
 
-// // Connect to the database
-// db.connect(err => {
-//     if (err) {
-//         console.error('Database connection failed:', err);
-//     } else {
-//         console.log('Connected to the database.');
-//     }
-// });
+// Connect to the database
+db.connect(err => {
+    if (err) {
+        console.error('Database connection failed:', err);
+    } else {
+        console.log('Connected to the database.');
+    }
+});
 
 
 

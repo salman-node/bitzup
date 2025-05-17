@@ -86,25 +86,9 @@ export interface IRequestAddFav {
 
 export interface IClientInfo {
   ip: string;
-  network?: string;
-  version?: string;
-  city?: string;
-  region?: string;
-  region_code?: string;
-  country_name?: string;
-  postal?: string;
-  latitude?: number;
-  longitude?: number;
-  timezone?: string;
-  utc_offset?: string;
-  country_calling_code?: string;
-  org?: string;
-  os_name: string;
-  os_version?: string;
-  client_type: string;
-  client_name: string;
-  client_family?: string;
+  location: string;
   device_type: string;
+  device_info: string;
 }
 
 export interface ISocketCryptoCurrency {

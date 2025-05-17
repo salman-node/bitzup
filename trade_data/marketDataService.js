@@ -154,6 +154,11 @@ app.get('/marketData',limiter, async (req, res) => {
   }
 });
 
+const port = 4005;
+app.listen(port, () => {
+  console.log(`Server started on port ${port}`);
+});
+
 // app.get('/topGainers',limiter,async (req, res) => {
 //   console.log('topGainers')
 //   try {
@@ -262,9 +267,3 @@ app.get('/marketData',limiter, async (req, res) => {
 
 
 // Start the Express server
-
-
-const port = 4005;
-app.listen(port, () => {
-  console.log(`Server started on port ${port}`);
-});
