@@ -59,10 +59,11 @@ model balances {
   main_balance    Decimal   @default(0.000000000000000000) @db.Decimal(30, 18)
   locked_balance  Decimal   @default(0.000000000000000000) @db.Decimal(30, 18)
   current_balance Decimal   @default(0.000000000000000000) @db.Decimal(30, 18)
-  created_at      DateTime  @default(now()) @db.Timestamp(0)
   updated_at      DateTime? @db.Timestamp(0)
+  created_at      DateTime  @default(now()) @db.Timestamp(0)
 
   @@unique([user_id, currency_id], map: "user_id")
+  @@unique([user_id, currency_id], map: "unique_user_currency")
 }
 
 model balances_inorder {
@@ -77,7 +78,7 @@ model balances_inorder {
 model chains {
   id                Int                      @id @default(autoincrement())
   chain_id          Int
-  chain_name        String                   @unique(map: "coin_id") @db.VarChar(50)
+  chain_name        String                   @db.VarChar(50)
   evm_compatible    Boolean
   withdrawal_status chains_withdrawal_status
   deposit_status    chains_deposit_status
@@ -143,7 +144,7 @@ model withdrawl_history {
 model buy_sell_pro_limit_open {
   id                      Int                 @id @default(autoincrement())
   user_id                 String              @db.VarChar(20)
-  pair_id                 String              @db.VarChar(20)
+  pair_id                 Int
   type                    buy_sell_type
   base_quantity           Decimal             @db.Decimal(30, 12)
   quote_quantity          Decimal             @db.Decimal(30, 12)
@@ -225,8 +226,8 @@ model otp {
   id        Int    @id @default(autoincrement())
   user_id   String @db.VarChar(20)
   otp       String
-  createdAt String
-  expiresAt String
+  createdAt BigInt
+  expiresAt BigInt
 }
 
 model banner_image {
@@ -236,25 +237,29 @@ model banner_image {
 }
 
 model user {
-  id           Int       @id @default(autoincrement())
-  user_id      String    @unique(map: "user_id_2") @db.VarChar(20)
-  uid          Int       @unique(map: "uid")
-  created_at   DateTime  @default(now()) @db.Timestamp(0)
-  name         String
-  email        String    @unique(map: "User_email_key")
-  phone        String
-  country      String
-  password     String
-  token        String?   @db.VarChar(300)
-  token_string String    @db.VarChar(100)
-  login_count  Int       @default(0)
-  otp_count    Int       @default(0)
-  lockout_time DateTime? @db.Timestamp(0)
-  status       Boolean   @default(true)
-  fcm_token    String?
-  secret_key   String?   @db.LongText
-  isAuth       fa_auth   @default(Inactive)
-  device_id    String?
+  id                       Int       @id @default(autoincrement())
+  user_id                  String    @unique(map: "user_id_2") @db.VarChar(20)
+  uid                      Int       @unique(map: "uid")
+  name                     String
+  email                    String    @unique(map: "User_email_key")
+  phone                    String
+  country                  String
+  password                 String
+  withdrawal_password      String?
+  withdrawal_pass_locktime DateTime? @db.DateTime(0)
+  token                    String?   @db.VarChar(300)
+  token_string             String    @db.VarChar(100)
+  login_count              Int       @default(0)
+  otp_count                Int       @default(0)
+  lockout_time             DateTime? @db.Timestamp(0)
+  referral_url             String?   @db.VarChar(150)
+  anti_phishing_code       String?   @db.VarChar(32)
+  status                   Boolean   @default(true)
+  fcm_token                String?
+  secret_key               String?   @db.LongText
+  isAuth                   fa_auth   @default(Inactive)
+  device_id                String?
+  created_at               DateTime  @default(now()) @db.Timestamp(0)
 
   @@index([user_id], map: "user_id")
 }
@@ -324,7 +329,7 @@ model crypto_pair {
   price_decimal    Int
   popular          Int                @default(0)
   status           crypto_pair_status @default(ONE)
-  created_at       DateTime           @default(now()) @db.Timestamp(0)
+  created_at       Int
   updated_at       DateTime?          @db.Timestamp(0)
 
   @@unique([base_asset_id, quote_asset_id], map: "unique_pair")

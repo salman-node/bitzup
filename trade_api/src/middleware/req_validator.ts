@@ -58,13 +58,13 @@ export const validate_buy_asset_pro = (req: any, res: any, next: any) => {
     device_type,
     device_info
   } = req.body;
-
+console.log('validate_buy_asset_pro',req.body , pair_id)
   const user_id_error =  validateStringMinMaxRequired(user_id, c.userIdMin, c.userIdMax);
   if (user_id_error) {
     return responseFormat(res, user_id_error, 'user_id');
   }
 
-  const pair_id_error =  validateStringMinMaxRequired(pair_id, c.pairIdMin, c.pairIdMax);
+  const pair_id_error =  validateNumberRequired(pair_id);
   if (pair_id_error) {
     return responseFormat(res, pair_id_error, 'pair_id');
   }
@@ -123,7 +123,7 @@ export const validate_sell_asset_pro = (req: any, res: any, next: any) => {
     return responseFormat(res, user_id_error, 'user_id');
   }
 
-  const pair_id_error =  validateStringMinMaxRequired(pair_id, c.pairIdMin, c.pairIdMax);
+  const pair_id_error =  validateNumberRequired(pair_id);
   if (pair_id_error) {
     return responseFormat(res, pair_id_error, 'pair_id');
   }
@@ -291,7 +291,7 @@ export const validate_cancel_order = (req: any, res: any, next: any) => {
     return responseFormat(res, user_id_error, 'user_id');
   }
 
-  const pair_id_error =  validateStringMinMaxRequired(pair_id, c.pairIdMin, c.pairIdMax);
+  const pair_id_error =  validateNumberRequired(pair_id);
   if (pair_id_error) {
     return responseFormat(res, pair_id_error, 'pair_id');
   }

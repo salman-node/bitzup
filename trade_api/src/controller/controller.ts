@@ -8,6 +8,8 @@ import {  getOrderType, getSide } from "../utility/constants";
 import { GenerateUniqueID } from "../utility/generator";
 import { getIplocation } from "../utility/utility.functions";
 // import configValidate from '../utility/validation'
+// import Big from 'big.js';
+
 import {
   Spot,
   TimeInForce,
@@ -49,12 +51,11 @@ export const placeBuyOrder = async (req: any, res: any) => {
     const orderType = order_type.toUpperCase();
 
     //get ip from header
-    const ip_address = req.headers['x-real-ip'];
-    const ip = req.ip
-    console.log("ip_address", ip_address, "ip", ip);
+    const ip_address = req.headers['x-real-ip'] || req.headers['x-forwarded-for'] ;
 
     const accountName = req.body.TradeAccount;
     const client = getAccountConfig(accountName); // Get the client for the selected account
+    console.log("accountName", accountName);
     const getPairData = await prisma.crypto_pair.findMany({
       where: {
         id: pair_id,
@@ -126,7 +127,7 @@ export const placeBuyOrder = async (req: any, res: any) => {
       quote_volume: Joi.number()
 
         .precision(pairDecimal)
-        .min(minQuoteVolume)
+        .greater(minQuoteVolume)
         .max(maxQuoteVolume)
         .required(),
     }).validate({ quote_volume: quote_volume });
@@ -135,7 +136,7 @@ export const placeBuyOrder = async (req: any, res: any) => {
       return res.status(config.HTTP_SUCCESS).send({
         status_code: config.HTTP_SUCCESS,
         status: 0,
-        message: `Amount must be greater then or equal to ${minQuoteVolume} and less then or equal to ${maxQuoteVolume}`,
+        message: `Amount must be greater then ${minQuoteVolume} and less then or equal to ${maxQuoteVolume}`,
       });
     }
 
@@ -188,6 +189,8 @@ export const placeBuyOrder = async (req: any, res: any) => {
 
     //Place new order to Binance.
     let orderData;
+    console.log("options",  pairSymbol, getSide(side),getOrderType(orderType),
+        options);
     try {
       orderData = await client.newOrder(
         pairSymbol,
@@ -378,7 +381,7 @@ export const placeSellOrder = async (req: any, res: any) => {
     const validateBaseeVolume = Joi.object({
       base_volume: Joi.number()
         .precision(pairDecimal)
-        .min(minBaseVolume)
+        .greater(minBaseVolume)
         .max(maxBaseVolume)
         .required(),
     }).validate({ base_volume: base_volume });
@@ -387,7 +390,7 @@ export const placeSellOrder = async (req: any, res: any) => {
       return res.status(config.HTTP_SUCCESS).send({
         status_code: config.HTTP_SUCCESS,
         status: 0,
-        message: `Base volume must be greater then or equal to ${minBaseVolume} and less then or equal to ${minBaseVolume}`,
+        message: `Base volume must be greater then ${minBaseVolume} and less then or equal to ${maxBaseVolume}`,
       });
     }
 
@@ -431,6 +434,7 @@ export const placeSellOrder = async (req: any, res: any) => {
     }
     //Place new order to Binance.
     let orderData;
+    console.log("options", pairSymbol, getSide(side), getOrderType(orderType), options);
     try {
       orderData = await client.newOrder(
         pairSymbol,
@@ -628,7 +632,7 @@ export const placeBuyStopLimit = async (req: any, res: any) => {
     const validateQuoteVolume = Joi.object({
       quote_volume: Joi.number()
         .precision(pairDecimal)
-        .min(minQuoteVolume)
+        .greater(minQuoteVolume)
         .max(maxQuoteVolume)
         .required(),
     }).validate({ quote_volume: quote_volume });
@@ -886,7 +890,7 @@ export const placeSellStopLimit = async (req: any, res: any) => {
     const validateBaseeVolume = Joi.object({
       base_volume: Joi.number()
         .precision(pairDecimal)
-        .min(minBaseVolume)
+        .greater(minBaseVolume)
         .max(maxBaseVolume)
         .required(),
     }).validate({ base_volume: base_volume });
@@ -895,7 +899,7 @@ export const placeSellStopLimit = async (req: any, res: any) => {
       return res.status(config.HTTP_SUCCESS).send({
         status_code: config.HTTP_SUCCESS,
         status: 0,
-        message: `Base volume must be greater then or equal to ${minBaseVolume} and less then or equal to ${minBaseVolume}`,
+        message: `Base volume must be greater then ${minBaseVolume} and less then or equal to ${minBaseVolume}`,
       });
     }
 
@@ -1043,7 +1047,7 @@ export const cancelOrder = async (req: any, res: any) => {
   try {
     const reqBody = req.body;
     const { user_id, order_id, pair_id, device_type, device_info } = reqBody;
-
+console.log("in cancel", reqBody);
     if (!user_id || !pair_id || !order_id || !device_type || !device_info) {
       return res.status(400).send({
         status_code: 400,
@@ -1172,7 +1176,7 @@ export const cancelOrder = async (req: any, res: any) => {
             order_id: order_id,
             response: JSON.stringify(orderData),
           },
-        }),
+        })
       ]);
 
       const responseData: any = {
@@ -1248,7 +1252,7 @@ export const get_open_orders = async (req: any, res: any) => {
     const data = await prisma.buy_sell_pro_limit_open.findMany({
       where: {
         user_id: user_id,
-        pair_id: pair_id,
+        pair_id: parseInt(pair_id),
         status: { in: ["OPEN", "NEW", "PARTIALLY_FILLED"] },
       },
       orderBy: {

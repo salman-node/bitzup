@@ -92,26 +92,30 @@ const depositWebhook = (req, res) => __awaiter(void 0, void 0, void 0, function*
             });
         }
         // Update user balance
-        yield prisma.$executeRaw `
-      UPDATE balances
-      SET main_balance = main_balance + ${parsedAmount},
-          current_balance = current_balance + ${parsedAmount}
-      WHERE user_id = ${user_id} AND currency_id = ${currency_id};
-      `;
-        yield prisma.balances.updateMany({
-            where: {
-                user_id: user_id,
-                currency_id: currency_id,
-            },
-            data: {
-                main_balance: {
-                    increment: parsedAmount,
-                },
-                current_balance: {
-                    increment: parsedAmount,
-                },
-            },
-        });
+        // await prisma.$executeRaw`
+        // UPDATE balances
+        // SET main_balance = main_balance + ${parsedAmount},
+        //     current_balance = current_balance + ${parsedAmount}
+        // WHERE user_id = ${user_id} AND currency_id = ${currency_id};
+        // `;
+        // await prisma.balances.updateMany({
+        //   where: {
+        //     user_id: user_id,
+        //     currency_id: currency_id,
+        //   },
+        //   data: {
+        //     main_balance: {
+        //       increment: parsedAmount,
+        //     },
+        //     current_balance: {
+        //       increment: parsedAmount,
+        //     },
+        //   },
+        // });
+        yield prisma.$queryRaw `INSERT INTO balances (user_id, currency_id, main_balance, current_balance)
+    VALUES (${user_id}, ${currency_id}, ${parsedAmount}, ${parsedAmount})ON DUPLICATE KEY UPDATE 
+    main_balance = main_balance + VALUES(main_balance),
+    current_balance = current_balance + VALUES(current_balance);`;
         // Insert deposit history
         yield prisma.deposit_history.create({
             data: {

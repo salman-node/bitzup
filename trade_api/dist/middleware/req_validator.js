@@ -37,11 +37,12 @@ const responseFormat = (res, error, value) => {
 // };
 const validate_buy_asset_pro = (req, res, next) => {
     const { user_id, pair_id, quote_volume, limit_price, order_type, ip_address, device_type, device_info } = req.body;
+    console.log('validate_buy_asset_pro', req.body, pair_id);
     const user_id_error = (0, validation_1.validateStringMinMaxRequired)(user_id, constants_1.c.userIdMin, constants_1.c.userIdMax);
     if (user_id_error) {
         return responseFormat(res, user_id_error, 'user_id');
     }
-    const pair_id_error = (0, validation_1.validateStringMinMaxRequired)(pair_id, constants_1.c.pairIdMin, constants_1.c.pairIdMax);
+    const pair_id_error = (0, validation_1.validateNumberRequired)(pair_id);
     if (pair_id_error) {
         return responseFormat(res, pair_id_error, 'pair_id');
     }
@@ -82,7 +83,7 @@ const validate_sell_asset_pro = (req, res, next) => {
     if (user_id_error) {
         return responseFormat(res, user_id_error, 'user_id');
     }
-    const pair_id_error = (0, validation_1.validateStringMinMaxRequired)(pair_id, constants_1.c.pairIdMin, constants_1.c.pairIdMax);
+    const pair_id_error = (0, validation_1.validateNumberRequired)(pair_id);
     if (pair_id_error) {
         return responseFormat(res, pair_id_error, 'pair_id');
     }
@@ -206,7 +207,7 @@ const validate_cancel_order = (req, res, next) => {
     if (user_id_error) {
         return responseFormat(res, user_id_error, 'user_id');
     }
-    const pair_id_error = (0, validation_1.validateStringMinMaxRequired)(pair_id, constants_1.c.pairIdMin, constants_1.c.pairIdMax);
+    const pair_id_error = (0, validation_1.validateNumberRequired)(pair_id);
     if (pair_id_error) {
         return responseFormat(res, pair_id_error, 'pair_id');
     }

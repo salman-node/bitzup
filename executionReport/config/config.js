@@ -16,13 +16,27 @@ exports.config = { //mysql connection
 };
 
 exports.accounts = [
-    {  // mainnet salman account
+    {  //bitzup mainnet account1
     name: process.env.AccountName1 || 'BinanceAccount1',
     binance_url: process.env.BINANCE_URL1 || "https://api.binance.com",
-    apiKey: process.env.BINANCE_API_KEY_1 || 'TjnvJCOXHB54SjgvrOSqRaFK2rTUApJGfM30UPOFbsAZprFRtSDLf203phlHej8g',
-    apiSecret: process.env.BINANCE_API_SECRET_1 || 'AkkfmZtrszpLQttGwes4r5mX03M79Da6TYr0vYgyoL13K0LxF0n4dMCDi33SN7yz',
+    apiKey: process.env.BINANCE_API_KEY_1 || 'Gj6LpFlLZC8ISpjCehEqE2RpQjRKIKYDygmcVc3TCDNF4AyYu6BzBtahzGILoT3R',
+    apiSecret: process.env.BINANCE_API_SECRET_1 || '4TGEcO0dMjwNMPqKWzV6ZnHJwM3B6OFWtvYWj9JBuan6VIjgJtAeFHE6gt4qU30j',
     binance_ws_url: process.env.BINANCE_WS_URL1 || "wss://stream.binance.com:9443",
   },
+  {   //bitzup mainnet account2
+    name: process.env.AccountName2 || 'BinanceAccount2',
+    binance_url: process.env.BINANCE_URL2 || "https://api.binance.com",
+    apiKey: process.env.BINANCE_API_KEY_2 || 'ZdA8QO89Bo9XFrpDmECeTGSapxtVyKQvfpv59VcNpiGCPdsf035DwVTJgsALMgzX',
+    apiSecret: process.env.BINANCE_API_SECRET_2 || 'dLMBTs1ZOcXrTZMAhhRfCp8xg9aPK7yNWC8p5ijGyq5QMVawPsfDxCUDCEVUgCdQ',
+    binance_ws_url: process.env.BINANCE_WS_URL2 ||  "wss://stream.binance.com:9443" // "wss://stream.binance.com:9443",
+  },
+  // {  // mainnet salman account
+  //   name: process.env.AccountName3 || 'BinanceAccount3',
+  //   binance_url: process.env.BINANCE_URL1 || "https://api.binance.com",
+  //   apiKey: process.env.BINANCE_API_KEY_1 || 'TjnvJCOXHB54SjgvrOSqRaFK2rTUApJGfM30UPOFbsAZprFRtSDLf203phlHej8g',
+  //   apiSecret: process.env.BINANCE_API_SECRET_1 || 'AkkfmZtrszpLQttGwes4r5mX03M79Da6TYr0vYgyoL13K0LxF0n4dMCDi33SN7yz',
+  //   binance_ws_url: process.env.BINANCE_WS_URL1 || "wss://stream.binance.com:9443",
+  // },
   // {  //testnet
   //   name: process.env.AccountName1 || 'BinanceAccount2',
   //   binance_url: process.env.BINANCE_URL1 || "https://testnet.binance.vision",

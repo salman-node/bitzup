@@ -101,17 +101,12 @@ const consumeMessages = async () => {
       const data = JSON.parse(message.value.toString());
 
       const AccountName = data.account
-      console.log('AccountName: ', AccountName)
       if (!processedOrders.has(data.I)) {
         processedOrders.add(data.I);
-
-        console.log("NEW REPORTT: ", data , topic);
         
       if (topic === "execution-report") {
-   
-        // const [userIdFromOrder, uniquePart] = data.c.split("-");
+
         const userIdFromOrder = data.X === "CANCELED" ? data.C.split("-")[0] : data.c.split("-")[0];
-       console.log('userIdFromOrder: ', userIdFromOrder)
         const reportData = {
           order_id: data.X == "CANCELED" ? data.C : data.c, // Order ID
           base_quantity: data.q, // Order quantity
@@ -144,12 +139,22 @@ const consumeMessages = async () => {
             { pair_symbol: symbol }
           );
 
-           //get pair fees from crypto_pair table
-           const pair_fees = await Get_Where_Universal_Data(
-            "trade_fee",
-            "crypto_pair",
-            { pair_symbol: symbol }
+          const user_level = await Get_Where_Universal_Data(
+            "trading_level",
+            "user",
+            { user_id: userIdFromOrder }
           );
+          const tradingLevel = user_level[0].trading_level;
+
+          // Map trading level to fee column
+          const feeColumn = `trade_fee_L${tradingLevel}`;
+          const pair_id_value = pair_id[0].id;
+
+           //get pair fees from crypto_pair table
+           const pair_fees = await raw_query(`SELECT ${feeColumn} AS trade_fee
+                              FROM fees
+                              WHERE pair_id = ?`,[pair_id_value]
+                            );
           const pair_fees_value = pair_fees[0].trade_fee;
 
           const fees = data.S == 'BUY' ? parseFloat((data.l * pair_fees_value/100).toFixed(8)) : parseFloat((data.Y * pair_fees_value/100).toFixed(8));
@@ -204,7 +209,7 @@ const consumeMessages = async () => {
 
             if (data.S === "BUY") {
               if (data.o === "MARKET") {
-                const result =await updateBalances(
+                await updateBalances(
                   {
                     userId: userIdFromOrder,
                     currencyId: base_asset_id,
@@ -264,7 +269,7 @@ const consumeMessages = async () => {
               }
             }
             if (data.S === "SELL") {
-              const updatedQuery = await updateBalances(
+               await updateBalances(
                 {
                   userId: userIdFromOrder,
                   currencyId: base_asset_id,
@@ -518,6 +523,14 @@ const consumeMessages = async () => {
               updatedData,
               filterQuery
             );
+
+            await Create_Universal_Data('trade_fee',{
+              order_id: data.c,
+              user_id: userIdFromOrder,
+              pair_id: parseInt(pairId),
+              amount: data.S === "BUY" ? data.l : data.Y,
+              fee:  fees,
+            })
           };
           };
           await Create_Universal_Data('buy_sell_pro_in_order',{
@@ -532,7 +545,7 @@ const consumeMessages = async () => {
             stop_limit_price: data.P,
             executed_base_after_fees:base_amount_after_fees,
             executed_quote_after_fees : quote_amount_after_fees,
-            order_id: data.c,
+            order_id:  data.X === "CANCELED" ? data.C : data.c,
             trade_id: data.t,
             api_order_id: data.I,
             order_type: data.o,

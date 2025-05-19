@@ -47,11 +47,10 @@ const placeBuyOrder = (req, res) => __awaiter(void 0, void 0, void 0, function* 
         const { user_id, pair_id, quote_volume, limit_price, order_type, stop_limit_price, device_type, device_info } = reqBody;
         const orderType = order_type.toUpperCase();
         //get ip from header
-        const ip_address = req.headers['x-real-ip'];
-        const ip = req.ip;
-        console.log("ip_address", ip_address, "ip", ip);
+        const ip_address = req.headers['x-real-ip'] || req.headers['x-forwarded-for'];
         const accountName = req.body.TradeAccount;
         const client = getAccountConfig(accountName); // Get the client for the selected account
+        console.log("accountName", accountName);
         const getPairData = yield prisma_client_1.prisma.crypto_pair.findMany({
             where: {
                 id: pair_id,
@@ -113,7 +112,7 @@ const placeBuyOrder = (req, res) => __awaiter(void 0, void 0, void 0, function* 
         const validateQuoteVolume = joi_1.default.object({
             quote_volume: joi_1.default.number()
                 .precision(pairDecimal)
-                .min(minQuoteVolume)
+                .greater(minQuoteVolume)
                 .max(maxQuoteVolume)
                 .required(),
         }).validate({ quote_volume: quote_volume });
@@ -121,7 +120,7 @@ const placeBuyOrder = (req, res) => __awaiter(void 0, void 0, void 0, function* 
             return res.status(config_1.config.HTTP_SUCCESS).send({
                 status_code: config_1.config.HTTP_SUCCESS,
                 status: 0,
-                message: `Amount must be greater then or equal to ${minQuoteVolume} and less then or equal to ${maxQuoteVolume}`,
+                message: `Amount must be greater then ${minQuoteVolume} and less then or equal to ${maxQuoteVolume}`,
             });
         }
         const OrderId = (0, generator_1.GenerateUniqueID)(10, (0, crypto_1.randomUUID)(), `${user_id}-`);
@@ -169,6 +168,7 @@ const placeBuyOrder = (req, res) => __awaiter(void 0, void 0, void 0, function* 
         }
         //Place new order to Binance.
         let orderData;
+        console.log("options", pairSymbol, (0, constants_1.getSide)(side), (0, constants_1.getOrderType)(orderType), options);
         try {
             orderData = yield client.newOrder(pairSymbol, (0, constants_1.getSide)(side), (0, constants_1.getOrderType)(orderType), options);
         }
@@ -325,7 +325,7 @@ const placeSellOrder = (req, res) => __awaiter(void 0, void 0, void 0, function*
         const validateBaseeVolume = joi_1.default.object({
             base_volume: joi_1.default.number()
                 .precision(pairDecimal)
-                .min(minBaseVolume)
+                .greater(minBaseVolume)
                 .max(maxBaseVolume)
                 .required(),
         }).validate({ base_volume: base_volume });
@@ -333,7 +333,7 @@ const placeSellOrder = (req, res) => __awaiter(void 0, void 0, void 0, function*
             return res.status(config_1.config.HTTP_SUCCESS).send({
                 status_code: config_1.config.HTTP_SUCCESS,
                 status: 0,
-                message: `Base volume must be greater then or equal to ${minBaseVolume} and less then or equal to ${minBaseVolume}`,
+                message: `Base volume must be greater then ${minBaseVolume} and less then or equal to ${maxBaseVolume}`,
             });
         }
         const base_quantity = Number(Number(base_volume).toFixed(pairDecimal));
@@ -373,6 +373,7 @@ const placeSellOrder = (req, res) => __awaiter(void 0, void 0, void 0, function*
         }
         //Place new order to Binance.
         let orderData;
+        console.log("options", pairSymbol, (0, constants_1.getSide)(side), (0, constants_1.getOrderType)(orderType), options);
         try {
             orderData = yield client.newOrder(pairSymbol, (0, constants_1.getSide)(side), (0, constants_1.getOrderType)(orderType), options);
         }
@@ -538,7 +539,7 @@ const placeBuyStopLimit = (req, res) => __awaiter(void 0, void 0, void 0, functi
         const validateQuoteVolume = joi_1.default.object({
             quote_volume: joi_1.default.number()
                 .precision(pairDecimal)
-                .min(minQuoteVolume)
+                .greater(minQuoteVolume)
                 .max(maxQuoteVolume)
                 .required(),
         }).validate({ quote_volume: quote_volume });
@@ -754,7 +755,7 @@ const placeSellStopLimit = (req, res) => __awaiter(void 0, void 0, void 0, funct
         const validateBaseeVolume = joi_1.default.object({
             base_volume: joi_1.default.number()
                 .precision(pairDecimal)
-                .min(minBaseVolume)
+                .greater(minBaseVolume)
                 .max(maxBaseVolume)
                 .required(),
         }).validate({ base_volume: base_volume });
@@ -762,7 +763,7 @@ const placeSellStopLimit = (req, res) => __awaiter(void 0, void 0, void 0, funct
             return res.status(config_1.config.HTTP_SUCCESS).send({
                 status_code: config_1.config.HTTP_SUCCESS,
                 status: 0,
-                message: `Base volume must be greater then or equal to ${minBaseVolume} and less then or equal to ${minBaseVolume}`,
+                message: `Base volume must be greater then ${minBaseVolume} and less then or equal to ${minBaseVolume}`,
             });
         }
         const base_quantity = Number(Number(base_volume).toFixed(pairDecimal));
@@ -895,6 +896,7 @@ const cancelOrder = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
     try {
         const reqBody = req.body;
         const { user_id, order_id, pair_id, device_type, device_info } = reqBody;
+        console.log("in cancel", reqBody);
         if (!user_id || !pair_id || !order_id || !device_type || !device_info) {
             return res.status(400).send({
                 status_code: 400,
@@ -1085,7 +1087,7 @@ const get_open_orders = (req, res) => __awaiter(void 0, void 0, void 0, function
         const data = yield prisma_client_1.prisma.buy_sell_pro_limit_open.findMany({
             where: {
                 user_id: user_id,
-                pair_id: pair_id,
+                pair_id: parseInt(pair_id),
                 status: { in: ["OPEN", "NEW", "PARTIALLY_FILLED"] },
             },
             orderBy: {

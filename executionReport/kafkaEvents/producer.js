@@ -17,14 +17,14 @@ const kafka = new Kafka({
   brokers: ['localhost:9092'], // Adjust your Kafka broker address
 });
 
-// const producer = kafka.producer();
+const producer = kafka.producer();
 
-// Connect the Kafka producer
-// const connectKafka = async () => {
-//   await producer.connect();
-// };
+// Connect the Kafka producer/
+const connectKafka = async () => {
+  await producer.connect();
+};
 
-// connectKafka();
+connectKafka();
 
 // Function to send execution report to Kafka
 const sendExecutionReportToKafka = async (topic, message) => {
@@ -49,7 +49,7 @@ const callbacks = {
     if (data.e === "executionReport") {
         // Send to Kafka
         console.log(`Sending execution report to Kafka: ${JSON.stringify(data)}`);
-        // await sendExecutionReportToKafka('execution-report', data);
+        await sendExecutionReportToKafka('execution-report', data);
     }
   },
   Error: (error) => console.error('titu error',error),
@@ -62,12 +62,10 @@ const connectExecutionReport = async (account) => {
       wsURL: account.binance_ws_url,
     });
 
-    
 
     const updateListenKey = async () => {
       try {
         const ListenKey = await client.createListenKey();
-        console.log('listenKey: ',ListenKey.data.listenKey);
         websocketStreamClient.userData(ListenKey.data.listenKey);
       } catch (error) {
         console.error(error);

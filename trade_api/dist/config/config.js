@@ -26,16 +26,16 @@ exports.config = config;
 exports.AdminTradeAccounts = [
     {
         name: process.env.AccountName1 || 'BinanceAccount1',
-        binance_url: process.env.BINANCE_URL1 || "https://testnet.binance.vision",
-        apiKey: process.env.BINANCE_API_KEY_1 || 'l6SlJipQWrLRSAPCezEJcM8yrjVzhrDQU2QQSh4AnuKq4sRJao87jEgmFsLeyWEq',
-        apiSecret: process.env.BINANCE_API_SECRET_1 || 'JW85c09ek8e0c7PnBkig03TSwN3ENH4KremdNekgRx16twhK7YN0HMU2J5IbhuJW',
+        binance_url: process.env.BINANCE_URL1 || "https://api.binance.com",
+        apiKey: process.env.BINANCE_API_KEY_1 || 'Gj6LpFlLZC8ISpjCehEqE2RpQjRKIKYDygmcVc3TCDNF4AyYu6BzBtahzGILoT3R',
+        apiSecret: process.env.BINANCE_API_SECRET_1 || '4TGEcO0dMjwNMPqKWzV6ZnHJwM3B6OFWtvYWj9JBuan6VIjgJtAeFHE6gt4qU30j',
         binance_ws_url: process.env.BINANCE_WS_URL1 || "wss://testnet.binance.vision",
     },
     {
         name: process.env.AccountName2 || 'BinanceAccount2',
-        binance_url: process.env.BINANCE_URL2 || "https://testnet.binance.vision",
-        apiKey: process.env.BINANCE_API_KEY_2 || 'QT7VwThPfnLXhmYeiA0fTgP01Czi4cGTs5iwLVs6cl4UbVCTfKULSwSdkfNtz6om',
-        apiSecret: process.env.BINANCE_API_SECRET_2 || 'u3I0eAL1JYKg8qA1giUWNeIajBJYcr2hK29Bz3N26ubF0bUcqixUHS22R2XkpszW',
+        binance_url: process.env.BINANCE_URL2 || "https://api.binance.com",
+        apiKey: process.env.BINANCE_API_KEY_2 || 'ZdA8QO89Bo9XFrpDmECeTGSapxtVyKQvfpv59VcNpiGCPdsf035DwVTJgsALMgzX',
+        apiSecret: process.env.BINANCE_API_SECRET_2 || 'dLMBTs1ZOcXrTZMAhhRfCp8xg9aPK7yNWC8p5ijGyq5QMVawPsfDxCUDCEVUgCdQ',
         binance_ws_url: process.env.BINANCE_WS_URL2 || "wss://testnet.binance.vision" ///"wss://stream.binance.com:9443",
     }
     // Add more accounts as needed

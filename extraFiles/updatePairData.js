@@ -76,7 +76,76 @@ async function updateAllPairs() {
   }
 }
 
-updateAllPairs();
+function floorToStep(value, stepSize) {
+  return Math.floor(value / stepSize) * stepSize;
+}
+
+async function updateMinMaxQty() {
+  // const connection = await mysql.createConnection(dbConfig);
+
+  try {
+    // Fetch Binance exchange info
+    const binanceRes = await axios.get('https://api.binance.com/api/v3/exchangeInfo');
+    const binanceSymbols = binanceRes.data.symbols;
+
+    // Fetch all crypto pairs from your DB
+    const [rows] = await pool.execute('SELECT id, pair_symbol, current_price FROM crypto_pair');
+
+    for (const row of rows) {
+      const { id, pair_symbol, current_price } = row;
+
+      const symbolInfo = binanceSymbols.find(s => s.symbol === pair_symbol);
+      if (!symbolInfo) {
+        console.warn(`Pair ${pair_symbol} not found on Binance`);
+        continue;
+      }
+
+      const lotSize = symbolInfo.filters.find(f => f.filterType === 'LOT_SIZE');
+      const notional = symbolInfo.filters.find(f => f.filterType === 'NOTIONAL');
+
+      if (!lotSize || !notional || !current_price || current_price === 0) {
+        console.warn(`Missing filter or price for ${pair_symbol}`);
+        continue;
+      }
+
+      const stepSize = parseFloat(lotSize.stepSize);
+      const minQty = parseFloat(lotSize.minQty);
+      const maxQty = parseFloat(lotSize.maxQty);
+      const minNotional = parseFloat(notional.minNotional);
+      const maxNotional = parseFloat(notional.maxNotional || '999999999');
+
+      const price = parseFloat(current_price);
+
+      // Calculate min/max base qty based on notional
+      const minBaseQty = floorToStep(minNotional / price, stepSize);
+      const maxBaseQty = floorToStep(maxNotional / price, stepSize);
+
+      // Quote qty = minNotional / maxNotional directly
+      const minQuoteQty = minNotional;
+      console.log('minNotional ;',pair_symbol, minNotional);
+      const maxQuoteQty = maxNotional;
+
+      await pool.execute(
+        `UPDATE crypto_pair
+         SET min_base_qty = ?, max_base_qty = ?, min_quote_qty = ?, max_quote_qty = ?
+         WHERE pair_symbol = ?`,
+        [minBaseQty, maxBaseQty, minQuoteQty, maxQuoteQty, pair_symbol]
+      );
+
+      console.log(`Updated: ${pair_symbol}`);
+    }
+
+    console.log('All crypto pairs updated.');
+  } catch (err) {
+    console.error('Error:', err.message);
+  } finally {
+    await pool.end();
+  }
+}
+
+updateMinMaxQty();
+
+// updateAllPairs();
 
 
 

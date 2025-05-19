@@ -479,7 +479,7 @@ const getValidateCurrencies = (_req, res) => __awaiter(void 0, void 0, void 0, f
         // get All Currencies list
         const allCurrencies = yield prisma_client_1.prisma.$queryRaw `
     SELECT
-      cp.id,
+      cp.id as pair_id,
       cp.pair_symbol,
       cp.change_in_price,
       c1.usdtprice,

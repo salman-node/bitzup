@@ -194,12 +194,12 @@ export const getReferralCodeURl = async (req: Request, res: Response) => {
         const response = await axios.post(config.BRANCH_URL, {
           branch_key: config.BRANCH_API_KEY,
           data: {
-            '$canonical_identifier': `user/referral/user1234`,
-            'referralCode': "user1234",
+            '$canonical_identifier': `user/referral/${user_id}`,
+            'referralCode': `${user_id}`,
             '$og_title': 'Sign Up and get a reward',
             '$og_description': 'Use this referral and get a reward!',
-            '$ios_url': `bitzup://referral/user1234`,
-            '$fallback_url': `https://i.diawi.com/sZXPEr`,
+            '$ios_url': `bitzup://referral/${user_id}`,
+            '$fallback_url': `https://i.diawi.com/u2nogo`,
           },
         });
         console.log('Branch link:', response.data.url);

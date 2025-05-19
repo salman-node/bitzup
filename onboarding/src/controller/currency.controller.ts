@@ -539,7 +539,7 @@ export const getValidateCurrencies = async (_req: Request, res: Response) => {
     // get All Currencies list
     const allCurrencies:any = await prisma.$queryRaw`
     SELECT
-      cp.id,
+      cp.id as pair_id,
       cp.pair_symbol,
       cp.change_in_price,
       c1.usdtprice,

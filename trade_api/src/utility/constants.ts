@@ -16,7 +16,7 @@ export const c = {
   gstMax: 2,
   assetPairNameMin: 7,
   assetPairNameMax: 12,
-  pairIdMin: 11,
+  pairIdMin: 0,
   pairIdMax: 25,
   assetIdMin: 10,
   assetIdMax: 14,
