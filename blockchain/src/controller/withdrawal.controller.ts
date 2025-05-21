@@ -95,6 +95,59 @@ export const withdrawFunds = async (req: Request, res: Response) => {
           });
     }
 
+    const userKycLevel:any  = await prisma.user.findFirst({
+        where: {
+          user_id: user_id,
+        },
+        select: {
+          kyc_level: true,    
+        }
+    });
+    const userKycLevelData = userKycLevel?.kyc_level;
+    const levelColumn = `withdraw_Limit_L${userKycLevelData}`;
+  console.log("userKycLevelData",levelColumn);
+    //get withdrawal limit according to user level
+    const userWithdrawalLimit = await prisma.withdrawal_limit.findFirst({
+      where: {
+        currency_id: currency_id,
+      },
+      select: {
+        [levelColumn]: true,    
+      }
+    });
+    console.log("userWithdrawalLimit",userWithdrawalLimit);
+    const withdrawalLimit = userWithdrawalLimit?.[levelColumn]
+    if(!withdrawalLimit){
+      return res.status(config.HTTP_SERVER_ERROR).send({
+        status_code: config.HTTP_SERVER_ERROR,
+        status: 0,
+        message: "Withdrawal limit not found",
+      });
+    }
+
+     const userWithdrawalAmount: any = await prisma.$queryRaw`
+      SELECT SUM(amount) AS amount
+      FROM withdrawl_history
+      WHERE user_id = ${user_id}
+        AND coin_id = ${currency_id}
+        AND created_at >= NOW() - INTERVAL 1 DAY;
+    `;
+   
+    const userWithdrawalAmountData = userWithdrawalAmount[0]?.amount || 0;
+    const totalWithdrawalAmount = Number(userWithdrawalAmountData) + Number(amount);
+    
+    console.log("userWithdrawalAmountData",userWithdrawalAmountData);
+    console.log("totalWithdrawalAmount",totalWithdrawalAmount);
+    console.log("withdrawalLimit",withdrawalLimit);
+    if(totalWithdrawalAmount > Number(withdrawalLimit)){
+        return res.status(config.HTTP_SUCCESS).send({
+            status_code: config.HTTP_SUCCESS,
+            status: 0,
+            message: 'Withdrawal limit exceeded.',
+        });
+    }
+
+
     const ip_address = req.headers["x-real-ip"] as string || (req.headers["x-forwarded-for"] as string).split(",")[0];
     // get client information
     const result: IClientInfo | undefined = await getClientInfo(ip_address,device_type,device_info);

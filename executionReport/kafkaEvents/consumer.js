@@ -4,6 +4,7 @@ const {updateBalances, raw_query, Get_Where_Universal_Data, Update_Universal_Dat
 const { redisClient } =require('../config/redisConnection');
 const wss = new WebSocket.Server({ port: 9001 });
 let frontendClients = [];
+const Big = require("big.js");
 
 redisClient.connect((err) => {
   if (err) {
@@ -106,368 +107,394 @@ const consumeMessages = async () => {
         
       if (topic === "execution-report") {
 
-        const userIdFromOrder = data.X === "CANCELED" ? data.C.split("-")[0] : data.c.split("-")[0];
+      const userIdFromOrder = data.X === "CANCELED" ? data.C.split("-")[0] : data.c.split("-")[0];
+        const orderPrice = data.X === "NEW" ? data.p : data.X === "CANCELED" ? data.P : new Big(data.Z).div(data.z).toFixed(8); // accurate division
+      
         const reportData = {
-          order_id: data.X == "CANCELED" ? data.C : data.c, // Order ID
-          base_quantity: data.q, // Order quantity
-          quote_quantity: data.S === "BUY" ? data.Q : data.Z, // Cumulative quote asset transacted quantity
-          order_price: data.X === "NEW" ? data.p : (data.Z/data.z).toFixed(8), // Order price
-          type: data.S, // Order type
-          order_type: data.o, // Order type
-          stop_limit_price: data.P, // Stop price
-          oco_stop_limit_price: null, // Not present in the execution report
-          executed_base_quantity: data.z, // Last executed quantity
-          executed_quote_quantity: data.Z, // Last quote asset transacted quantity
-          status: data.X, // Current order status
-          created_at: data.O, // Order creation time
-        }
-         
-        var count = 0;
+          order_id: data.X === "CANCELED" ? data.C : data.c,
+          base_quantity: data.q,
+          quote_quantity: data.S === "BUY" ? data.Q : data.Z,
+          order_price: orderPrice,
+          type: data.S,
+          order_type: data.o,
+          stop_limit_price: data.P,
+          oco_stop_limit_price: null,
+          executed_base_quantity: data.z,
+          executed_quote_quantity: data.Z,
+          status: data.X,
+          created_at: data.O,
+        };
+      
+        let count = 0;
         if (data.t != -1) {
-          let row_count = await raw_query(
+          const row_count = await raw_query(
             "SELECT COUNT(*) AS count FROM buy_sell_pro_limit_open WHERE trade_id = ?",
             [data.t]
           );
           count = row_count[0].count;
         }
+      
         if (count == 0) {
           const symbol = data.s;
-          //get pair_id,base_asset_id,quote_asset_id from crypto_pair table
-          const pair_id = await Get_Where_Universal_Data(
+      
+          const pairInfo = await Get_Where_Universal_Data(
             "id,base_asset_id,quote_asset_id",
             "crypto_pair",
             { pair_symbol: symbol }
           );
-
-          const user_level = await Get_Where_Universal_Data(
-            "trading_level",
+          const pairId = pairInfo[0].id;
+          const base_asset_id = pairInfo[0].base_asset_id;
+          const quote_asset_id = pairInfo[0].quote_asset_id;
+      
+          const userLevelInfo = await Get_Where_Universal_Data(
+            "kyc_level",
             "user",
             { user_id: userIdFromOrder }
           );
-          const tradingLevel = user_level[0].trading_level;
-
-          // Map trading level to fee column
+          const tradingLevel = userLevelInfo[0].kyc_level;
           const feeColumn = `trade_fee_L${tradingLevel}`;
-          const pair_id_value = pair_id[0].id;
+      
+          const pairFees = await raw_query(
+            `SELECT ${feeColumn} AS trade_fee FROM fees WHERE pair_id = ?`,
+            [pairId]
+          );
+          const pair_fees_value = new Big(pairFees[0].trade_fee); // fee in percent, e.g., 0.1
+      
+          // Fees and net amount after fees
+          const fees = data.S === "BUY"
+            ? new Big(data.l).times(pair_fees_value).div(100).toFixed(8)
+            : new Big(data.Y).times(pair_fees_value).div(100).toFixed(8);
+      
+          const total_fees = data.S === "BUY"
+            ? new Big(data.z).times(pair_fees_value).div(100).toFixed(8)
+            : new Big(data.Z).times(pair_fees_value).div(100).toFixed(8);
+      
+          const base_amount_after_fees = data.S === "BUY"
+            ? new Big(data.l).minus(fees).toFixed(8)
+            : "0";
+      
+          const quote_amount_after_fees = data.S === "SELL"
+            ? new Big(data.Y).minus(fees).toFixed(8)
+            : "0";
+      
+        if (data.X === "NEW") {
+             await redisClient.incr(`OpenOrderCount:${AccountName}:${pairId}`);
+             const report = {
+               status: "1",
+               user_id: userIdFromOrder,
+               message: `New ${data.o} Order Placed , Order Type: ${data.o}, Order Price: ${data.p}, Order Quantity: ${data.q}, Order Id: ${data.c}`,
+               data: reportData,
+             };
+             sendMessageToClients(report);
+       
+             if (data.S === "BUY") {
+               if (data.o === "LIMIT") {
+                 const quote_quantity = new Big(data.q).times(data.p).toFixed(8);
+                 console.log('quote_quantity: ', quote_quantity);
+                 await updateOrInsertBalances({
+                   userId: userIdFromOrder,
+                   currencyId: quote_asset_id,
+                   currentBalanceChange: new Big(quote_quantity).neg().toString(),
+                   lockedBalanceChange: quote_quantity,
+                 });
+               }
+             }
 
-           //get pair fees from crypto_pair table
-           const pair_fees = await raw_query(`SELECT ${feeColumn} AS trade_fee
-                              FROM fees
-                              WHERE pair_id = ?`,[pair_id_value]
-                            );
-          const pair_fees_value = pair_fees[0].trade_fee;
-
-          const fees = data.S == 'BUY' ? parseFloat((data.l * pair_fees_value/100).toFixed(8)) : parseFloat((data.Y * pair_fees_value/100).toFixed(8));
-          const total_fees = data.S == "BUY" ? parseFloat((data.z * pair_fees_value/100).toFixed(8)) : parseFloat((data.Z * pair_fees_value/100).toFixed(8));
-          const base_amount_after_fees = data.S == "BUY" ? parseFloat((data.l - fees).toFixed(8)) : 0
-          const quote_amount_after_fees = data.S == "SELL" ? parseFloat((data.Y - fees).toFixed(8)) : 0;
-          
-          const base_asset_id = pair_id[0].base_asset_id;
-          const quote_asset_id = pair_id[0].quote_asset_id;
-          const pairId = pair_id[0].id;
-
-          // Handle report data based on `data.X` status and send to clients
-          if (data.X === "NEW") {
-            await redisClient.incr(`OpenOrderCount:${AccountName}:${pairId}`);
-            const report = {
-              status: "1",
-              user_id: userIdFromOrder,
-              message: `New ${data.o} Order Placed , Order Type: ${data.o}, Order Price: ${data.p}, Order Quantity: ${data.q}, Order Id: ${data.c}`,
-              data: reportData,
-            };
-            sendMessageToClients(report);
-
-            if (data.S === "BUY") {
-              if (data.o === "LIMIT") {
-                const quote_quantity = (data.q * data.p).toFixed(8);
+              if (data.S === "SELL") {
                 await updateOrInsertBalances({
                   userId: userIdFromOrder,
-                  currencyId: quote_asset_id,
-                  currentBalanceChange: -quote_quantity,
-                  lockedBalanceChange: quote_quantity,
+                  currencyId: base_asset_id,
+                  currentBalanceChange: new Big(data.q).neg().toString(),
+                  lockedBalanceChange: new Big(data.q).toString(),
                 });
               }
-            }
-            if (data.S === "SELL") {
-              await updateOrInsertBalances({
-                userId: userIdFromOrder,
-                currencyId: base_asset_id,
-                currentBalanceChange: -data.q,
-                lockedBalanceChange: data.q,
-              });
-            }
           }
-          if (data.X === "PARTIALLY_FILLED") {
 
-            const report = {
-              status: "2",
-              user_id: userIdFromOrder,
-              message: `Order Partially Filled at ${data.l}, Order Id: ${data.c} , Filled Quantity: ${data.z}`,
-              data: reportData,
-            };
-            sendMessageToClients(report);
-
-            if (data.S === "BUY") {
-              if (data.o === "MARKET") {
-                await updateBalances(
-                  {
-                    userId: userIdFromOrder,
-                    currencyId: base_asset_id,
-                    currentBalanceChange: base_amount_after_fees,
-                    mainBalanceChange: base_amount_after_fees,
-                    lockedBalanceChange:0
-                  },
-                  {
-                    userId: userIdFromOrder,
-                    currencyId: quote_asset_id,
-                    mainBalanceChange: -data.Y,
-                    currentBalanceChange: -data.Y,
-                    lockedBalanceChange:0
-                  }
-                );
-                
-              }
-              if (data.o === "LIMIT") {
-                const order_value = (data.q * data.p).toFixed(8);
-                const executed_value = (data.l * data.L).toFixed(8);
-                if (order_value === executed_value) {
-                  await updateBalances(
-                    {
-                      userId: userIdFromOrder,
-                      currencyId: base_asset_id,
-                      mainBalanceChange: base_amount_after_fees,
-                      currentBalanceChange: base_amount_after_fees,
-                      lockedBalanceChange:0
-                    },
-                    {
-                      userId: userIdFromOrder,
-                      currencyId: quote_asset_id,
-                      mainBalanceChange: -data.Y,
-                      currentBalanceChange: -data.Y,
-                      lockedBalanceChange:0
-                    }
-                  )
-                } else {
-                  const unlock_volume = order_value;
-                  await updateBalances(
-                    {
-                      userId: userIdFromOrder,
-                      currencyId: base_asset_id,
-                      mainBalanceChange: base_amount_after_fees,
-                      currentBalanceChange: base_amount_after_fees,
-                      lockedBalanceChange:0
-                    },
-                    {
-                      userId: userIdFromOrder,
-                      currencyId: quote_asset_id,
-                      mainBalanceChange: -data.Y,
-                      lockedBalanceChange: -parseFloat(unlock_volume),
-                      currentBalanceChange: 0,
-                    }
-                  )
-                }
-              }
-            }
-            if (data.S === "SELL") {
-               await updateBalances(
-                {
-                  userId: userIdFromOrder,
-                  currencyId: base_asset_id,
-                  mainBalanceChange: -data.l,
-                  lockedBalanceChange: -data.l,
-                  currentBalanceChange: 0,
-                },
-                {
-                  userId: userIdFromOrder,
-                  currencyId: quote_asset_id,
-                  mainBalanceChange: quote_amount_after_fees,
-                  currentBalanceChange: quote_amount_after_fees,
-                  lockedBalanceChange:0
-                }
-              )
-              
-            }
-          }
-          if (data.X === "TRADE") {
+        if (data.X === "PARTIALLY_FILLED") {
+               const report = {
+                 status: "2",
+                 user_id: userIdFromOrder,
+                 message: `Order Partially Filled at ${data.l}, Order Id: ${data.c} , Filled Quantity: ${data.z}`,
+                 data: reportData,
+               };
+               sendMessageToClients(report);
              
-            const report = {
-              status: "3",
-              user_id: userIdFromOrder,
-              message: `Order Executed at ${data.l}, Order Id: ${data.c} , Filled Quantity: ${data.z}, Trade type: ${data.X}`,
-              data: reportData,
-            };
-            sendMessageToClients(report);
-            if (data.S === "BUY") {
-              if (data.o === "MARKET") {
-                await updateBalances(
-                  {
-                    userId: userIdFromOrder,
-                    currencyId: base_asset_id,
-                    mainBalanceChange: base_amount_after_fees,
-                    currentBalanceChange: base_amount_after_fees,
-                    lockedBalanceChange:0
-                  },
-                  {
-                    userId: userIdFromOrder,
-                    currencyId: quote_asset_id,
-                    mainBalanceChange: -data.Y,
-                    currentBalanceChange: -data.Y,
-                    lockedBalanceChange:0
-                  }
-                )   
-              }
-              if (data.o === "LIMIT") {
-                const order_value = (data.q * data.p).toFixed(8);
-                const executed_value = (data.l * data.L).toFixed(8);
-                if (order_value === executed_value) {
-                 await updateBalances(
-                  {
-                    userId: userIdFromOrder,
-                    currencyId: base_asset_id,
-                    mainBalanceChange: base_amount_after_fees,
-                    currentBalanceChange: base_amount_after_fees,
-                    lockedBalanceChange:0
-                  },
-                  {
-                    userId: userIdFromOrder,
-                    currencyId: quote_asset_id,
-                    mainBalanceChange: -data.Y,
-                    lockedBalanceChange: -data.Y,
-                    currentBalanceChange: 0
-                  }
-                 )
-                } else {
-                  const diff = order_value - executed_value;
-                  const unlock_volume = order_value;
-                  await updateBalances(
-                    {
-                      userId: userIdFromOrder,
-                      currencyId: base_asset_id,
-                      mainBalanceChange: base_amount_after_fees,
-                      currentBalanceChange: base_amount_after_fees,
-                      lockedBalanceChange:0
-                    },
-                    {
-                      userId: userIdFromOrder,
-                      currencyId: quote_asset_id,
-                      mainBalanceChange: -data.Y,
-                      lockedBalanceChange: -parseFloat(unlock_volume),
-                      currentBalanceChange: diff,
-                    }
-                  )
-                }
-              }
-            }
-            if (data.S === "SELL") {
-              await updateBalances(
-                {
-                  userId: userIdFromOrder,
-                  currencyId: base_asset_id,
-                  mainBalanceChange: -data.l,
-                  lockedBalanceChange: -data.l,
-                  currentBalanceChange: 0,
-                },
-                {
-                  userId: userIdFromOrder,
-                  currencyId: quote_asset_id,
-                  mainBalanceChange: quote_amount_after_fees,
-                  currentBalanceChange: quote_amount_after_fees,
-                  lockedBalanceChange:0
-                }
-              )
-            };
+               const dataY = Big(data.Y);
+               const dataL = Big(data.l);
+               const orderValue = Big(data.q).times(data.p);
+               const executedValue = Big(data.l).times(data.L);
+               const baseAmountAfterFees = Big(base_amount_after_fees);
+               const quoteAmountAfterFees = Big(quote_amount_after_fees);
+             
+               if (data.S === "BUY") {
+                 if (data.o === "MARKET") {
+                   await updateBalances(
+                     {
+                       userId: userIdFromOrder,
+                       currencyId: base_asset_id,
+                       currentBalanceChange: baseAmountAfterFees.toString(),
+                       mainBalanceChange: baseAmountAfterFees.toString(),
+                       lockedBalanceChange: "0",
+                     },
+                     {
+                       userId: userIdFromOrder,
+                       currencyId: quote_asset_id,
+                       mainBalanceChange: dataY.neg().toString(),
+                       currentBalanceChange: dataY.neg().toString(),
+                       lockedBalanceChange: "0",
+                     }
+                   );
+                 }
+                 if (data.o === "LIMIT") {
+                   if (orderValue.eq(executedValue)) {
+                     await updateBalances(
+                       {
+                         userId: userIdFromOrder,
+                         currencyId: base_asset_id,
+                         mainBalanceChange: baseAmountAfterFees.toString(),
+                         currentBalanceChange: baseAmountAfterFees.toString(),
+                         lockedBalanceChange: "0",
+                       },
+                       {
+                         userId: userIdFromOrder,
+                         currencyId: quote_asset_id,
+                         mainBalanceChange: dataY.neg().toString(),
+                         currentBalanceChange: dataY.neg().toString(),
+                         lockedBalanceChange: "0",
+                       }
+                     );
+                   } else {
+                     await updateBalances(
+                       {
+                         userId: userIdFromOrder,
+                         currencyId: base_asset_id,
+                         mainBalanceChange: baseAmountAfterFees.toString(),
+                         currentBalanceChange: baseAmountAfterFees.toString(),
+                         lockedBalanceChange: "0",
+                       },
+                       {
+                         userId: userIdFromOrder,
+                         currencyId: quote_asset_id,
+                         mainBalanceChange: dataY.neg().toString(),
+                         lockedBalanceChange: orderValue.neg().toString(),
+                         currentBalanceChange: "0",
+                       }
+                     );
+                   }
+    }
+  }
+
+  if (data.S === "SELL") {
+    await updateBalances(
+      {
+        userId: userIdFromOrder,
+        currencyId: base_asset_id,
+        mainBalanceChange: dataL.neg().toString(),
+        lockedBalanceChange: dataL.neg().toString(),
+        currentBalanceChange: "0",
+      },
+      {
+        userId: userIdFromOrder,
+        currencyId: quote_asset_id,
+        mainBalanceChange: quoteAmountAfterFees.toString(),
+        currentBalanceChange: quoteAmountAfterFees.toString(),
+        lockedBalanceChange: "0",
+      }
+    );
+  }
+        }
+          
+        if (data.X === "TRADE") {
+             const report = {
+               status: "3",
+               user_id: userIdFromOrder,
+               message: `Order Executed at ${data.l}, Order Id: ${data.c} , Filled Quantity: ${data.z}, Trade type: ${data.X}`,
+               data: reportData,
+             };
+             sendMessageToClients(report);
+           
+             const orderValue = Big(data.q).times(data.p);
+             const executedValue = Big(data.l).times(data.L);
+             const diff = orderValue.minus(executedValue);
+             const dataY = Big(data.Y);
+             const baseAmountAfterFees = Big(base_amount_after_fees);
+             const quoteAmountAfterFees = Big(quote_amount_after_fees);
+           
+             if (data.S === "BUY") {
+    if (data.o === "MARKET") {
+      await updateBalances(
+        {
+          userId: userIdFromOrder,
+          currencyId: base_asset_id,
+          mainBalanceChange: baseAmountAfterFees.toString(),
+          currentBalanceChange: baseAmountAfterFees.toString(),
+          lockedBalanceChange: "0",
+        },
+        {
+          userId: userIdFromOrder,
+          currencyId: quote_asset_id,
+          mainBalanceChange: dataY.neg().toString(),
+          currentBalanceChange: dataY.neg().toString(),
+          lockedBalanceChange: "0",
+        }
+      );
+    }
+
+    if (data.o === "LIMIT") {
+      if (orderValue.eq(executedValue)) {
+        await updateBalances(
+          {
+            userId: userIdFromOrder,
+            currencyId: base_asset_id,
+            mainBalanceChange: baseAmountAfterFees.toString(),
+            currentBalanceChange: baseAmountAfterFees.toString(),
+            lockedBalanceChange: "0",
+          },
+          {
+            userId: userIdFromOrder,
+            currencyId: quote_asset_id,
+            mainBalanceChange: dataY.neg().toString(),
+            lockedBalanceChange: dataY.neg().toString(),
+            currentBalanceChange: "0",
           }
-          if (data.X === "FILLED") {
+        );
+      } else {
+        await updateBalances(
+          {
+            userId: userIdFromOrder,
+            currencyId: base_asset_id,
+            mainBalanceChange: baseAmountAfterFees.toString(),
+            currentBalanceChange: baseAmountAfterFees.toString(),
+            lockedBalanceChange: "0",
+          },
+          {
+            userId: userIdFromOrder,
+            currencyId: quote_asset_id,
+            mainBalanceChange: dataY.neg().toString(),
+            lockedBalanceChange: orderValue.neg().toString(),
+            currentBalanceChange: diff.toString(),
+          }
+        );
+      }
+    }
+             }
+           
+             if (data.S === "SELL") {
+    await updateBalances(
+      {
+        userId: userIdFromOrder,
+        currencyId: base_asset_id,
+        mainBalanceChange: Big(data.l).neg().toString(),
+        lockedBalanceChange: Big(data.l).neg().toString(),
+        currentBalanceChange: "0",
+      },
+      {
+        userId: userIdFromOrder,
+        currencyId: quote_asset_id,
+        mainBalanceChange: quoteAmountAfterFees.toString(),
+        currentBalanceChange: quoteAmountAfterFees.toString(),
+        lockedBalanceChange: "0",
+      }
+    );
+             }
+        }
+          
+        if (data.X === "FILLED") {
              await redisClient.decr(`OpenOrderCount:${AccountName}:${pairId}`);
-            const report = {
-              status: "3",
-              user_id: userIdFromOrder,
-              message: `Order Executed at ${data.l}, Order Id: ${data.c} , Filled Quantity: ${data.z}`,
-              data: reportData,
-            };
-            sendMessageToClients(report);
-            if (data.S === "BUY") {
-              if (data.o === "MARKET") {
+             const report = {
+               status: "3",
+               user_id: userIdFromOrder,
+               message: `Order Executed at ${data.l}, Order Id: ${data.c} , Filled Quantity: ${data.z}`,
+               data: reportData,
+             };
+             sendMessageToClients(report);
+           
+             const orderValue = Big(data.q).times(data.p);
+             const executedValue = Big(data.l).times(data.L);
+             const dataY = Big(data.Y);
+             const baseAmountAfterFees = Big(base_amount_after_fees);
+             const quoteAmountAfterFees = Big(quote_amount_after_fees);
+           
+             if (data.S === "BUY") {
+               if (data.o === "MARKET") {
+                 await updateBalances(
+                   {
+                     userId: userIdFromOrder,
+                     currencyId: base_asset_id,
+                     mainBalanceChange: baseAmountAfterFees.toString(),
+                     currentBalanceChange: baseAmountAfterFees.toString(),
+                     lockedBalanceChange: "0",
+                   },
+                   {
+                     userId: userIdFromOrder,
+                     currencyId: quote_asset_id,
+                     mainBalanceChange: dataY.neg().toString(),
+                     currentBalanceChange: dataY.neg().toString(),
+                     lockedBalanceChange: "0",
+                   }
+                 );
+               }
+               if (data.o === "LIMIT") {
+                 if (orderValue.eq(executedValue)) {
+                   await updateBalances(
+                     {
+                       userId: userIdFromOrder,
+                       currencyId: base_asset_id,
+                       mainBalanceChange: baseAmountAfterFees.toString(),
+                       currentBalanceChange: baseAmountAfterFees.toString(),
+                       lockedBalanceChange: "0",
+                     },
+                     {
+                       userId: userIdFromOrder,
+                       currencyId: quote_asset_id,
+                       mainBalanceChange: dataY.neg().toString(),
+                       lockedBalanceChange: dataY.neg().toString(),
+                       currentBalanceChange: "0",
+                     }
+                   );
+                 } else {
+                   const diff = orderValue.minus(executedValue);
+                   await updateBalances(
+                     {
+                       userId: userIdFromOrder,
+                       currencyId: base_asset_id,
+                       mainBalanceChange: baseAmountAfterFees.toString(),
+                       currentBalanceChange: baseAmountAfterFees.toString(),
+                       lockedBalanceChange: "0",
+                     },
+                     {
+                       userId: userIdFromOrder,
+                       currencyId: quote_asset_id,
+                       mainBalanceChange: dataY.neg().toString(),
+                       lockedBalanceChange: orderValue.neg().toString(),
+                       currentBalanceChange: diff.toString(),
+                     }
+                   );
+                 }
+               }
+             }
+           
+             if (data.S === "SELL") {
                await updateBalances(
-                  {
-                    userId: userIdFromOrder,
-                    currencyId: base_asset_id,
-                    mainBalanceChange: base_amount_after_fees,
-                    currentBalanceChange: base_amount_after_fees,
-                    lockedBalanceChange:0
-                  },
-                  {
-                    userId: userIdFromOrder,
-                    currencyId: quote_asset_id,
-                    mainBalanceChange: -data.Y, 
-                    currentBalanceChange: -data.Y,
-                    lockedBalanceChange:0              
-                  }
-                )
-               
-              }
-              if (data.o === "LIMIT") {
-                const order_value = (data.q * data.p).toFixed(8);
-                const executed_value = (data.l * data.L).toFixed(8);
-                if (order_value === executed_value) {
-                 
-                  await updateBalances({
-                      userId: userIdFromOrder,
-                      currencyId: base_asset_id,
-                      mainBalanceChange: base_amount_after_fees,
-                      currentBalanceChange: base_amount_after_fees,
-                      lockedBalanceChange:0
-                    },
-                    {
-                      userId: userIdFromOrder,
-                      currencyId: quote_asset_id,
-                      mainBalanceChange: -data.Y,
-                      lockedBalanceChange: -data.Y,
-                      currentBalanceChange: 0
-                    }
-                  )
-                } else {
-                  const diff = order_value - executed_value;
-                  const unlock_volume = order_value;
-                  await updateBalances(
-                    {
-                      userId: userIdFromOrder,
-                      currencyId: base_asset_id,
-                      mainBalanceChange: base_amount_after_fees,
-                      currentBalanceChange: base_amount_after_fees,
-                      lockedBalanceChange:0
-                    },
-                    {
-                      userId: userIdFromOrder,
-                      currencyId: quote_asset_id,
-                      mainBalanceChange: -data.Y,
-                      lockedBalanceChange: -parseFloat(unlock_volume),
-                      currentBalanceChange: diff,
-                    }
-                  )
-                };
-              }
-            }
-            if (data.S === "SELL") {
-              const result = await updateBalances({
-                userId: userIdFromOrder,
-                currencyId: base_asset_id,
-                mainBalanceChange: -data.l,
-                lockedBalanceChange: -data.l,
-                currentBalanceChange: 0,
-              },
-              {
-                userId: userIdFromOrder,
-                currencyId: quote_asset_id,
-                mainBalanceChange: quote_amount_after_fees,
-                currentBalanceChange: quote_amount_after_fees,
-                lockedBalanceChange:0
-              }
-            )
-            
-            }
-          }
-          if (data.X === "CANCELED") {
+                 {
+                   userId: userIdFromOrder,
+                   currencyId: base_asset_id,
+                   mainBalanceChange: Big(data.l).neg().toString(),
+                   lockedBalanceChange: Big(data.l).neg().toString(),
+                   currentBalanceChange: "0",
+                 },
+                 {
+                   userId: userIdFromOrder,
+                   currencyId: quote_asset_id,
+                   mainBalanceChange: quoteAmountAfterFees.toString(),
+                   currentBalanceChange: quoteAmountAfterFees.toString(),
+                   lockedBalanceChange: "0",
+                 }
+               );
+             }
+        }
+          
+        if (data.X === "CANCELED") {
             await redisClient.decr(`OpenOrderCount:${AccountName}:${pairId}`);
             const report = {
               status: "4",
@@ -476,83 +503,93 @@ const consumeMessages = async () => {
               data: reportData,
             };
             sendMessageToClients(report);
-
+          
             if (data.S === "BUY") {
-              await updateOrInsertBalances({
-                userId: userIdFromOrder,
-                currencyId: base_asset_id,
-                currentBalanceChange: data.Y,
-                lockedBalanceChange: -data.Y,
-              });
+    await updateOrInsertBalances({
+      userId: userIdFromOrder,
+      currencyId: base_asset_id,
+      currentBalanceChange: Big(data.Y).toString(),
+      lockedBalanceChange: Big(data.Y).neg().toString(),
+    });
             }
-            if (data.S === "SELL"){
-              await updateOrInsertBalances({
-                userId: userIdFromOrder,
-                currencyId: quote_asset_id,
-                currentBalanceChange: data.l,
-                lockedBalanceChange: -data.l,
-              });
+          
+            if (data.S === "SELL") {
+    await updateOrInsertBalances({
+      userId: userIdFromOrder,
+      currencyId: quote_asset_id,
+      currentBalanceChange: Big(data.l).toString(),
+      lockedBalanceChange: Big(data.l).neg().toString(),
+    });
             }
-          }
-          if(data.X === "FILLED" || data.X === "PARTIALLY_FILLED" || data.X === "TRADE"){
+        }
+          
+        if (data.X === "FILLED" || data.X === "PARTIALLY_FILLED" || data.X === "TRADE") {
             const filterQuery = { order_id: data.c };
-            const updatedData = {
-              status: data.X,
-              base_quantity: data.q,
-              quote_quantity: data.S === "BUY" ? data.Q : data.Z,
-              order_price: (data.Z/data.z).toFixed(8),
-              executed_base_quantity: data.z,
-              executed_quote_quantity: data.Z,
-              stop_limit_price: data.P,
-              final_amount: data.S === "BUY" ? base_amount_after_fees : quote_amount_after_fees,
-              order_id: data.c,
-              trade_id: data.t,
-              api_order_id: data.I,
-              order_type: data.o,
-              buy_sell_fees:  total_fees,
-              api_id: data.i,
-              response: JSON.stringify(data),
-              date_time: data.T,
-              response_time: data.E
-            };
-            //update if data.I is greater then api_order_id in db 
-            const api_order_id = await Get_Where_Universal_Data("api_order_id","buy_sell_pro_limit_open",{order_id:data.c});
-            if(api_order_id[0].api_order_id < data.I){
-            await Update_Universal_Data(
-              "buy_sell_pro_limit_open",
-              updatedData,
-              filterQuery
-            );
 
-            await Create_Universal_Data('trade_fee',{
-              order_id: data.c,
-              user_id: userIdFromOrder,
-              pair_id: parseInt(pairId),
-              amount: data.S === "BUY" ? data.l : data.Y,
-              fee:  fees,
-            })
-          };
-          };
-          await Create_Universal_Data('buy_sell_pro_in_order',{
+            const baseQty = new Big(data.q || 0);
+            const quoteQty = new Big(data.S === "BUY" ? data.Q : data.Z || 0);
+            const execBaseQty = new Big(data.z || 0);
+            const execQuoteQty = new Big(data.Z || 0);
+            const orderPrice = execBaseQty.gt(0) ? execQuoteQty.div(execBaseQty).toFixed(8) : "0.00000000";
+          
+            const updatedData = {
+    status: data.X,
+    base_quantity: baseQty.toString(),
+    quote_quantity: quoteQty.toString(),
+    order_price: orderPrice,
+    executed_base_quantity: execBaseQty.toString(),
+    executed_quote_quantity: execQuoteQty.toString(),
+    stop_limit_price: data.P,
+    final_amount: (data.S === "BUY" ? new Big(base_amount_after_fees) : new Big(quote_amount_after_fees)).toString(),
+    order_id: data.c,
+    trade_id: data.t,
+    api_order_id: data.I,
+    order_type: data.o,
+    buy_sell_fees: total_fees.toString(),
+    api_id: data.i,
+    response: JSON.stringify(data),
+    date_time: data.T,
+    response_time: data.E
+            };
+          
+            // Check if new API order id is greater
+            const api_order_id = await Get_Where_Universal_Data("api_order_id", "buy_sell_pro_limit_open", { order_id: data.c });
+          
+            if (api_order_id.length > 0 && new Big(api_order_id[0].api_order_id || 0).lt(data.I)) {
+              await Update_Universal_Data("buy_sell_pro_limit_open", updatedData, filterQuery);
+          
+              await Create_Universal_Data('trade_fee', {
+                order_id: data.c,
+                user_id: userIdFromOrder,
+                pair_id: parseInt(pairId),
+                currency_id: data.S === "BUY" ? base_asset_id : quote_asset_id,
+                amount: (data.S === "BUY" ? new Big(data.l) : new Big(data.Y)).toString(),
+                          fee: new Big(fees).toString(),
+                        });
+                      }
+        }
+          
+          // Always create a record in buy_sell_pro_in_order
+        await Create_Universal_Data('buy_sell_pro_in_order', {
             pair_id: pairId,
             status: data.X,
-            user_id:data.X === "CANCELED" ? userIdFromOrder : userIdFromOrder,
-            base_quantity: data.q,
-            quote_quantity: data.S === "BUY" ? data.Q : data.Z,
-            order_price: 0.0,
-            executed_base_quantity: data.z,
-            executed_quote_quantity: data.Z,
+            user_id: userIdFromOrder,
+            base_quantity: new Big(data.q || 0).toString(),
+            quote_quantity: new Big(data.S === "BUY" ? data.Q : data.Z || 0).toString(),
+            order_price: "0.0",
+            executed_base_quantity: new Big(data.z || 0).toString(),
+            executed_quote_quantity: new Big(data.Z || 0).toString(),
             stop_limit_price: data.P,
-            executed_base_after_fees:base_amount_after_fees,
-            executed_quote_after_fees : quote_amount_after_fees,
-            order_id:  data.X === "CANCELED" ? data.C : data.c,
+            executed_base_after_fees: new Big(base_amount_after_fees).toString(),
+            executed_quote_after_fees: new Big(quote_amount_after_fees).toString(),
+            order_id: data.X === "CANCELED" ? data.C : data.c,
             trade_id: data.t,
             api_order_id: data.I,
             order_type: data.o,
-            buy_sell_fees:  total_fees,
+            buy_sell_fees: new Big(total_fees).toString(),
             api_id: data.i,
             date_time: data.T,
-            api:'order consumer report'
+            api: 'order consumer report'
           });
       }
       };

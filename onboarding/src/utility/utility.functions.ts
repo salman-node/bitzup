@@ -19,7 +19,7 @@ export const getToken = async (user_id: string) => {
   if (!config.jwtsecret) {
     throw new Error('JWT secret is not defined in the configuration.');
   }
-
+console.log('in get token', user_id);
   // get token_string and email from user table
   const token_data = await prisma.user.findFirst({
     where: {
@@ -29,12 +29,13 @@ export const getToken = async (user_id: string) => {
       email: true
     }
   })
+console.log('token data', token_data);
   if (!token_data) {
     throw new Error('User not found.');
   }
   const token_string = randomBytes(8).toString("hex");
   const email = token_data.email;
-
+console.log('token string', token_string);
   await prisma.user.updateMany({
     where: {
       user_id: user_id,
@@ -43,7 +44,7 @@ export const getToken = async (user_id: string) => {
       token_string: token_string
     }
   })
-
+console.log('token string updated');
   return jwt.sign({ token_string: token_string, email: email }, config.jwtsecret, {
     expiresIn: config.jwtExp,
   });

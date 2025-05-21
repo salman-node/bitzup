@@ -3,6 +3,7 @@
   "dependencies": {
     "@binance/connector": "^3.4.1",
     "@prisma/client": "^5.20.0",
+    "big.js": "^7.0.1",
     "dotenv": "^16.4.5",
     "firebase-admin": "^12.6.0",
     "kafkajs": "^2.2.4",

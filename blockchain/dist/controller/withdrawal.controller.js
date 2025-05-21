@@ -52,7 +52,7 @@ function generateTransactionId() {
     return uuidv4().replace(/-/g, ''); // Remove hyphens
 }
 const withdrawFunds = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    var _a, _b;
     const { user_id } = req.body.user;
     const { chain_id, otp, authenticator_code, password, address, amount, currency_id, device_info, device_type } = req.body;
     if (!chain_id || !address || !amount || !currency_id || !device_info || !device_type) {
@@ -120,6 +120,54 @@ const withdrawFunds = (req, res) => __awaiter(void 0, void 0, void 0, function* 
             status_code: defaults_1.default.HTTP_SUCCESS,
             status: 0,
             message: 'Withdrawal is inactive for this currency',
+        });
+    }
+    const userKycLevel = yield prisma.user.findFirst({
+        where: {
+            user_id: user_id,
+        },
+        select: {
+            kyc_level: true,
+        }
+    });
+    const userKycLevelData = userKycLevel === null || userKycLevel === void 0 ? void 0 : userKycLevel.kyc_level;
+    const levelColumn = `withdraw_Limit_L${userKycLevelData}`;
+    console.log("userKycLevelData", levelColumn);
+    //get withdrawal limit according to user level
+    const userWithdrawalLimit = yield prisma.withdrawal_limit.findFirst({
+        where: {
+            currency_id: currency_id,
+        },
+        select: {
+            [levelColumn]: true,
+        }
+    });
+    console.log("userWithdrawalLimit", userWithdrawalLimit);
+    const withdrawalLimit = userWithdrawalLimit === null || userWithdrawalLimit === void 0 ? void 0 : userWithdrawalLimit[levelColumn];
+    if (!withdrawalLimit) {
+        return res.status(defaults_1.default.HTTP_SERVER_ERROR).send({
+            status_code: defaults_1.default.HTTP_SERVER_ERROR,
+            status: 0,
+            message: "Withdrawal limit not found",
+        });
+    }
+    const userWithdrawalAmount = yield prisma.$queryRaw `
+      SELECT SUM(amount) AS amount
+      FROM withdrawl_history
+      WHERE user_id = ${user_id}
+        AND coin_id = ${currency_id}
+        AND created_at >= NOW() - INTERVAL 1 DAY;
+    `;
+    const userWithdrawalAmountData = ((_a = userWithdrawalAmount[0]) === null || _a === void 0 ? void 0 : _a.amount) || 0;
+    const totalWithdrawalAmount = Number(userWithdrawalAmountData) + Number(amount);
+    console.log("userWithdrawalAmountData", userWithdrawalAmountData);
+    console.log("totalWithdrawalAmount", totalWithdrawalAmount);
+    console.log("withdrawalLimit", withdrawalLimit);
+    if (totalWithdrawalAmount > Number(withdrawalLimit)) {
+        return res.status(defaults_1.default.HTTP_SUCCESS).send({
+            status_code: defaults_1.default.HTTP_SUCCESS,
+            status: 0,
+            message: 'Withdrawal limit exceeded.',
         });
     }
     const ip_address = req.headers["x-real-ip"] || req.headers["x-forwarded-for"].split(",")[0];
@@ -246,7 +294,7 @@ const withdrawFunds = (req, res) => __awaiter(void 0, void 0, void 0, function* 
         activity_type: "Withdrawal",
         device_type: device_type !== null && device_type !== void 0 ? device_type : "",
         device_info: device_info !== null && device_info !== void 0 ? device_info : "",
-        location: (_a = result === null || result === void 0 ? void 0 : result.location) !== null && _a !== void 0 ? _a : "",
+        location: (_b = result === null || result === void 0 ? void 0 : result.location) !== null && _b !== void 0 ? _b : "",
     });
     return res.status(defaults_1.default.HTTP_SUCCESS).send({
         status_code: defaults_1.default.HTTP_SUCCESS,
@@ -293,7 +341,7 @@ const withdrawalHistory = (req, res) => __awaiter(void 0, void 0, void 0, functi
 });
 exports.withdrawalHistory = withdrawalHistory;
 const generateWithdrawalPassword = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _b;
+    var _c;
     const { password, otp, authenticator_code, device_info, device_type } = req.body;
     const { user_id: user_id } = req.body.user;
     try {
@@ -384,7 +432,7 @@ const generateWithdrawalPassword = (req, res) => __awaiter(void 0, void 0, void 
             activity_type: "Login",
             device_type: device_type !== null && device_type !== void 0 ? device_type : "",
             device_info: device_info !== null && device_info !== void 0 ? device_info : "",
-            location: (_b = result === null || result === void 0 ? void 0 : result.location) !== null && _b !== void 0 ? _b : "",
+            location: (_c = result === null || result === void 0 ? void 0 : result.location) !== null && _c !== void 0 ? _c : "",
         });
         return res.status(200).json({
             status: "1",

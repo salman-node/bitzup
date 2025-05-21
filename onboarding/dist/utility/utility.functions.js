@@ -52,6 +52,7 @@ const getToken = (user_id) => __awaiter(void 0, void 0, void 0, function* () {
     if (!defaults_1.default.jwtsecret) {
         throw new Error('JWT secret is not defined in the configuration.');
     }
+    console.log('in get token', user_id);
     // get token_string and email from user table
     const token_data = yield prisma_client_1.prisma.user.findFirst({
         where: {
@@ -61,11 +62,13 @@ const getToken = (user_id) => __awaiter(void 0, void 0, void 0, function* () {
             email: true
         }
     });
+    console.log('token data', token_data);
     if (!token_data) {
         throw new Error('User not found.');
     }
     const token_string = (0, crypto_1.randomBytes)(8).toString("hex");
     const email = token_data.email;
+    console.log('token string', token_string);
     yield prisma_client_1.prisma.user.updateMany({
         where: {
             user_id: user_id,
@@ -74,6 +77,7 @@ const getToken = (user_id) => __awaiter(void 0, void 0, void 0, function* () {
             token_string: token_string
         }
     });
+    console.log('token string updated');
     return jsonwebtoken_1.default.sign({ token_string: token_string, email: email }, defaults_1.default.jwtsecret, {
         expiresIn: defaults_1.default.jwtExp,
     });

@@ -1026,7 +1026,7 @@ const getAllCurrenciesBalance = (req, res) => __awaiter(void 0, void 0, void 0, 
                 qty_decimal: currency.qty_decimal,
                 price_decimal: currency.price_decimal,
                 balance: balance,
-                usdtInvested: usdtInvested,
+                usdtInvested: (usdtInvested).toFixed(4),
             };
         });
         formattedData.sort((a, b) => b.usdtInvested - a.usdtInvested);
@@ -1034,10 +1034,10 @@ const getAllCurrenciesBalance = (req, res) => __awaiter(void 0, void 0, void 0, 
             status: "1",
             iconPath: `${defaults_1.default.ICON_URL}/icon/`,
             iconPath1: `${defaults_1.default.ICON_URL1}/icon/`,
-            totalBalance: usdtInvestedSum,
+            totalBalance: (usdtInvestedSum).toFixed(2),
             btc_decimal: btc_decimal,
             usdt_decimal: usdt_decimal,
-            totalCoinBalance: usdtInvestedSum / coin_price,
+            totalCoinBalance: (usdtInvestedSum / coin_price).toFixed(8),
             data: formattedData,
         });
     }

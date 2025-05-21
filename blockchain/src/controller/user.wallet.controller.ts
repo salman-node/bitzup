@@ -1173,7 +1173,7 @@ export const getAllCurrenciesBalance = async (req: Request, res: Response) => {
         qty_decimal: currency.qty_decimal,
         price_decimal: currency.price_decimal,
         balance: balance,
-        usdtInvested: usdtInvested,
+        usdtInvested: (usdtInvested).toFixed(4),
       };
     });
 
@@ -1183,10 +1183,10 @@ export const getAllCurrenciesBalance = async (req: Request, res: Response) => {
       status: "1",
       iconPath: `${defaults.ICON_URL}/icon/`,
       iconPath1: `${defaults.ICON_URL1}/icon/`,
-      totalBalance: usdtInvestedSum,
+      totalBalance: (usdtInvestedSum).toFixed(2),
       btc_decimal: btc_decimal,
       usdt_decimal: usdt_decimal,
-      totalCoinBalance: usdtInvestedSum / coin_price,
+      totalCoinBalance: (usdtInvestedSum / coin_price).toFixed(8),
       data: formattedData,
     });
   } catch (error: any) {

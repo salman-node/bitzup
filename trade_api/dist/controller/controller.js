@@ -15,7 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.coinTradingPairs = exports.rawQuery = exports.get_pair_data = exports.get_open_orders = exports.formatDate = exports.cancelOrder = exports.placeSellStopLimit = exports.placeBuyStopLimit = exports.placeSellOrder = exports.placeBuyOrder = void 0;
 require("dotenv").config();
 // import { Request, Response } from "express";
-const joi_1 = __importDefault(require("joi"));
+const big_js_1 = __importDefault(require("big.js"));
 const prisma_client_1 = require("../config/prisma_client"); // import { v4 as uuid } from "uuid";
 // import GenerateID from "../utility/generator";
 const config_1 = require("../config/config");
@@ -23,6 +23,7 @@ const constants_1 = require("../utility/constants");
 const generator_1 = require("../utility/generator");
 const utility_functions_1 = require("../utility/utility.functions");
 // import configValidate from '../utility/validation'
+// import Big from 'big.js';
 const connector_typescript_1 = require("@binance/connector-typescript");
 const crypto_1 = require("crypto");
 const getAccountConfig = (accountName) => {
@@ -46,15 +47,11 @@ const placeBuyOrder = (req, res) => __awaiter(void 0, void 0, void 0, function* 
         const reqBody = req.body;
         const { user_id, pair_id, quote_volume, limit_price, order_type, stop_limit_price, device_type, device_info } = reqBody;
         const orderType = order_type.toUpperCase();
-        //get ip from header
         const ip_address = req.headers['x-real-ip'] || req.headers['x-forwarded-for'];
         const accountName = req.body.TradeAccount;
-        const client = getAccountConfig(accountName); // Get the client for the selected account
-        console.log("accountName", accountName);
+        const client = getAccountConfig(accountName);
         const getPairData = yield prisma_client_1.prisma.crypto_pair.findMany({
-            where: {
-                id: pair_id,
-            },
+            where: { id: pair_id },
             select: {
                 base_asset_id: true,
                 quote_asset_id: true,
@@ -79,20 +76,19 @@ const placeBuyOrder = (req, res) => __awaiter(void 0, void 0, void 0, function* 
             });
         }
         const side = "BUY";
-        const pairDecimal = getPairData[0].quantity_decimal;
-        const pairSymbol = getPairData[0].pair_symbol;
-        const minQuoteVolume = getPairData[0].min_quote_qty;
-        const maxQuoteVolume = getPairData[0].max_quote_qty;
-        const quote_asset_id = getPairData[0].quote_asset_id;
-        //get user balance from balances table
+        const pairData = getPairData[0];
+        const pairDecimal = pairData.quantity_decimal;
+        const pairSymbol = pairData.pair_symbol;
+        const quote_asset_id = pairData.quote_asset_id;
+        const quoteVol = new big_js_1.default(quote_volume);
+        const minQuote = new big_js_1.default(pairData.min_quote_qty);
+        const maxQuote = new big_js_1.default(pairData.max_quote_qty);
         const userAssetBalance = yield prisma_client_1.prisma.balances.findMany({
             where: {
                 user_id: user_id,
                 currency_id: quote_asset_id,
             },
-            select: {
-                current_balance: true,
-            }
+            select: { current_balance: true }
         });
         if (!userAssetBalance.length) {
             return res.status(config_1.config.HTTP_SUCCESS).send({
@@ -101,45 +97,37 @@ const placeBuyOrder = (req, res) => __awaiter(void 0, void 0, void 0, function* 
                 message: "User balance not found",
             });
         }
-        const userBalance = userAssetBalance[0].current_balance;
-        if (Number(userBalance) < Number(quote_volume)) {
+        const userBalance = new big_js_1.default(userAssetBalance[0].current_balance.toString());
+        if (userBalance.lt(quoteVol)) {
             return res.status(config_1.config.HTTP_SUCCESS).send({
                 status_code: config_1.config.HTTP_SUCCESS,
                 status: 0,
                 message: "Sorry, your quote balance is insufficient.",
             });
         }
-        const validateQuoteVolume = joi_1.default.object({
-            quote_volume: joi_1.default.number()
-                .precision(pairDecimal)
-                .greater(minQuoteVolume)
-                .max(maxQuoteVolume)
-                .required(),
-        }).validate({ quote_volume: quote_volume });
-        if (validateQuoteVolume.error) {
+        if (quoteVol.lte(minQuote) || quoteVol.gt(maxQuote)) {
             return res.status(config_1.config.HTTP_SUCCESS).send({
                 status_code: config_1.config.HTTP_SUCCESS,
                 status: 0,
-                message: `Amount must be greater then ${minQuoteVolume} and less then or equal to ${maxQuoteVolume}`,
+                message: `Amount must be greater than ${minQuote.toString()} and less than or equal to ${maxQuote.toString()}`,
             });
         }
         const OrderId = (0, generator_1.GenerateUniqueID)(10, (0, crypto_1.randomUUID)(), `${user_id}-`);
-        //calculate base_volume for limit order
-        var baseVolume = 0;
-        if (orderType == "LIMIT") {
-            baseVolume = Number((quote_volume / limit_price).toFixed(pairDecimal));
+        // Calculate base_volume for LIMIT order
+        let baseVolume = new big_js_1.default(0);
+        if (orderType === "LIMIT") {
+            baseVolume = quoteVol.div(limit_price).round(pairDecimal, 0);
         }
-        // client.setTimestampOffset()
         yield prisma_client_1.prisma.buy_sell_pro_limit_open.create({
             data: {
                 user_id: user_id,
                 pair_id: pair_id,
                 type: side,
-                base_quantity: baseVolume,
-                quote_quantity: quote_volume,
+                base_quantity: baseVolume.toString(),
+                quote_quantity: quoteVol.toString(),
                 order_price: limit_price,
-                executed_base_quantity: 0,
-                executed_quote_quantity: 0,
+                executed_base_quantity: "0",
+                executed_quote_quantity: "0",
                 stop_limit_price: stop_limit_price,
                 oco_stop_limit_price: null,
                 order_id: OrderId,
@@ -149,32 +137,29 @@ const placeBuyOrder = (req, res) => __awaiter(void 0, void 0, void 0, function* 
             },
         });
         let options;
-        if (orderType == "LIMIT") {
+        if (orderType === "LIMIT") {
             options = {
                 price: limit_price,
-                quantity: baseVolume,
+                quantity: baseVolume.toString(),
                 timeInForce: connector_typescript_1.TimeInForce.GTC,
                 newClientOrderId: OrderId,
                 newOrderRespType: connector_typescript_1.NewOrderRespType.FULL,
                 recvWindow: 5000
             };
         }
-        if (orderType == "MARKET") {
+        else if (orderType === "MARKET") {
             options = {
-                quoteOrderQty: quote_volume,
+                quoteOrderQty: quoteVol.toString(),
                 newClientOrderId: OrderId,
                 recvWindow: 5000
             };
         }
-        //Place new order to Binance.
         let orderData;
-        console.log("options", pairSymbol, (0, constants_1.getSide)(side), (0, constants_1.getOrderType)(orderType), options);
         try {
             orderData = yield client.newOrder(pairSymbol, (0, constants_1.getSide)(side), (0, constants_1.getOrderType)(orderType), options);
         }
         catch (binanceError) {
             console.error("Binance Order Placement Error:", binanceError);
-            // Update the database to mark the order as failed
             yield prisma_client_1.prisma.buy_sell_pro_limit_open.update({
                 data: {
                     status: "FAILED",
@@ -190,9 +175,6 @@ const placeBuyOrder = (req, res) => __awaiter(void 0, void 0, void 0, function* 
                 message: "Order failed to place.",
             });
         }
-        // const headers = orderData.headers;
-        // const countFromBinance = headers['x-mbx-order-count-10s']; 
-        //  await redisClient.set(redisKey, countFromBinance, { EX: 10 });
         const status = orderData.status;
         const OrderResponse = orderData;
         yield prisma_client_1.prisma.$transaction([
@@ -200,7 +182,7 @@ const placeBuyOrder = (req, res) => __awaiter(void 0, void 0, void 0, function* 
                 data: {
                     order_price: orderData.price,
                     base_quantity: orderData.origQty,
-                    quote_quantity: quote_volume,
+                    quote_quantity: quoteVol.toString(),
                     api_order_id: orderData.orderId.toString(),
                     executed_base_quantity: orderData.executedQty,
                     executed_quote_quantity: orderData.cummulativeQuoteQty,
@@ -228,7 +210,7 @@ const placeBuyOrder = (req, res) => __awaiter(void 0, void 0, void 0, function* 
             executed_base_quantity: orderData.executedQty,
             executed_quote_quantity: orderData.cummulativeQuoteQty,
             status: orderData.status,
-            created_at: orderData.transactTime, // Order creation time
+            created_at: orderData.transactTime,
         };
         const location = yield (0, utility_functions_1.getIplocation)(ip_address);
         yield prisma_client_1.prisma.activity_logs.create({
@@ -250,24 +232,18 @@ const placeBuyOrder = (req, res) => __awaiter(void 0, void 0, void 0, function* 
     }
     catch (e) {
         console.log(e);
-        return res
-            .status(500)
-            .send({ status_code: 500, status: false, msg: e, Data: [] });
+        return res.status(500).send({ status_code: 500, status: false, msg: e, Data: [] });
     }
 });
 exports.placeBuyOrder = placeBuyOrder;
 const placeSellOrder = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const reqBody = req.body;
-        const { user_id, pair_id, base_volume, limit_price, order_type, stop_limit_price, device_type, device_info } = reqBody;
+        const { user_id, pair_id, base_volume, limit_price, order_type, stop_limit_price, device_type, device_info, TradeAccount } = req.body;
         const ip_address = req.headers['x-real-ip'];
-        const accountName = req.body.TradeAccount;
-        const client = getAccountConfig(accountName);
         const orderType = order_type.toUpperCase();
-        const getPairData = yield prisma_client_1.prisma.crypto_pair.findMany({
-            where: {
-                id: pair_id,
-            },
+        const client = getAccountConfig(TradeAccount);
+        const pairData = yield prisma_client_1.prisma.crypto_pair.findFirst({
+            where: { id: pair_id },
             select: {
                 base_asset_id: true,
                 quote_asset_id: true,
@@ -284,102 +260,87 @@ const placeSellOrder = (req, res) => __awaiter(void 0, void 0, void 0, function*
                 status: true,
             },
         });
-        const side = "SELL";
-        if (!getPairData.length) {
+        if (!pairData) {
             return res.status(config_1.config.HTTP_BAD_REQUEST).send({
                 status_code: config_1.config.HTTP_BAD_REQUEST,
                 status: "3",
                 message: "Invalid pair id",
             });
         }
-        const pairDecimal = getPairData[0].quantity_decimal;
-        const pairSymbol = getPairData[0].pair_symbol;
-        const minBaseVolume = getPairData[0].min_base_qty;
-        const maxBaseVolume = getPairData[0].max_base_qty;
-        const base_asset_id = getPairData[0].base_asset_id;
-        //get user balance from balances table
-        const userAssetBalance = yield prisma_client_1.prisma.balances.findMany({
+        const { base_asset_id, pair_symbol, min_base_qty, max_base_qty, quantity_decimal, price_decimal } = pairData;
+        const baseVolume = new big_js_1.default(base_volume);
+        const minBase = new big_js_1.default(min_base_qty);
+        const maxBase = new big_js_1.default(max_base_qty);
+        const userAssetBalance = yield prisma_client_1.prisma.balances.findFirst({
             where: {
-                user_id: user_id,
+                user_id,
                 currency_id: base_asset_id,
             },
             select: {
                 current_balance: true,
             },
         });
-        if (!userAssetBalance.length) {
+        if (!userAssetBalance) {
             return res.status(config_1.config.HTTP_SUCCESS).send({
                 status_code: config_1.config.HTTP_SUCCESS,
                 status: 0,
                 message: "User balance not found",
             });
         }
-        const userBalance = userAssetBalance[0].current_balance;
-        if (Number(userBalance) < Number(base_volume)) {
+        const userBalance = new big_js_1.default(userAssetBalance.current_balance.toString());
+        if (userBalance.lt(baseVolume)) {
             return res.status(config_1.config.HTTP_SUCCESS).send({
                 status_code: config_1.config.HTTP_SUCCESS,
                 status: 0,
-                message: "Sorry, your quote balance is insufficient.",
+                message: "Sorry, your base balance is insufficient.",
             });
         }
-        const validateBaseeVolume = joi_1.default.object({
-            base_volume: joi_1.default.number()
-                .precision(pairDecimal)
-                .greater(minBaseVolume)
-                .max(maxBaseVolume)
-                .required(),
-        }).validate({ base_volume: base_volume });
-        if (validateBaseeVolume.error) {
+        if (baseVolume.lte(minBase) || baseVolume.gt(maxBase)) {
             return res.status(config_1.config.HTTP_SUCCESS).send({
                 status_code: config_1.config.HTTP_SUCCESS,
                 status: 0,
-                message: `Base volume must be greater then ${minBaseVolume} and less then or equal to ${maxBaseVolume}`,
+                message: `Base volume must be greater than ${minBase.toString()} and less than or equal to ${maxBase.toString()}`,
             });
         }
-        const base_quantity = Number(Number(base_volume).toFixed(pairDecimal));
         const OrderId = (0, generator_1.GenerateUniqueID)(10, (0, crypto_1.randomUUID)(), `${user_id}-`);
+        // Calculate quote quantity only if LIMIT
+        let quoteQuantity = new big_js_1.default(0);
+        if (orderType === "LIMIT") {
+            quoteQuantity = baseVolume.times(limit_price);
+        }
         yield prisma_client_1.prisma.buy_sell_pro_limit_open.create({
             data: {
-                user_id: user_id,
-                pair_id: pair_id,
-                type: side,
-                base_quantity: base_quantity,
-                quote_quantity: base_quantity * limit_price,
+                user_id,
+                pair_id,
+                type: "SELL",
+                base_quantity: baseVolume.toFixed(quantity_decimal),
+                quote_quantity: quoteQuantity.toFixed(price_decimal),
                 order_price: limit_price,
-                executed_base_quantity: 0,
-                executed_quote_quantity: 0,
+                executed_base_quantity: "0",
+                executed_quote_quantity: "0",
                 stop_limit_price: stop_limit_price,
                 oco_stop_limit_price: null,
                 order_id: OrderId,
                 order_type: orderType,
                 device: null,
-                account_id: accountName
+                account_id: TradeAccount
             },
         });
-        let options;
-        if (orderType == "LIMIT") {
-            options = {
-                price: limit_price,
-                quantity: base_quantity,
-                timeInForce: connector_typescript_1.TimeInForce.GTC,
-                newClientOrderId: OrderId,
-            };
+        let options = {
+            newClientOrderId: OrderId,
+        };
+        if (orderType === "LIMIT") {
+            options = Object.assign(Object.assign({}, options), { price: limit_price, quantity: baseVolume.toFixed(quantity_decimal), timeInForce: connector_typescript_1.TimeInForce.GTC });
         }
-        if (orderType == "MARKET") {
-            options = {
-                quantity: base_quantity,
-                newClientOrderId: OrderId,
-            };
+        else if (orderType === "MARKET") {
+            options = Object.assign(Object.assign({}, options), { quantity: baseVolume.toFixed(quantity_decimal) });
         }
-        //Place new order to Binance.
         let orderData;
-        console.log("options", pairSymbol, (0, constants_1.getSide)(side), (0, constants_1.getOrderType)(orderType), options);
         try {
-            orderData = yield client.newOrder(pairSymbol, (0, constants_1.getSide)(side), (0, constants_1.getOrderType)(orderType), options);
+            orderData = yield client.newOrder(pair_symbol, (0, constants_1.getSide)("SELL"), (0, constants_1.getOrderType)(orderType), options);
         }
         catch (binanceError) {
             console.error("Binance Order Placement Error:", binanceError);
-            // Update the database to mark the order as failed
             yield prisma_client_1.prisma.buy_sell_pro_limit_open.update({
                 data: {
                     status: "FAILED",
@@ -395,17 +356,14 @@ const placeSellOrder = (req, res) => __awaiter(void 0, void 0, void 0, function*
                 message: "Order failed to place.",
             });
         }
-        const status = orderData.status;
-        if (orderData.status === undefined) {
-            throw new Error("Order status is undefined");
-        }
         const OrderResponse = orderData;
+        const status = orderData.status;
         yield prisma_client_1.prisma.$transaction([
             prisma_client_1.prisma.buy_sell_pro_limit_open.update({
                 data: {
                     order_price: orderData.price,
                     base_quantity: orderData.origQty,
-                    quote_quantity: (base_quantity * limit_price).toFixed(pairDecimal),
+                    quote_quantity: new big_js_1.default(orderData.price).times(orderData.origQty).toFixed(price_decimal),
                     api_order_id: orderData.orderId.toString(),
                     executed_base_quantity: orderData.executedQty,
                     executed_quote_quantity: orderData.cummulativeQuoteQty,
@@ -433,48 +391,45 @@ const placeSellOrder = (req, res) => __awaiter(void 0, void 0, void 0, function*
             executed_base_quantity: orderData.executedQty,
             executed_quote_quantity: orderData.cummulativeQuoteQty,
             status: orderData.status,
-            created_at: orderData.transactTime, // Order creation time
+            created_at: orderData.transactTime,
         };
         const location = yield (0, utility_functions_1.getIplocation)(ip_address);
         yield prisma_client_1.prisma.activity_logs.create({
             data: {
-                user_id: user_id,
+                user_id,
                 activity_type: "Placed Sell order",
                 ip_address: ip_address,
-                device_type: device_type,
-                device_info: device_info,
-                location: location
+                device_type,
+                device_info,
+                location
             },
         });
         return res.status(config_1.config.HTTP_SUCCESS).send({
             status_code: config_1.config.HTTP_SUCCESS,
             status: "1",
             message: "Order Placed Successfully",
-            Data: [responseData]
+            Data: [responseData],
         });
     }
     catch (e) {
         console.log("error", e);
-        // await prisma.$transaction.rollback();
-        // throw e;
-        return res
-            .status(500)
-            .send({ status_code: 500, status: false, msg: e, Data: [] });
+        return res.status(500).send({
+            status_code: 500,
+            status: false,
+            msg: e,
+            Data: []
+        });
     }
 });
 exports.placeSellOrder = placeSellOrder;
 const placeBuyStopLimit = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const reqBody = req.body;
-        const { user_id, pair_id, quote_volume, limit_price, stop_price, device_type, device_info } = reqBody;
+        const { user_id, pair_id, quote_volume, limit_price, stop_price, device_type, device_info, TradeAccount } = req.body;
         const ip_address = req.headers["x-real-ip"];
-        const accountName = req.body.TradeAccount;
-        const client = getAccountConfig(accountName);
+        const client = getAccountConfig(TradeAccount);
         const side = "BUY";
         const getPairData = yield prisma_client_1.prisma.crypto_pair.findMany({
-            where: {
-                id: pair_id,
-            },
+            where: { id: pair_id },
             select: {
                 base_asset_id: true,
                 quote_asset_id: true,
@@ -482,8 +437,6 @@ const placeBuyStopLimit = (req, res) => __awaiter(void 0, void 0, void 0, functi
                 pair_symbol: true,
                 current_price: true,
                 min_quote_qty: true,
-                min_base_qty: true,
-                max_base_qty: true,
                 max_quote_qty: true,
                 trade_fee: true,
                 quantity_decimal: true,
@@ -498,23 +451,29 @@ const placeBuyStopLimit = (req, res) => __awaiter(void 0, void 0, void 0, functi
                 message: "Invalid pair id",
             });
         }
-        const pairDecimal = getPairData[0].quantity_decimal;
-        const pairSymbol = getPairData[0].pair_symbol;
-        const currentMarketPrice = yield client.symbolPriceTicker({ symbol: pairSymbol });
+        const pair = getPairData[0];
+        const { pair_symbol, quantity_decimal, min_quote_qty, max_quote_qty, quote_asset_id } = pair;
+        const currentMarketPrice = yield client.symbolPriceTicker({ symbol: pair_symbol });
+        const marketPrice = (0, big_js_1.default)(currentMarketPrice.price);
+        const stopPrice = (0, big_js_1.default)(stop_price);
         let ordertype;
-        if (stop_price < currentMarketPrice.price) {
+        if (stopPrice.lt(marketPrice)) {
             ordertype = "TAKE_PROFIT_LIMIT";
         }
         else {
-            ordertype = 'STOP_LOSS_LIMIT';
+            ordertype = "STOP_LOSS_LIMIT";
         }
-        const minQuoteVolume = getPairData[0].min_quote_qty;
-        const maxQuoteVolume = getPairData[0].max_quote_qty;
-        const quote_asset_id = getPairData[0].quote_asset_id;
-        //get user balance from balances table
+        const quoteVol = (0, big_js_1.default)(quote_volume);
+        if (quoteVol.lte(min_quote_qty) || quoteVol.gt(max_quote_qty)) {
+            return res.status(config_1.config.HTTP_SUCCESS).send({
+                status_code: config_1.config.HTTP_SUCCESS,
+                status: 0,
+                message: `Quote volume must be greater than ${min_quote_qty} and less than or equal to ${max_quote_qty}`,
+            });
+        }
         const userAssetBalance = yield prisma_client_1.prisma.balances.findMany({
             where: {
-                user_id: user_id,
+                user_id,
                 currency_id: quote_asset_id,
             },
             select: {
@@ -528,75 +487,55 @@ const placeBuyStopLimit = (req, res) => __awaiter(void 0, void 0, void 0, functi
                 message: "User balance not found",
             });
         }
-        const userBalance = userAssetBalance[0].current_balance;
-        if (Number(userBalance) < Number(quote_volume)) {
+        const userBalance = (0, big_js_1.default)(userAssetBalance[0].current_balance.toString());
+        if (userBalance.lt(quoteVol)) {
             return res.status(config_1.config.HTTP_SUCCESS).send({
                 status_code: config_1.config.HTTP_SUCCESS,
                 status: 0,
                 message: "Sorry, your quote balance is insufficient.",
             });
         }
-        const validateQuoteVolume = joi_1.default.object({
-            quote_volume: joi_1.default.number()
-                .precision(pairDecimal)
-                .greater(minQuoteVolume)
-                .max(maxQuoteVolume)
-                .required(),
-        }).validate({ quote_volume: quote_volume });
-        if (validateQuoteVolume.error) {
-            return res.status(config_1.config.HTTP_SUCCESS).send({
-                status_code: config_1.config.HTTP_SUCCESS,
-                status: 0,
-                message: `Quote volume must be greater then or equal to ${minQuoteVolume} and less then or equal to ${maxQuoteVolume}`,
-            });
-        }
         const OrderId = (0, generator_1.GenerateUniqueID)(10, (0, crypto_1.randomUUID)(), `${user_id}-`);
-        //calculate base_volume for limit order
-        const baseVolume = Number((quote_volume / limit_price).toFixed(pairDecimal));
-        // client.setTimestampOffset()
+        const limitPrice = (0, big_js_1.default)(limit_price);
+        const baseVolume = quoteVol.div(limitPrice).round(quantity_decimal, big_js_1.default.roundDown);
         yield prisma_client_1.prisma.buy_sell_pro_limit_open.create({
             data: {
-                user_id: user_id,
-                pair_id: pair_id,
+                user_id,
+                pair_id,
                 type: side,
-                base_quantity: baseVolume,
-                quote_quantity: quote_volume,
-                order_price: limit_price,
-                executed_base_quantity: 0,
-                executed_quote_quantity: 0,
-                stop_limit_price: stop_price,
+                base_quantity: baseVolume.toString(),
+                quote_quantity: quoteVol.toString(),
+                order_price: limitPrice.toString(),
+                executed_base_quantity: "0",
+                executed_quote_quantity: "0",
+                stop_limit_price: stopPrice.toString(),
                 oco_stop_limit_price: null,
                 order_type: ordertype,
                 order_id: OrderId,
                 device: null,
-                account_id: accountName
+                account_id: TradeAccount
             },
         });
         const options = {
-            quantity: baseVolume,
-            price: limit_price,
-            stopPrice: stop_price,
+            quantity: baseVolume.toString(),
+            price: limitPrice.toString(),
+            stopPrice: stopPrice.toString(),
             newClientOrderId: OrderId,
             timeInForce: connector_typescript_1.TimeInForce.GTC,
             recvWindow: 5000,
             timestamp: Date.now()
         };
-        //Place new order to Binance.
         let orderResponse;
         try {
-            orderResponse = yield client.newOrder(pairSymbol, (0, constants_1.getSide)(side), (0, constants_1.getOrderType)(ordertype), options);
+            orderResponse = yield client.newOrder(pair_symbol, (0, constants_1.getSide)(side), (0, constants_1.getOrderType)(ordertype), options);
         }
         catch (binanceError) {
-            console.error("Binance Order Placement Error:", binanceError);
-            // Update the database to mark the order as failed
             yield prisma_client_1.prisma.buy_sell_pro_limit_open.update({
                 data: {
                     status: "FAILED",
                     response: JSON.stringify(binanceError),
                 },
-                where: {
-                    order_id: OrderId,
-                },
+                where: { order_id: OrderId },
             });
             return res.status(config_1.config.HTTP_SERVER_ERROR).send({
                 status_code: config_1.config.HTTP_SERVER_ERROR,
@@ -604,33 +543,10 @@ const placeBuyStopLimit = (req, res) => __awaiter(void 0, void 0, void 0, functi
                 message: "Order failed to place.",
             });
         }
-        // sleep for 1 second
         yield new Promise((resolve) => setTimeout(resolve, 1000));
         const orderData = yield client.getOrder(orderResponse.symbol, {
             orderId: orderResponse.orderId
         });
-        // await prisma.$transaction([
-        //   prisma.buy_sell_pro_limit_open.update({
-        //     data: {
-        //       order_price: orderData.price,
-        //       api_order_id: orderData.orderId.toString(), 
-        //       executed_base_quantity: orderData.executedQty,
-        //       executed_quote_quantity: orderData.cummulativeQuoteQty,
-        //       status: orderData.status,
-        //       order_type: ordertype
-        //     },
-        //     where: {
-        //       order_id: orderData.clientOrderId,
-        //     },
-        //   }),
-        //   prisma.buy_sell_order_response.create({
-        //     data: {
-        //       order_id: orderData.clientOrderId,
-        //       api_order_id: orderData.orderId.toString(),
-        //       response: JSON.stringify(orderData),
-        //     },
-        //   }),
-        // ]);
         const responseData = {
             order_id: orderData.clientOrderId,
             base_quantity: orderData.origQty,
@@ -641,17 +557,17 @@ const placeBuyStopLimit = (req, res) => __awaiter(void 0, void 0, void 0, functi
             executed_base_quantity: orderData.executedQty,
             executed_quote_quantity: orderData.cummulativeQuoteQty,
             status: orderData.status,
-            created_at: orderData.time, // Order creation time
+            created_at: orderData.time,
         };
         const location = yield (0, utility_functions_1.getIplocation)(ip_address);
         yield prisma_client_1.prisma.activity_logs.create({
             data: {
-                user_id: user_id,
+                user_id,
                 activity_type: "Placed Buy stop limit order.",
-                ip_address: ip_address,
-                device_type: device_type,
-                device_info: device_info,
-                location: location
+                ip_address,
+                device_type,
+                device_info,
+                location
             },
         });
         return res.status(config_1.config.HTTP_SUCCESS).send({
@@ -667,12 +583,10 @@ const placeBuyStopLimit = (req, res) => __awaiter(void 0, void 0, void 0, functi
             return res.status(config_1.config.HTTP_SUCCESS).send({
                 status_code: config_1.config.HTTP_SUCCESS,
                 status: "0",
-                message: "Stop price must be greater then market price.",
+                message: "Stop price must be greater than market price.",
             });
         }
-        return res
-            .status(500)
-            .send({ status_code: 500, status: false, msg: e, Data: [] });
+        return res.status(500).send({ status_code: 500, status: false, msg: e, Data: [] });
     }
 });
 exports.placeBuyStopLimit = placeBuyStopLimit;
@@ -681,16 +595,12 @@ exports.placeBuyStopLimit = placeBuyStopLimit;
 // Stop price > Limit price (already handled in your code)
 const placeSellStopLimit = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const reqBody = req.body;
-        const { user_id, pair_id, base_volume, limit_price, stop_price, device_type, device_info } = reqBody;
+        const { user_id, pair_id, base_volume, limit_price, stop_price, device_type, device_info, TradeAccount } = req.body;
         const ip_address = req.headers["x-real-ip"] || req.connection.remoteAddress;
-        const accountName = req.body.TradeAccount;
-        const client = getAccountConfig(accountName);
+        const client = getAccountConfig(TradeAccount);
         const side = "SELL";
         const getPairData = yield prisma_client_1.prisma.crypto_pair.findMany({
-            where: {
-                id: pair_id,
-            },
+            where: { id: pair_id },
             select: {
                 base_asset_id: true,
                 quote_asset_id: true,
@@ -714,28 +624,26 @@ const placeSellStopLimit = (req, res) => __awaiter(void 0, void 0, void 0, funct
                 message: "Invalid pair id",
             });
         }
-        const pairDecimal = getPairData[0].quantity_decimal;
-        const pairSymbol = getPairData[0].pair_symbol;
-        const minBaseVolume = getPairData[0].min_base_qty;
-        const maxBaseVolume = getPairData[0].max_base_qty;
-        const base_asset_id = getPairData[0].base_asset_id;
-        const currentMarketPrice = yield client.symbolPriceTicker({ symbol: pairSymbol });
-        let ordertype;
-        if (stop_price > currentMarketPrice.price) {
-            ordertype = "TAKE_PROFIT_LIMIT";
+        const pair = getPairData[0];
+        const { base_asset_id, pair_symbol, min_base_qty, max_base_qty, quantity_decimal, price_decimal } = pair;
+        const currentMarketPrice = yield client.symbolPriceTicker({ symbol: pair_symbol });
+        const marketPrice = (0, big_js_1.default)(currentMarketPrice.price);
+        const stopPrice = (0, big_js_1.default)(stop_price);
+        const baseVol = (0, big_js_1.default)(base_volume);
+        const limitPrice = (0, big_js_1.default)(limit_price);
+        const ordertype = stopPrice.gt(marketPrice) ? "TAKE_PROFIT_LIMIT" : "STOP_LOSS_LIMIT";
+        // Validate base volume
+        if (baseVol.lte(min_base_qty) || baseVol.gt(max_base_qty)) {
+            return res.status(config_1.config.HTTP_SUCCESS).send({
+                status_code: config_1.config.HTTP_SUCCESS,
+                status: 0,
+                message: `Base volume must be greater than ${min_base_qty} and less than or equal to ${max_base_qty}`,
+            });
         }
-        else {
-            ordertype = 'STOP_LOSS_LIMIT';
-        }
-        //get user balance from balances table
+        // Get user balance
         const userAssetBalance = yield prisma_client_1.prisma.balances.findMany({
-            where: {
-                user_id: user_id,
-                currency_id: base_asset_id,
-            },
-            select: {
-                current_balance: true,
-            },
+            where: { user_id, currency_id: base_asset_id },
+            select: { current_balance: true },
         });
         if (!userAssetBalance.length) {
             return res.status(config_1.config.HTTP_SUCCESS).send({
@@ -744,65 +652,49 @@ const placeSellStopLimit = (req, res) => __awaiter(void 0, void 0, void 0, funct
                 message: "User balance not found",
             });
         }
-        const userBalance = userAssetBalance[0].current_balance;
-        if (Number(userBalance) < Number(base_volume)) {
+        const userBalance = (0, big_js_1.default)(userAssetBalance[0].current_balance.toString());
+        if (userBalance.lt(baseVol)) {
             return res.status(config_1.config.HTTP_SUCCESS).send({
                 status_code: config_1.config.HTTP_SUCCESS,
                 status: 0,
-                message: "Sorry, your quote balance is insufficient.",
+                message: "Sorry, your base balance is insufficient.",
             });
         }
-        const validateBaseeVolume = joi_1.default.object({
-            base_volume: joi_1.default.number()
-                .precision(pairDecimal)
-                .greater(minBaseVolume)
-                .max(maxBaseVolume)
-                .required(),
-        }).validate({ base_volume: base_volume });
-        if (validateBaseeVolume.error) {
-            return res.status(config_1.config.HTTP_SUCCESS).send({
-                status_code: config_1.config.HTTP_SUCCESS,
-                status: 0,
-                message: `Base volume must be greater then ${minBaseVolume} and less then or equal to ${minBaseVolume}`,
-            });
-        }
-        const base_quantity = Number(Number(base_volume).toFixed(pairDecimal));
+        const base_quantity = baseVol.round(quantity_decimal, big_js_1.default.roundDown);
+        const quote_quantity = base_quantity.times(limitPrice).round(price_decimal, big_js_1.default.roundDown);
         const OrderId = (0, generator_1.GenerateUniqueID)(10, (0, crypto_1.randomUUID)(), `${user_id}-`);
         yield prisma_client_1.prisma.buy_sell_pro_limit_open.create({
             data: {
-                user_id: user_id,
-                pair_id: pair_id,
+                user_id,
+                pair_id,
                 type: side,
-                base_quantity: base_quantity,
-                quote_quantity: base_quantity * limit_price,
-                order_price: limit_price,
-                executed_base_quantity: 0,
-                executed_quote_quantity: 0,
-                stop_limit_price: stop_price,
+                base_quantity: base_quantity.toString(),
+                quote_quantity: quote_quantity.toString(),
+                order_price: limitPrice.toString(),
+                executed_base_quantity: "0",
+                executed_quote_quantity: "0",
+                stop_limit_price: stopPrice.toString(),
                 oco_stop_limit_price: null,
                 order_id: OrderId,
                 order_type: ordertype,
                 device: null,
-                account_id: accountName
-            }
+                account_id: TradeAccount
+            },
         });
         const options = {
-            quantity: base_quantity,
-            price: limit_price,
-            stopPrice: stop_price,
+            quantity: base_quantity.toString(),
+            price: limitPrice.toString(),
+            stopPrice: stopPrice.toString(),
             newClientOrderId: OrderId,
             timeInForce: connector_typescript_1.TimeInForce.GTC,
             recvWindow: 5000,
-            timestamp: Date.now()
+            timestamp: Date.now(),
         };
-        //Place new order to Binance.
         let orderResponse;
         try {
-            orderResponse = yield client.newOrder(pairSymbol, (0, constants_1.getSide)(side), (0, constants_1.getOrderType)(ordertype), options);
+            orderResponse = yield client.newOrder(pair_symbol, (0, constants_1.getSide)(side), (0, constants_1.getOrderType)(ordertype), options);
         }
         catch (binanceError) {
-            console.error("Binance Order Placement Error:", binanceError);
-            // Update the database to mark the order as failed
             yield prisma_client_1.prisma.buy_sell_pro_limit_open.update({
                 data: {
                     status: "FAILED",
@@ -818,10 +710,9 @@ const placeSellStopLimit = (req, res) => __awaiter(void 0, void 0, void 0, funct
                 message: "Order failed to place.",
             });
         }
-        //sleep for 5 seconds
         yield new Promise((resolve) => setTimeout(resolve, 1000));
-        const orderData = yield client.getOrder(pairSymbol, {
-            orderId: orderResponse.orderId
+        const orderData = yield client.getOrder(pair_symbol, {
+            orderId: orderResponse.orderId,
         });
         yield prisma_client_1.prisma.$transaction([
             prisma_client_1.prisma.buy_sell_pro_limit_open.update({
@@ -831,7 +722,7 @@ const placeSellStopLimit = (req, res) => __awaiter(void 0, void 0, void 0, funct
                     api_order_id: orderData.orderId.toString(),
                     executed_base_quantity: orderData.executedQty,
                     executed_quote_quantity: orderData.cummulativeQuoteQty,
-                    status: orderData.status
+                    status: orderData.status,
                 },
                 where: {
                     order_id: orderData.clientOrderId,
@@ -855,40 +746,36 @@ const placeSellStopLimit = (req, res) => __awaiter(void 0, void 0, void 0, funct
             executed_base_quantity: orderData.executedQty,
             executed_quote_quantity: orderData.cummulativeQuoteQty,
             status: orderData.status,
-            created_at: orderData.time, // Order creation time
+            created_at: orderData.time,
         };
         const location = yield (0, utility_functions_1.getIplocation)(ip_address);
         yield prisma_client_1.prisma.activity_logs.create({
             data: {
-                user_id: user_id,
+                user_id,
                 activity_type: "Placed sell stop limit order",
-                ip_address: ip_address,
-                device_type: device_type,
-                device_info: device_info,
-                location: location
+                ip_address,
+                device_type,
+                device_info,
+                location,
             },
         });
         return res.status(config_1.config.HTTP_SUCCESS).send({
             status_code: config_1.config.HTTP_SUCCESS,
             status: "1",
             message: "Order Placed Successfully",
-            Data: [responseData]
+            Data: [responseData],
         });
     }
     catch (e) {
-        console.log(e);
+        console.error(e);
         if (e === "Stop price would trigger immediately.") {
             return res.status(config_1.config.HTTP_SUCCESS).send({
                 status_code: config_1.config.HTTP_SUCCESS,
                 status: "0",
-                message: "Stop price must be greater then market price.",
+                message: "Stop price must be greater than market price.",
             });
         }
-        // await prisma.$transaction.rollback();
-        // throw e;
-        return res
-            .status(500)
-            .send({ status_code: 500, status: false, msg: e, Data: [] });
+        return res.status(500).send({ status_code: 500, status: false, msg: e, Data: [] });
     }
 });
 exports.placeSellStopLimit = placeSellStopLimit;
@@ -896,7 +783,6 @@ const cancelOrder = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
     try {
         const reqBody = req.body;
         const { user_id, order_id, pair_id, device_type, device_info } = reqBody;
-        console.log("in cancel", reqBody);
         if (!user_id || !pair_id || !order_id || !device_type || !device_info) {
             return res.status(400).send({
                 status_code: 400,
@@ -931,13 +817,13 @@ const cancelOrder = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         const AccountName = getPairData.account_id;
         const client = getAccountConfig(AccountName);
         const pair_data = yield prisma_client_1.prisma.crypto_pair.findFirst({
-            where: {
-                id: pair_id,
-            },
+            where: { id: pair_id },
             select: {
                 pair_symbol: true,
                 base_asset_id: true,
                 quote_asset_id: true,
+                price_decimal: true,
+                quantity_decimal: true,
             },
         });
         if (!pair_data) {
@@ -951,25 +837,23 @@ const cancelOrder = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         const symbol = pair_data.pair_symbol;
         const base_asset_id = pair_data.base_asset_id;
         const quote_asset_id = pair_data.quote_asset_id;
+        const price_decimal = pair_data.price_decimal;
+        const quantity_decimal = pair_data.quantity_decimal;
         const orderData = yield client.cancelOrder(symbol, {
             origClientOrderId: order_id,
         });
         if (orderData.status === "CANCELED") {
-            const origQty = orderData.origQty;
-            const executedQty = orderData.executedQty;
-            const price = orderData.price;
-            const remainingQty = Number(origQty) - Number(executedQty);
+            const origQty = new big_js_1.default(orderData.origQty);
+            const executedQty = new big_js_1.default(orderData.executedQty);
+            const price = new big_js_1.default(orderData.price);
+            const remainingQty = origQty.minus(executedQty).round(quantity_decimal, big_js_1.default.roundDown);
             if (order_type === "BUY") {
-                // For Buy orders, unlock the remaining locked USDT (quote currency)
-                const amountToUnlock = Number(price) * remainingQty;
+                // Unlock remaining quote amount (e.g., USDT)
+                const amountToUnlock = price.times(remainingQty).round(price_decimal, big_js_1.default.roundDown);
                 yield prisma_client_1.prisma.balances.update({
                     data: {
-                        current_balance: {
-                            increment: Number(amountToUnlock),
-                        },
-                        locked_balance: {
-                            decrement: Number(amountToUnlock),
-                        },
+                        current_balance: { increment: Number(amountToUnlock) },
+                        locked_balance: { decrement: Number(amountToUnlock) },
                     },
                     where: {
                         user_id_currency_id: {
@@ -980,16 +864,12 @@ const cancelOrder = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
                 });
             }
             else if (order_type === "SELL") {
-                // For Sell orders, unlock the remaining locked BTC (base currency)
+                // Unlock remaining base amount (e.g., BTC)
                 const amountToUnlock = remainingQty;
                 yield prisma_client_1.prisma.balances.update({
                     data: {
-                        current_balance: {
-                            increment: Number(amountToUnlock),
-                        },
-                        locked_balance: {
-                            decrement: Number(amountToUnlock),
-                        },
+                        current_balance: { increment: Number(amountToUnlock) },
+                        locked_balance: { decrement: Number(amountToUnlock) },
                     },
                     where: {
                         user_id_currency_id: {
@@ -1006,9 +886,7 @@ const cancelOrder = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
                         date_time: orderData.transactTime,
                         cancelled_date_time: orderData.transactTime,
                     },
-                    where: {
-                        order_id: order_id,
-                    },
+                    where: { order_id: order_id },
                 }),
                 prisma_client_1.prisma.buy_sell_order_response.create({
                     data: {
@@ -1027,7 +905,7 @@ const cancelOrder = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
                 executed_base_quantity: orderData.executedQty,
                 executed_quote_quantity: orderData.cummulativeQuoteQty,
                 status: orderData.status,
-                created_at: orderData.transactTime, // Order creation time
+                created_at: orderData.transactTime,
             };
             const location = yield (0, utility_functions_1.getIplocation)(ip_address);
             yield prisma_client_1.prisma.activity_logs.create({
@@ -1037,7 +915,7 @@ const cancelOrder = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
                     ip_address: ip_address,
                     device_type: device_type,
                     device_info: device_info,
-                    location: location
+                    location: location,
                 },
             });
             return res.status(config_1.config.HTTP_SUCCESS).send({
@@ -1047,14 +925,22 @@ const cancelOrder = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
                 Data: [responseData],
             });
         }
+        // If not cancelled (fallback)
+        return res.status(400).send({
+            status_code: 400,
+            status: "0",
+            message: "Order could not be cancelled",
+            Data: [],
+        });
     }
     catch (e) {
-        console.log("error", e);
-        // await prisma.$transaction.rollback();
-        // throw e;
-        return res
-            .status(500)
-            .send({ status_code: 500, status: false, msg: e, Data: [] });
+        console.error("Error in cancelOrder:", e);
+        return res.status(500).send({
+            status_code: 500,
+            status: false,
+            msg: e,
+            Data: [],
+        });
     }
 });
 exports.cancelOrder = cancelOrder;

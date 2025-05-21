@@ -239,7 +239,7 @@ export const logIn = async (req: Request, res: Response) => {
       device_type,
       device_info,
     }: IUser = req.body;
-
+console.log('logIn', req.body)
     if (!email || !password || !device_info || !device_type) {
       return res
         .status(200)
@@ -252,7 +252,7 @@ export const logIn = async (req: Request, res: Response) => {
         .status(200)
         .send({ status: "0", message: "Please provide valid email address" });
     }
-
+console.log('logIn', 1)
     //passwrod regex Capital letter + small letter + number + special character
     const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/;
     if(!passwordRegex.test(password)){
@@ -261,7 +261,7 @@ export const logIn = async (req: Request, res: Response) => {
         message: "Password should be minimum 8 characters, at least one uppercase letter, one lowercase letter, one number and one special character",
       });
     }
-
+console.log('logIn', 2)
     // check user
     const user = await prisma.user.findUnique({
       where: { email },
@@ -294,7 +294,7 @@ export const logIn = async (req: Request, res: Response) => {
     }
     var login_count = user?.login_count
     var otp_count = user?.otp_count
-
+console.log('logIn', 3)
     // check if user is locked out
     if (user?.lockout_time != null && new Date() < user?.lockout_time) {
       return res.status(200).send({
@@ -315,6 +315,7 @@ export const logIn = async (req: Request, res: Response) => {
         },
       });
     }
+    console.log('logIn', 4)
     // check password
     const same_password = await checkPassword(password, user.password);
     if (!same_password) {
@@ -349,7 +350,7 @@ export const logIn = async (req: Request, res: Response) => {
           .send({ status: "0", message: "Please provide correct password" });
       }
     }
-    
+    console.log('logIn', 5)
     const ip_address = req.headers["x-real-ip"] as string || (req.headers["x-forwarded-for"] as string).split(",")[0];
     // get client information
     const result: IClientInfo | undefined = await getClientInfo(ip_address,device_type,device_info);
@@ -397,7 +398,7 @@ export const logIn = async (req: Request, res: Response) => {
         });
       }
     }
-
+console.log('logIn', 6)
     // verify otp
     const verifyOTP = await verifyOtp(user.user_id, otp);
     // if not verified
@@ -435,19 +436,19 @@ export const logIn = async (req: Request, res: Response) => {
       return res.status(200).send({ status: "0", message: verifyOTP?.msg });
     }
 
-
+console.log('logIn', 7)
     if (source.toUpperCase() === "APP") {
       await prisma.$queryRaw`
       UPDATE user SET fcm_token = ${fcm_token}
       WHERE user_id=${user.user_id};
     `;
     }
-
+console.log('logIn', 8)
     // delete password from user object
     const logUser = { ...user } as IUserPartial;
     delete logUser.password;
     const token = await getToken(user.user_id);
-
+console.log('logIn', "titu")
     //update token in db
     await prisma.$queryRaw`
     UPDATE user SET token = ${token},
@@ -456,7 +457,7 @@ export const logIn = async (req: Request, res: Response) => {
     lockout_time = NULL
     WHERE user_id=${user.user_id};
   `;  
-
+console.log('logIn', 9)
     await createActivityLog({
       user_id: user.user_id,
       ip_address: ip_address ?? "",
@@ -465,10 +466,9 @@ export const logIn = async (req: Request, res: Response) => {
       device_info: device_info ?? "",
       location: result?.location ?? "",
     });
-
-    res.status(200).send({
+console.log('logIn', 10)
+   return res.status(200).send({
       status: "1",
-      // message: "User loggedIn Successfully",
       showAuth: logUser.isAuth === "Active" ? true : false,
       data: {
         user_id: user.user_id,

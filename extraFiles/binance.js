@@ -66,10 +66,12 @@ async function main() {
 
    client.account()
   .then((response) => {
-    // console.log(response.data.balances);
+    console.log(response.data.balances);
     console.log('USDT balance: ',response.data.balances.find(b => b.asset === 'USDT').free);
-    console.log('XRP balance: ',response.data.balances.find(b => b.asset === 'ADA').free);
-
+    console.log('ADA balance: ',response.data.balances.find(b => b.asset === 'ADA').free);
+    console.log('XRP balance: ',response.data.balances.find(b => b.asset === 'XRP').free);
+    console.log('BTC balance: ',response.data.balances.find(b => b.asset === 'BTC').free);
+    console.log('TRX balance: ',response.data.balances.find(b => b.asset === 'TRX').free);
   })
   .catch((error) => {
     console.log(error);

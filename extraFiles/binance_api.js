@@ -37,9 +37,9 @@ const logData = (data) => {
 
 const apiKey='l6SlJipQWrLRSAPCezEJcM8yrjVzhrDQU2QQSh4AnuKq4sRJao87jEgmFsLeyWEq'       //testnet 
 const apiSecret="JW85c09ek8e0c7PnBkig03TSwN3ENH4KremdNekgRx16twhK7YN0HMU2J5IbhuJW"    //testnet 
-const url="https://testnet.binance.vision"                           //testnet  
+// const url="https://testnet.binance.vision"                           //testnet  
 
-// const url = 'https://api.binance.com/api/v3/allOrders';
+const url = 'https://api.binance.com/api/v3/allOrders';
 
 const headers = {
   'X-MBX-APIKEY': apiKey,

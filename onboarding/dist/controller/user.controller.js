@@ -230,6 +230,7 @@ const logIn = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
     try {
         const { email, password, otp, authenticator_code, fcm_token, source, device_type, device_info, } = req.body;
+        console.log('logIn', req.body);
         if (!email || !password || !device_info || !device_type) {
             return res
                 .status(200)
@@ -241,6 +242,7 @@ const logIn = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
                 .status(200)
                 .send({ status: "0", message: "Please provide valid email address" });
         }
+        console.log('logIn', 1);
         //passwrod regex Capital letter + small letter + number + special character
         const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/;
         if (!passwordRegex.test(password)) {
@@ -249,6 +251,7 @@ const logIn = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
                 message: "Password should be minimum 8 characters, at least one uppercase letter, one lowercase letter, one number and one special character",
             });
         }
+        console.log('logIn', 2);
         // check user
         const user = yield prisma_client_1.prisma.user.findUnique({
             where: { email },
@@ -280,6 +283,7 @@ const logIn = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         }
         var login_count = user === null || user === void 0 ? void 0 : user.login_count;
         var otp_count = user === null || user === void 0 ? void 0 : user.otp_count;
+        console.log('logIn', 3);
         // check if user is locked out
         if ((user === null || user === void 0 ? void 0 : user.lockout_time) != null && new Date() < (user === null || user === void 0 ? void 0 : user.lockout_time)) {
             return res.status(200).send({
@@ -300,6 +304,7 @@ const logIn = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
                 },
             });
         }
+        console.log('logIn', 4);
         // check password
         const same_password = yield (0, utility_functions_1.checkPassword)(password, user.password);
         if (!same_password) {
@@ -334,6 +339,7 @@ const logIn = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
                     .send({ status: "0", message: "Please provide correct password" });
             }
         }
+        console.log('logIn', 5);
         const ip_address = req.headers["x-real-ip"] || req.headers["x-forwarded-for"].split(",")[0];
         // get client information
         const result = yield (0, utility_functions_2.getClientInfo)(ip_address, device_type, device_info);
@@ -374,6 +380,7 @@ const logIn = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
                 });
             }
         }
+        console.log('logIn', 6);
         // verify otp
         const verifyOTP = yield (0, utility_functions_2.verifyOtp)(user.user_id, otp);
         // if not verified
@@ -410,16 +417,19 @@ const logIn = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
             }
             return res.status(200).send({ status: "0", message: verifyOTP === null || verifyOTP === void 0 ? void 0 : verifyOTP.msg });
         }
+        console.log('logIn', 7);
         if (source.toUpperCase() === "APP") {
             yield prisma_client_1.prisma.$queryRaw `
       UPDATE user SET fcm_token = ${fcm_token}
       WHERE user_id=${user.user_id};
     `;
         }
+        console.log('logIn', 8);
         // delete password from user object
         const logUser = Object.assign({}, user);
         delete logUser.password;
         const token = yield (0, utility_functions_1.getToken)(user.user_id);
+        console.log('logIn', "titu");
         //update token in db
         yield prisma_client_1.prisma.$queryRaw `
     UPDATE user SET token = ${token},
@@ -428,6 +438,7 @@ const logIn = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     lockout_time = NULL
     WHERE user_id=${user.user_id};
   `;
+        console.log('logIn', 9);
         yield (0, activity_log_1.createActivityLog)({
             user_id: user.user_id,
             ip_address: ip_address !== null && ip_address !== void 0 ? ip_address : "",
@@ -436,9 +447,9 @@ const logIn = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
             device_info: device_info !== null && device_info !== void 0 ? device_info : "",
             location: (_a = result === null || result === void 0 ? void 0 : result.location) !== null && _a !== void 0 ? _a : "",
         });
-        res.status(200).send({
+        console.log('logIn', 10);
+        return res.status(200).send({
             status: "1",
-            // message: "User loggedIn Successfully",
             showAuth: logUser.isAuth === "Active" ? true : false,
             data: {
                 user_id: user.user_id,
